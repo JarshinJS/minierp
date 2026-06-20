@@ -1,0 +1,17 @@
+<!-- User Message -->
+{% if user_query %}
+<div class="mb-4 flex justify-end">
+    <div class="bg-slate-900 text-white rounded-2xl rounded-tr-sm px-4 py-2.5 text-sm max-w-[85%] shadow-sm">
+        {{ user_query }}
+    </div>
+</div>
+{% endif %}
+
+<!-- Bot Message -->
+{% if bot_response %}
+<div class="mb-4 flex">
+    <div class="bg-white border border-slate-200 text-slate-700 rounded-2xl rounded-tl-sm px-4 py-2.5 text-sm max-w-[85%] shadow-sm">
+        {{ bot_response }}
+    </div>
+</div>
+{% endif %}
