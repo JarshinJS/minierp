@@ -10,5 +10,6 @@ urlpatterns = [
     path("products/", include("apps.products.urls")),
     path("sales/", include("apps.sales.urls")),
     path("audit-logs/", include("apps.audit_logs.urls")),
+    path("manufacturing/", include("apps.manufacturing.urls")),
     path("", RedirectView.as_view(pattern_name="accounts:login", permanent=False)),
 ]

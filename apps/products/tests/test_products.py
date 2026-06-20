@@ -17,7 +17,7 @@ User = get_user_model()
 def product_setup(db):
     category = Category.objects.create(name="Chairs", description="All types of seating chairs")
     vendor = Vendor.objects.create(name="Wood Supplier Inc.", code="WS-001")
-    bom = BoM.objects.create(name="Wooden Chair Recipe", code="BOM-WCH")
+    bom = BoM.objects.create(name="Wooden Chair Recipe", reference="BOM-WCH")
     
     return {
         "category": category,
