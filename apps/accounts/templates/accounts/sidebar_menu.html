@@ -1,10 +1,10 @@
-<nav class="flex-1 px-3 py-4 space-y-1.5" aria-label="Sidebar">
+<nav class="flex-1 px-3 py-4 space-y-1" aria-label="Sidebar">
     {% for item in menu_items %}
-    <a href="{{ item.url }}" class="{% if item.is_active %}bg-brand text-white shadow-md{% else %}text-slate-300 hover:bg-slate-800 hover:text-white{% endif %} group flex items-center px-3 py-2.5 text-sm font-medium rounded-lg transition-all duration-150">
-        <span class="{% if item.is_active %}text-white{% else %}text-slate-400 group-hover:text-slate-300{% endif %} transition-colors">
+    <a href="{{ item.url }}" class="{% if item.is_active %}bg-gradient-to-r from-brand to-brand-dark text-white shadow-lg shadow-brand/10{% else %}text-slate-350 hover:bg-slate-800/60 hover:text-white{% endif %} group flex items-center px-3 py-2.5 text-sm font-semibold rounded-xl transition-all duration-200">
+        <span class="{% if item.is_active %}text-white{% else %}text-slate-400 group-hover:text-slate-200{% endif %} transition-colors shrink-0">
             {{ item.icon|safe }}
         </span>
-        <span class="ml-3">{{ item.name }}</span>
+        <span class="ml-3 truncate font-outfit">{{ item.name }}</span>
     </a>
     {% endfor %}
 </nav>

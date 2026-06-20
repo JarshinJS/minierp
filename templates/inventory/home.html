@@ -1,10 +1,413 @@
 {% extends "base.html" %}
 
-{% block title %}Inventory{% endblock %}
+{% block title %}Inventory | Shiv Furniture Works ERP{% endblock %}
 
 {% block content %}
-<div class="rounded-2xl border border-slate-200 bg-white p-6 shadow-sm">
-    <h1 class="text-2xl font-bold text-slate-900">Inventory</h1>
-    <p class="mt-2 text-sm text-slate-600">Inventory ledger and stock controls.</p>
+<div class="space-y-6" x-data="{ 
+    activeTab: '{{ current_tab }}', 
+    showAdjustModal: false,
+    selectedProductId: '',
+    selectedProductName: '',
+    adjustmentType: 'RECEIPT',
+    adjustQty: '',
+    adjustRef: '',
+    openAdjust(prodId, prodName) {
+        this.selectedProductId = prodId;
+        this.selectedProductName = prodName;
+        this.adjustQty = '';
+        this.adjustRef = '';
+        this.showAdjustModal = true;
+        const errDiv = document.getElementById('error-message');
+        if (errDiv) errDiv.innerHTML = '';
+    }
+}">
+    <!-- Page Header -->
+    <div class="flex flex-col md:flex-row md:items-center md:justify-between gap-4">
+        <div>
+            <h1 class="text-3xl font-bold font-outfit text-slate-900 tracking-tight">Inventory Management</h1>
+            <p class="text-sm text-slate-500 mt-1">Real-time stock level monitoring, ledgers, and manual inventory adjustments.</p>
+        </div>
+        <div class="flex items-center gap-3">
+            <button @click="openAdjust('', '')" class="inline-flex items-center justify-center rounded-xl bg-brand text-white px-4 py-2.5 text-sm font-semibold shadow-md hover:bg-brand-dark hover:shadow-lg transition-all duration-200">
+                <svg class="w-5 h-5 mr-2" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 9v3m0 0v3m0-3h3m-3 0H9m12 0a9 9 0 11-18 0a9 9 0 0118 0z"/></svg>
+                Adjust Stock
+            </button>
+        </div>
+    </div>
+
+    <!-- Stats Grid -->
+    <div class="grid gap-4 sm:grid-cols-2 lg:grid-cols-5">
+        <!-- Card 1 -->
+        <div class="rounded-2xl border border-slate-200 bg-white p-5 shadow-sm transition-all duration-200 hover:shadow-md">
+            <div class="flex items-center justify-between">
+                <span class="text-xs font-semibold text-slate-400 uppercase tracking-wider">Total SKUs</span>
+                <span class="p-1.5 rounded-lg bg-slate-50 text-slate-600">
+                    <svg class="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M20 7l-8-4-8 4m16 0l-8 4m8-4v10l-8 4m0-10L4 7m8 4v10M4 7v10l8 4"/></svg>
+                </span>
+            </div>
+            <div class="mt-4 flex items-baseline gap-2">
+                <span class="text-3xl font-bold text-slate-900">{{ stats.total_skus }}</span>
+            </div>
+            <p class="text-xs text-slate-400 mt-2">Active products registered</p>
+        </div>
+        <!-- Card 2 -->
+        <div class="rounded-2xl border border-slate-200 bg-white p-5 shadow-sm transition-all duration-200 hover:shadow-md">
+            <div class="flex items-center justify-between">
+                <span class="text-xs font-semibold text-slate-400 uppercase tracking-wider">Total Items</span>
+                <span class="p-1.5 rounded-lg bg-slate-50 text-slate-600">
+                    <svg class="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9 5H7a2 2 0 00-2 2v12a2 2 0 002 2h10a2 2 0 002-2V7a2 2 0 00-2-2h-2M9 5a2 2 0 002 2h2a2 2 0 002-2M9 5a2 2 0 012-2h2a2 2 0 012 2"/></svg>
+                </span>
+            </div>
+            <div class="mt-4 flex items-baseline gap-2">
+                <span class="text-3xl font-bold text-slate-900">{{ stats.total_items }}</span>
+            </div>
+            <p class="text-xs text-slate-400 mt-2">Total physical items on hand</p>
+        </div>
+        <!-- Card 3 -->
+        <div class="rounded-2xl border border-slate-200 bg-white p-5 shadow-sm transition-all duration-200 hover:shadow-md">
+            <div class="flex items-center justify-between">
+                <span class="text-xs font-semibold text-slate-400 uppercase tracking-wider">Stock Value</span>
+                <span class="p-1.5 rounded-lg bg-slate-50 text-slate-600">
+                    <svg class="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 8c-1.657 0-3 .895-3 2s1.343 2 3 2 3 .895 3 2-1.343 2-3 2m0-8c1.11 0 2.08.402 2.599 1M12 8V7m0 1v8m0 0v1m0-1c-1.11 0-2.08-.402-2.599-1M21 12a9 9 0 11-18 0 9 9 0 0118 0z"/></svg>
+                </span>
+            </div>
+            <div class="mt-4 flex items-baseline gap-2">
+                <span class="text-2xl font-bold text-slate-900">${{ stats.total_value|floatformat:2 }}</span>
+            </div>
+            <p class="text-xs text-slate-400 mt-2">Valued at standard cost</p>
+        </div>
+        <!-- Card 4 -->
+        <div class="rounded-2xl border border-slate-200 bg-white p-5 shadow-sm transition-all duration-200 hover:shadow-md">
+            <div class="flex items-center justify-between">
+                <span class="text-xs font-semibold text-slate-400 uppercase tracking-wider">Out of Stock</span>
+                <span class="p-1.5 rounded-lg {% if stats.out_of_stock > 0 %}bg-rose-50 text-rose-600{% else %}bg-slate-50 text-slate-600{% endif %}">
+                    <svg class="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M10 14l2-2m0 0l2-2m-2 2l-2-2m2 2l2 2m7-2a9 9 0 11-18 0 9 9 0 0118 0z"/></svg>
+                </span>
+            </div>
+            <div class="mt-4 flex items-baseline gap-2">
+                <span class="text-3xl font-bold {% if stats.out_of_stock > 0 %}text-rose-600{% else %}text-slate-900{% endif %}">{{ stats.out_of_stock }}</span>
+            </div>
+            <p class="text-xs text-slate-400 mt-2">Items requiring ordering</p>
+        </div>
+        <!-- Card 5 -->
+        <div class="rounded-2xl border border-slate-200 bg-white p-5 shadow-sm transition-all duration-200 hover:shadow-md">
+            <div class="flex items-center justify-between">
+                <span class="text-xs font-semibold text-slate-400 uppercase tracking-wider">Low Stock</span>
+                <span class="p-1.5 rounded-lg {% if stats.low_stock > 0 %}bg-amber-50 text-amber-600{% else %}bg-slate-50 text-slate-600{% endif %}">
+                    <svg class="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 9v2m0 4h.01m-6.938 4h13.856c1.54 0 2.502-1.667 1.732-3L13.732 4c-.77-1.333-2.694-1.333-3.464 0L3.34 16c-.77 1.333.192 3 1.732 3z"/></svg>
+                </span>
+            </div>
+            <div class="mt-4 flex items-baseline gap-2">
+                <span class="text-3xl font-bold {% if stats.low_stock > 0 %}text-amber-600{% else %}text-slate-900{% endif %}">{{ stats.low_stock }}</span>
+            </div>
+            <p class="text-xs text-slate-400 mt-2">Quantity under 5 units</p>
+        </div>
+    </div>
+
+    <!-- Navigation Tabs -->
+    <div class="border-b border-slate-200">
+        <div class="flex space-x-6">
+            <button @click="activeTab = 'stock'; const url = new URL(window.location); url.searchParams.set('tab', 'stock'); window.history.pushState({}, '', url);" 
+                    :class="activeTab === 'stock' ? 'border-brand text-brand' : 'border-transparent text-slate-500 hover:text-slate-700 hover:border-slate-300'"
+                    class="py-4 px-1 border-b-2 font-medium text-sm transition-all duration-150 flex items-center gap-2">
+                <svg class="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M3 10h18M3 14h18m-9-4v8m-7 0h14a2 2 0 002-2V8a2 2 0 00-2-2H5a2 2 0 00-2 2v8a2 2 0 002 2z"/></svg>
+                Stock Levels
+            </button>
+            <button @click="activeTab = 'ledger'; const url = new URL(window.location); url.searchParams.set('tab', 'ledger'); window.history.pushState({}, '', url);" 
+                    :class="activeTab === 'ledger' ? 'border-brand text-brand' : 'border-transparent text-slate-500 hover:text-slate-700 hover:border-slate-300'"
+                    class="py-4 px-1 border-b-2 font-medium text-sm transition-all duration-150 flex items-center gap-2">
+                <svg class="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 8v4l3 3m6-3a9 9 0 11-18 0 9 9 0 0118 0z"/></svg>
+                Movement Ledger
+            </button>
+        </div>
+    </div>
+
+    <!-- TAB 1: Stock Levels -->
+    <div x-show="activeTab === 'stock'" class="space-y-4">
+        <!-- Filter Bar -->
+        <div class="rounded-2xl border border-slate-200 bg-white p-4 shadow-sm flex flex-col md:flex-row md:items-center justify-between gap-4">
+            <form method="GET" class="w-full flex flex-col sm:flex-row gap-3">
+                <input type="hidden" name="tab" value="stock">
+                <div class="relative flex-1">
+                    <span class="absolute inset-y-0 left-0 pl-3.5 flex items-center text-slate-400">
+                        <svg class="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M21 21l-6-6m2-5a7 7 0 11-14 0 7 7 0 0114 0z"/></svg>
+                    </span>
+                    <input type="text" name="q" value="{{ search_query }}" placeholder="Search by name or SKU..." class="w-full pl-10 pr-4 py-2 border border-slate-200 rounded-xl text-sm focus:border-brand focus:ring-1 focus:ring-brand outline-none transition-colors">
+                </div>
+                <div class="w-full sm:w-48">
+                    <select name="category" class="w-full px-3 py-2 border border-slate-200 rounded-xl text-sm focus:border-brand focus:ring-1 focus:ring-brand outline-none transition-colors">
+                        <option value="">All Categories</option>
+                        {% for cat in categories %}
+                            <option value="{{ cat.id }}" {% if cat.id|stringformat:"s" == category_id %}selected{% endif %}>{{ cat.name }}</option>
+                        {% endfor %}
+                    </select>
+                </div>
+                <button type="submit" class="rounded-xl bg-slate-900 text-white px-5 py-2 text-sm font-semibold hover:bg-slate-800 transition-colors">
+                    Filter
+                </button>
+                {% if search_query or category_id %}
+                    <a href="?tab=stock" class="rounded-xl border border-slate-200 bg-white text-slate-600 px-4 py-2 text-sm font-semibold hover:bg-slate-50 transition-colors flex items-center justify-center">
+                        Clear
+                    </a>
+                {% endif %}
+            </form>
+        </div>
+
+        <!-- Stock Levels Table -->
+        <div class="rounded-2xl border border-slate-200 bg-white shadow-sm overflow-hidden">
+            <div class="overflow-x-auto">
+                <table class="min-w-full divide-y divide-slate-200 text-left text-sm">
+                    <thead class="bg-slate-50 text-slate-700 uppercase tracking-wider text-xs font-semibold">
+                        <tr>
+                            <th class="px-6 py-4">SKU</th>
+                            <th class="px-6 py-4">Product Name</th>
+                            <th class="px-6 py-4">Category</th>
+                            <th class="px-6 py-4 text-right">Cost Price</th>
+                            <th class="px-6 py-4 text-right">On Hand</th>
+                            <th class="px-6 py-4 text-right">Reserved</th>
+                            <th class="px-6 py-4 text-right">Available</th>
+                            <th class="px-6 py-4 text-right">Valuation</th>
+                            <th class="px-6 py-4 text-center">Actions</th>
+                        </tr>
+                    </thead>
+                    <tbody class="divide-y divide-slate-200 bg-white">
+                        {% for prod in products %}
+                        <tr class="hover:bg-slate-50/80 transition-colors">
+                            <td class="px-6 py-4 font-mono font-semibold text-slate-900">{{ prod.sku }}</td>
+                            <td class="px-6 py-4">
+                                <div class="font-medium text-slate-900">{{ prod.name }}</div>
+                                <div class="text-xs text-slate-400 mt-0.5">UoM: {{ prod.get_unit_of_measure_display }}</div>
+                            </td>
+                            <td class="px-6 py-4">
+                                <span class="px-2.5 py-1 text-xs font-medium rounded-full bg-slate-100 text-slate-700 border border-slate-200">
+                                    {{ prod.category.name }}
+                                </span>
+                            </td>
+                            <td class="px-6 py-4 text-right text-slate-500 font-medium">${{ prod.cost_price }}</td>
+                            <td class="px-6 py-4 text-right font-semibold text-slate-900">{{ prod.on_hand_qty }}</td>
+                            <td class="px-6 py-4 text-right text-slate-500">{{ prod.reserved_qty }}</td>
+                            <td class="px-6 py-4 text-right font-semibold">
+                                {% if prod.available_qty <= 0 %}
+                                    <span class="inline-flex items-center text-rose-600 bg-rose-50 px-2 py-0.5 rounded-lg border border-rose-100">{{ prod.available_qty }} (Out)</span>
+                                {% elif prod.available_qty <= 5 %}
+                                    <span class="inline-flex items-center text-amber-600 bg-amber-50 px-2 py-0.5 rounded-lg border border-amber-100">{{ prod.available_qty }} (Low)</span>
+                                {% else %}
+                                    <span class="inline-flex items-center text-emerald-600 bg-emerald-50 px-2 py-0.5 rounded-lg border border-emerald-100">{{ prod.available_qty }}</span>
+                                {% endif %}
+                            </td>
+                            <td class="px-6 py-4 text-right font-medium text-slate-900">${{ prod.cost_value|floatformat:2 }}</td>
+                            <td class="px-6 py-4 text-center">
+                                <button @click="openAdjust('{{ prod.id }}', '{{ prod.name }}')" class="rounded-lg border border-slate-200 bg-white hover:bg-slate-50 hover:text-slate-900 text-slate-600 px-3 py-1.5 text-xs font-semibold transition-colors">
+                                    Adjust
+                                </button>
+                            </td>
+                        </tr>
+                        {% empty %}
+                        <tr>
+                            <td colspan="9" class="px-6 py-12 text-center text-slate-400">No products found matching filters.</td>
+                        </tr>
+                        {% endfor %}
+                    </tbody>
+                </table>
+            </div>
+        </div>
+    </div>
+
+    <!-- TAB 2: Movement Ledger -->
+    <div x-show="activeTab === 'ledger'" class="space-y-4">
+        <!-- Filter Bar -->
+        <div class="rounded-2xl border border-slate-200 bg-white p-4 shadow-sm">
+            <form method="GET" class="grid gap-3 sm:grid-cols-2 md:grid-cols-4">
+                <input type="hidden" name="tab" value="ledger">
+                <div>
+                    <label class="block text-xs font-semibold text-slate-500 uppercase tracking-wider mb-2">Product</label>
+                    <select name="ledger_product" class="w-full px-3 py-2 border border-slate-200 rounded-xl text-sm focus:border-brand focus:ring-1 focus:ring-brand outline-none transition-colors">
+                        <option value="">All Products</option>
+                        {% for p in products %}
+                            <option value="{{ p.id }}" {% if p.id|stringformat:"s" == ledger_product_id %}selected{% endif %}>{{ p.sku }} - {{ p.name }}</option>
+                        {% endfor %}
+                    </select>
+                </div>
+                <div>
+                    <label class="block text-xs font-semibold text-slate-500 uppercase tracking-wider mb-2">Entry Type</label>
+                    <select name="ledger_type" class="w-full px-3 py-2 border border-slate-200 rounded-xl text-sm focus:border-brand focus:ring-1 focus:ring-brand outline-none transition-colors">
+                        <option value="">All Types</option>
+                        {% for val, label in ledger_types %}
+                            <option value="{{ val }}" {% if val == ledger_entry_type %}selected{% endif %}>{{ label }}</option>
+                        {% endfor %}
+                    </select>
+                </div>
+                <div>
+                    <label class="block text-xs font-semibold text-slate-500 uppercase tracking-wider mb-2">Reference</label>
+                    <input type="text" name="ledger_ref" value="{{ ledger_ref }}" placeholder="Search reference..." class="w-full px-3 py-2 border border-slate-200 rounded-xl text-sm focus:border-brand focus:ring-1 focus:ring-brand outline-none transition-colors">
+                </div>
+                <div class="flex items-end gap-2">
+                    <button type="submit" class="flex-1 rounded-xl bg-slate-900 text-white py-2 text-sm font-semibold hover:bg-slate-800 transition-colors">
+                        Search
+                    </button>
+                    {% if ledger_product_id or ledger_entry_type or ledger_ref %}
+                        <a href="?tab=ledger" class="rounded-xl border border-slate-200 bg-white text-slate-600 px-4 py-2 text-sm font-semibold hover:bg-slate-50 transition-colors flex items-center justify-center">
+                            Reset
+                        </a>
+                    {% endif %}
+                </div>
+            </form>
+        </div>
+
+        <!-- Ledger Table -->
+        <div class="rounded-2xl border border-slate-200 bg-white shadow-sm overflow-hidden">
+            <div class="overflow-x-auto">
+                <table class="min-w-full divide-y divide-slate-200 text-left text-sm">
+                    <thead class="bg-slate-50 text-slate-700 uppercase tracking-wider text-xs font-semibold">
+                        <tr>
+                            <th class="px-6 py-4">Timestamp</th>
+                            <th class="px-6 py-4">Product</th>
+                            <th class="px-6 py-4">Type</th>
+                            <th class="px-6 py-4 text-right">Quantity</th>
+                            <th class="px-6 py-4">Reference</th>
+                        </tr>
+                    </thead>
+                    <tbody class="divide-y divide-slate-200 bg-white">
+                        {% for entry in ledger_entries %}
+                        <tr class="hover:bg-slate-50/80 transition-colors">
+                            <td class="px-6 py-4 text-slate-500 whitespace-nowrap">{{ entry.created_at|date:"M d, Y H:i:s" }}</td>
+                            <td class="px-6 py-4">
+                                <div class="font-semibold text-slate-900">{{ entry.product.sku }}</div>
+                                <div class="text-xs text-slate-400 mt-0.5">{{ entry.product.name }}</div>
+                            </td>
+                            <td class="px-6 py-4">
+                                {% if entry.entry_type == 'RECEIPT' %}
+                                    <span class="inline-flex items-center text-emerald-700 bg-emerald-50 px-2.5 py-1 rounded-full text-xs font-medium border border-emerald-100">
+                                        Receipt (Stock In)
+                                    </span>
+                                {% elif entry.entry_type == 'ISSUE' %}
+                                    <span class="inline-flex items-center text-rose-700 bg-rose-50 px-2.5 py-1 rounded-full text-xs font-medium border border-rose-100">
+                                        Issue (Stock Out)
+                                    </span>
+                                {% elif entry.entry_type == 'RESERVATION' %}
+                                    <span class="inline-flex items-center text-blue-700 bg-blue-50 px-2.5 py-1 rounded-full text-xs font-medium border border-blue-100">
+                                        Reservation
+                                    </span>
+                                {% elif entry.entry_type == 'RELEASE' %}
+                                    <span class="inline-flex items-center text-purple-700 bg-purple-50 px-2.5 py-1 rounded-full text-xs font-medium border border-purple-100">
+                                        Reservation Release
+                                    </span>
+                                {% endif %}
+                            </td>
+                            <td class="px-6 py-4 text-right font-mono font-semibold">
+                                {% if entry.entry_type == 'RECEIPT' or entry.entry_type == 'RELEASE' %}
+                                    <span class="text-emerald-600">+{{ entry.quantity }}</span>
+                                {% else %}
+                                    <span class="text-rose-600">-{{ entry.quantity }}</span>
+                                {% endif %}
+                            </td>
+                            <td class="px-6 py-4 text-slate-600">{{ entry.reference|default:"-" }}</td>
+                        </tr>
+                        {% empty %}
+                        <tr>
+                            <td colspan="5" class="px-6 py-12 text-center text-slate-400">No ledger entries found.</td>
+                        </tr>
+                        {% endfor %}
+                    </tbody>
+                </table>
+            </div>
+        </div>
+    </div>
+
+    <!-- ADJUSTMENT MODAL (AlpineJS / HTMX) -->
+    <div x-show="showAdjustModal" 
+         class="fixed inset-0 z-50 flex items-center justify-center p-4 bg-slate-900/60 backdrop-blur-sm"
+         x-transition:enter="transition ease-out duration-200"
+         x-transition:enter-start="opacity-0 scale-95"
+         x-transition:enter-end="opacity-100 scale-100"
+         x-transition:leave="transition ease-in duration-150"
+         x-transition:leave-start="opacity-100 scale-100"
+         x-transition:leave-end="opacity-0 scale-95"
+         style="display: none;">
+        
+        <div class="relative w-full max-w-lg rounded-3xl border border-slate-200 bg-white p-6 shadow-2xl transition-all" @click.away="showAdjustModal = false">
+            <!-- Modal Header -->
+            <div class="flex items-center justify-between pb-4 border-b border-slate-100">
+                <h3 class="text-lg font-bold font-outfit text-slate-900">Adjust Stock Level</h3>
+                <button type="button" @click="showAdjustModal = false" class="text-slate-400 hover:text-slate-600 p-1.5 hover:bg-slate-50 rounded-xl transition-all">
+                    <svg class="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M6 18L18 6M6 6l12 12"/></svg>
+                </button>
+            </div>
+
+            <!-- Error Banner (HTMX target) -->
+            <div id="error-message" class="mt-4"></div>
+
+            <!-- Modal Form -->
+            <form hx-post="{% url 'inventory:adjust' %}" hx-target="#error-message" hx-swap="innerHTML" class="space-y-4 mt-4">
+                {% csrf_token %}
+                
+                <!-- Product Selector -->
+                <div>
+                    <label class="block text-sm font-semibold text-slate-700 mb-1.5">Product</label>
+                    <template x-if="selectedProductId !== ''">
+                        <div>
+                            <input type="hidden" name="product_id" :value="selectedProductId">
+                            <div class="w-full px-3.5 py-2.5 bg-slate-50 border border-slate-200 rounded-xl text-slate-700 font-medium text-sm flex items-center justify-between">
+                                <span x-text="selectedProductName"></span>
+                                <button type="button" @click="selectedProductId = ''; selectedProductName = '';" class="text-xs text-brand hover:underline font-semibold">Change</button>
+                            </div>
+                        </div>
+                    </template>
+                    <template x-if="selectedProductId === ''">
+                        <select name="product_id" class="w-full px-3.5 py-2.5 border border-slate-200 rounded-xl text-sm focus:border-brand focus:ring-1 focus:ring-brand outline-none transition-colors bg-white">
+                            <option value="">-- Select Product --</option>
+                            {% for p in products %}
+                                <option value="{{ p.id }}">{{ p.sku }} - {{ p.name }} (On Hand: {{ p.on_hand_qty }})</option>
+                            {% endfor %}
+                        </select>
+                    </template>
+                </div>
+
+                <!-- Adjustment Type -->
+                <div>
+                    <label class="block text-sm font-semibold text-slate-700 mb-1.5">Adjustment Type</label>
+                    <div class="grid grid-cols-2 gap-3">
+                        <label :class="adjustmentType === 'RECEIPT' ? 'border-brand bg-brand/5 text-brand shadow-sm' : 'border-slate-200 hover:bg-slate-50 text-slate-600'"
+                               class="flex items-center justify-center p-3 border rounded-xl cursor-pointer text-sm font-semibold transition-all">
+                            <input type="radio" name="adjustment_type" value="RECEIPT" x-model="adjustmentType" class="sr-only">
+                            <svg class="w-4 h-4 mr-2 text-emerald-500" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 9v3m0 0v3m0-3h3m-3 0H9m12 0a9 9 0 11-18 0a9 9 0 0118 0z"/></svg>
+                            Stock In (Receipt)
+                        </label>
+                        <label :class="adjustmentType === 'ISSUE' ? 'border-brand bg-brand/5 text-brand shadow-sm' : 'border-slate-200 hover:bg-slate-50 text-slate-600'"
+                               class="flex items-center justify-center p-3 border rounded-xl cursor-pointer text-sm font-semibold transition-all">
+                            <input type="radio" name="adjustment_type" value="ISSUE" x-model="adjustmentType" class="sr-only">
+                            <svg class="w-4 h-4 mr-2 text-rose-500" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M15 12H9m12 0a9 9 0 11-18 0a9 9 0 0118 0z"/></svg>
+                            Stock Out (Issue)
+                        </label>
+                    </div>
+                </div>
+
+                <!-- Quantity -->
+                <div>
+                    <label class="block text-sm font-semibold text-slate-700 mb-1.5">Quantity</label>
+                    <input type="number" step="0.01" min="0.01" name="quantity" x-model="adjustQty" placeholder="e.g. 10.00" class="w-full px-3.5 py-2.5 border border-slate-200 rounded-xl text-sm focus:border-brand focus:ring-1 focus:ring-brand outline-none transition-colors" required>
+                </div>
+
+                <!-- Reference -->
+                <div>
+                    <label class="block text-sm font-semibold text-slate-700 mb-1.5">Reference / Notes</label>
+                    <input type="text" name="reference" x-model="adjustRef" placeholder="e.g. Purchase Receipt, Stock Correction" class="w-full px-3.5 py-2.5 border border-slate-200 rounded-xl text-sm focus:border-brand focus:ring-1 focus:ring-brand outline-none transition-colors">
+                </div>
+
+                <!-- Action Buttons -->
+                <div class="flex justify-end gap-3 pt-4 border-t border-slate-100">
+                    <button type="button" @click="showAdjustModal = false" class="px-4 py-2.5 rounded-xl border border-slate-200 text-sm font-semibold text-slate-700 hover:bg-slate-50 transition-colors">
+                        Cancel
+                    </button>
+                    <button type="submit" class="px-5 py-2.5 rounded-xl bg-brand hover:bg-brand-dark text-white text-sm font-semibold shadow-md hover:shadow-lg transition-all flex items-center justify-center">
+                        <span class="htmx-indicator hidden mr-2">
+                            <svg class="animate-spin h-4 w-4 text-white" viewBox="0 0 24 24" fill="none"><circle class="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" stroke-width="4"/><path class="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8v8H4z"/></svg>
+                        </span>
+                        Submit Adjustment
+                    </button>
+                </div>
+            </form>
+        </div>
+    </div>
 </div>
 {% endblock %}
