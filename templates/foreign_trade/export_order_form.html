@@ -1,0 +1,138 @@
+{% extends "base.html" %}
+
+{% block title %}{{ form_title }} - Foreign Trade ERP{% endblock %}
+
+{% block content %}
+<div class="max-w-4xl mx-auto space-y-8">
+    <div class="md:flex md:items-center md:justify-between">
+        <div class="flex-1 min-w-0">
+            <nav class="flex mb-2" aria-label="Breadcrumb">
+                <ol class="inline-flex items-center space-x-1 text-sm text-slate-500">
+                    <li><a href="{% url 'foreign_trade:export_order_list' %}" class="hover:text-brand">Export Orders</a></li>
+                    <li><svg class="w-4 h-4" fill="currentColor" viewBox="0 0 20 20"><path fill-rule="evenodd" d="M7.293 14.707a1 1 0 010-1.414L10.586 10 7.293 6.707a1 1 0 011.414-1.414l4 4a1 1 0 010 1.414l-4 4a1 1 0 01-1.414 0z" clip-rule="evenodd"/></svg></li>
+                    <li class="text-slate-900 font-semibold">{{ form_title }}</li>
+                </ol>
+            </nav>
+            <h2 class="text-2xl font-extrabold font-outfit text-slate-900">{{ form_title }}</h2>
+        </div>
+    </div>
+
+    <form method="post" class="space-y-6">
+        {% csrf_token %}
+        
+        {% if form.non_field_errors %}
+        <div class="p-4 rounded-lg bg-red-50 text-red-700 text-sm">
+            {{ form.non_field_errors }}
+        </div>
+        {% endif %}
+
+        <!-- Order Header -->
+        <div class="bg-white shadow border border-slate-100 rounded-xl p-6">
+            <h3 class="text-lg font-bold text-slate-900 border-b border-slate-200 pb-3 mb-4">Basic Information</h3>
+            <div class="grid grid-cols-1 gap-y-6 gap-x-4 sm:grid-cols-2">
+                <div>
+                    <label class="block text-sm font-semibold text-slate-700 mb-1">Customer</label>
+                    {{ form.customer }}
+                    {{ form.customer.errors }}
+                </div>
+                <div>
+                    <label class="block text-sm font-semibold text-slate-700 mb-1">Country of Destination</label>
+                    {{ form.country }}
+                    {{ form.country.errors }}
+                </div>
+                <div>
+                    <label class="block text-sm font-semibold text-slate-700 mb-1">Currency</label>
+                    {{ form.currency }}
+                    {{ form.currency.errors }}
+                </div>
+                <div>
+                    <label class="block text-sm font-semibold text-slate-700 mb-1">Incoterm</label>
+                    {{ form.incoterm }}
+                    {{ form.incoterm.errors }}
+                </div>
+            </div>
+        </div>
+
+        <!-- Shipping Details -->
+        <div class="bg-white shadow border border-slate-100 rounded-xl p-6">
+            <h3 class="text-lg font-bold text-slate-900 border-b border-slate-200 pb-3 mb-4">Shipping Information</h3>
+            <div class="grid grid-cols-1 gap-y-6 gap-x-4 sm:grid-cols-3">
+                <div>
+                    <label class="block text-sm font-semibold text-slate-700 mb-1">Shipping Method</label>
+                    {{ form.shipping_method }}
+                    {{ form.shipping_method.errors }}
+                </div>
+                <div>
+                    <label class="block text-sm font-semibold text-slate-700 mb-1">Port of Loading</label>
+                    {{ form.port_of_loading }}
+                    {{ form.port_of_loading.errors }}
+                </div>
+                <div>
+                    <label class="block text-sm font-semibold text-slate-700 mb-1">Port of Destination</label>
+                    {{ form.port_of_destination }}
+                    {{ form.port_of_destination.errors }}
+                </div>
+                <div class="sm:col-span-3">
+                    <label class="block text-sm font-semibold text-slate-700 mb-1">Container Details</label>
+                    {{ form.container_details }}
+                    {{ form.container_details.errors }}
+                </div>
+            </div>
+        </div>
+
+        <!-- Line Items -->
+        <div class="bg-white shadow border border-slate-100 rounded-xl p-6" x-data="{ rows: [1, 2] }">
+            <h3 class="text-lg font-bold text-slate-900 border-b border-slate-200 pb-3 mb-4">Line Items</h3>
+            
+            {{ lines.management_form }}
+            {% if lines.non_form_errors %}
+                <div class="text-red-600 text-sm mb-4">{{ lines.non_form_errors }}</div>
+            {% endif %}
+
+            <div class="space-y-4">
+                {% for line_form in lines.forms %}
+                <div class="grid grid-cols-12 gap-4 items-start">
+                    <div class="col-span-12 md:col-span-5">
+                        <label class="block text-xs font-semibold text-slate-500 mb-1">Description</label>
+                        {{ line_form.id }}
+                        {{ line_form.description }}
+                        {{ line_form.description.errors }}
+                    </div>
+                    <div class="col-span-4 md:col-span-2">
+                        <label class="block text-xs font-semibold text-slate-500 mb-1">HS Code</label>
+                        {{ line_form.hs_code }}
+                        {{ line_form.hs_code.errors }}
+                    </div>
+                    <div class="col-span-4 md:col-span-2">
+                        <label class="block text-xs font-semibold text-slate-500 mb-1">Quantity</label>
+                        {{ line_form.quantity }}
+                        {{ line_form.quantity.errors }}
+                    </div>
+                    <div class="col-span-4 md:col-span-2">
+                        <label class="block text-xs font-semibold text-slate-500 mb-1">Unit Price</label>
+                        {{ line_form.unit_price }}
+                        {{ line_form.unit_price.errors }}
+                    </div>
+                    <div class="col-span-12 md:col-span-1 flex justify-end md:justify-center md:pt-6">
+                        {% if line_form.instance.pk %}{{ line_form.DELETE }}{% endif %}
+                    </div>
+                </div>
+                {% endfor %}
+            </div>
+            <!-- Dynamic add row logic can go here -->
+        </div>
+
+        <!-- Notes -->
+        <div class="bg-white shadow border border-slate-100 rounded-xl p-6">
+            <h3 class="text-lg font-bold text-slate-900 border-b border-slate-200 pb-3 mb-4">Notes</h3>
+            {{ form.notes }}
+            {{ form.notes.errors }}
+        </div>
+
+        <div class="flex justify-end space-x-3">
+            <a href="{% url 'foreign_trade:export_order_list' %}" class="px-4 py-2 border border-slate-300 rounded-lg text-sm font-semibold text-slate-700 bg-white hover:bg-slate-50">Cancel</a>
+            <button type="submit" class="px-4 py-2 border border-transparent rounded-lg text-sm font-semibold text-white bg-brand hover:bg-brand-dark">Save Order</button>
+        </div>
+    </form>
+</div>
+{% endblock %}
