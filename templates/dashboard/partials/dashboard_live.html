@@ -99,6 +99,14 @@
                                 <span>Updates: <strong class="text-slate-800">{{ widget.data.update_actions }}</strong></span>
                             </div>
                         </div>
+                    {% elif widget.class_name == "ForeignTradeWidget" %}
+                        <div class="space-y-2">
+                            <div class="text-3xl font-bold text-slate-900 font-outfit">{{ widget.data.exports }} <span class="text-lg">Exp</span> / {{ widget.data.imports }} <span class="text-lg">Imp</span></div>
+                            <div class="flex items-center justify-between text-xs text-slate-500 font-semibold">
+                                <span>Anchored: <strong class="text-slate-800">{{ widget.data.bc_total }}</strong></span>
+                                <span>Verified: <strong class="text-green-600">{{ widget.data.bc_verified }}</strong></span>
+                            </div>
+                        </div>
                     {% endif %}
                 </div>
             </div>

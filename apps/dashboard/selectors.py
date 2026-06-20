@@ -8,6 +8,8 @@ from apps.products.models import Product
 from apps.procurement.models import ProcurementRequest
 from apps.purchase.models import PurchaseOrderLine, PurchaseOrderStatus
 from apps.sales.models import SalesOrderLine, SalesOrder, SalesOrderStatus
+from apps.foreign_trade.models import ExportOrder, ImportOrder
+from apps.blockchain.models import BlockchainDocument
 
 LOW_STOCK_THRESHOLD = Decimal("10.00")
 RECENT_ACTIVITY_LIMIT = 6
@@ -167,6 +169,23 @@ def serialize_recent_activity(activity):
     }
 
 
+def get_foreign_trade_summary():
+    exports_count = ExportOrder.objects.count()
+    imports_count = ImportOrder.objects.count()
+    
+    # Blockchain metrics
+    bc_total = BlockchainDocument.objects.count()
+    bc_verified = BlockchainDocument.objects.filter(verified=True).count()
+    
+    return {
+        "exports_count": exports_count,
+        "imports_count": imports_count,
+        "blockchain_total": bc_total,
+        "blockchain_verified": bc_verified,
+        "verified_ratio": int((bc_verified / bc_total) * 100) if bc_total > 0 else 0,
+    }
+
+
 def get_dashboard_summary():
     return {
         "sales": get_sales_summary(),
@@ -174,6 +193,7 @@ def get_dashboard_summary():
         "manufacturing": get_manufacturing_summary(),
         "inventory": get_inventory_summary(),
         "procurement": get_procurement_summary(),
+        "foreign_trade": get_foreign_trade_summary(),
         "recent_activities": [
             serialize_recent_activity(activity)
             for activity in get_recent_activity_queryset()

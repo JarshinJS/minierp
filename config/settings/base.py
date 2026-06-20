@@ -53,6 +53,8 @@ INSTALLED_APPS = [
     "apps.reports.apps.ReportsConfig",
     "apps.audit_logs.apps.AuditLogsConfig",
     "apps.dashboard.apps.DashboardConfig",
+    "apps.foreign_trade.apps.ForeignTradeConfig",
+    "apps.blockchain.apps.BlockchainConfig",
 ]
 
 MIDDLEWARE = [
@@ -176,3 +178,8 @@ LOGIN_URL = "accounts:login"
 LOGIN_REDIRECT_URL = "dashboard:home"
 LOGOUT_REDIRECT_URL = "accounts:login"
 
+# Blockchain / Web3 Configuration
+WEB3_PROVIDER_URL = os.getenv("WEB3_PROVIDER_URL", "")
+BLOCKCHAIN_WALLET_ADDRESS = os.getenv("BLOCKCHAIN_WALLET_ADDRESS", "")
+BLOCKCHAIN_NETWORK_NAME = os.getenv("BLOCKCHAIN_NETWORK_NAME", "polygon-amoy")
+BLOCKCHAIN_MOCK_MODE = os.getenv("BLOCKCHAIN_MOCK_MODE", "True").lower() == "true"
