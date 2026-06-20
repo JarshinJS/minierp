@@ -1,0 +1,10 @@
+<nav class="flex-1 px-3 py-4 space-y-1.5" aria-label="Sidebar">
+    {% for item in menu_items %}
+    <a href="{{ item.url }}" class="{% if item.is_active %}bg-brand text-white shadow-md{% else %}text-slate-300 hover:bg-slate-800 hover:text-white{% endif %} group flex items-center px-3 py-2.5 text-sm font-medium rounded-lg transition-all duration-150">
+        <span class="{% if item.is_active %}text-white{% else %}text-slate-400 group-hover:text-slate-300{% endif %} transition-colors">
+            {{ item.icon|safe }}
+        </span>
+        <span class="ml-3">{{ item.name }}</span>
+    </a>
+    {% endfor %}
+</nav>

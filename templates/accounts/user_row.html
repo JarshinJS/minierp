@@ -1,0 +1,41 @@
+<tr class="hover:bg-slate-50 transition-colors">
+    <td class="px-6 py-4 whitespace-nowrap">
+        <div class="flex items-center">
+            <div class="w-9 h-9 rounded-full bg-brand/10 text-brand flex items-center justify-center font-bold text-sm">
+                {{ member.full_name|slice:":1" }}
+            </div>
+            <div class="ml-3">
+                <div class="text-sm font-semibold text-slate-900">{{ member.full_name }}</div>
+                <div class="text-xs text-slate-500">{{ member.email }}</div>
+            </div>
+        </div>
+    </td>
+    <td class="px-6 py-4 whitespace-nowrap">
+        <div class="text-sm text-slate-900">
+            <form hx-post="{% url 'accounts:change_role' member.pk %}" hx-target="closest tr" hx-swap="outerHTML" hx-trigger="change">
+                {% csrf_token %}
+                <select name="role" class="block w-full pl-2 pr-8 py-1.5 text-xs border border-slate-300 bg-white rounded-lg focus:outline-none focus:ring-1 focus:ring-brand focus:border-brand shadow-sm">
+                    {% for val, label in roles %}
+                    <option value="{{ val }}" {% if member.role == val %}selected{% endif %}>{{ label }}</option>
+                    {% endfor %}
+                </select>
+            </form>
+        </div>
+    </td>
+    <td class="px-6 py-4 whitespace-nowrap">
+        {% if member.is_active %}
+        <span class="inline-flex items-center px-2.5 py-0.5 rounded-full text-xs font-semibold bg-green-50 text-green-700 border border-green-200">
+            Active
+        </span>
+        {% else %}
+        <span class="inline-flex items-center px-2.5 py-0.5 rounded-full text-xs font-semibold bg-red-50 text-red-700 border border-red-200">
+            Inactive
+        </span>
+        {% endif %}
+    </td>
+    <td class="px-6 py-4 whitespace-nowrap text-right text-xs font-medium">
+        <button hx-post="{% url 'accounts:toggle_active' member.pk %}" hx-target="closest tr" hx-swap="outerHTML" class="inline-flex items-center justify-center px-3 py-1.5 border rounded-lg shadow-sm font-semibold transition-all duration-150 focus:outline-none {% if member.is_active %}text-red-700 bg-white border-red-200 hover:bg-red-50 hover:border-red-300{% else %}text-green-700 bg-white border-green-200 hover:bg-green-50 hover:border-green-300{% endif %}">
+            {% if member.is_active %}Deactivate{% else %}Activate{% endif %}
+        </button>
+    </td>
+</tr>

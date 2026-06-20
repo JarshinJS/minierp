@@ -1,0 +1,12 @@
+{
+  "name": "shiv-furniture-works-erp",
+  "version": "1.0.0",
+  "description": "Tailwind configuration for Shiv Furniture Works ERP",
+  "scripts": {
+    "build:css": "npx tailwindcss -i ./static/css/src/input.css -o ./static/css/dist/styles.css --minify",
+    "watch:css": "npx tailwindcss -i ./static/css/src/input.css -o ./static/css/dist/styles.css --watch"
+  },
+  "devDependencies": {
+    "tailwindcss": "^3.4.4"
+  }
+}
