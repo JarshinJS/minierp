@@ -1,0 +1,192 @@
+{% extends "base.html" %}
+
+{% block title %}{{ bom.reference }} — BOM Detail — Shiv Furniture Works ERP{% endblock %}
+
+{% block content %}
+<div class="space-y-8">
+
+  <!-- Back + Actions -->
+  <div class="flex items-center justify-between flex-wrap gap-4">
+    <a href="{% url 'manufacturing:bom_list' %}"
+       class="inline-flex items-center text-sm font-medium text-slate-500 hover:text-slate-700 transition-colors">
+      <svg class="w-4 h-4 mr-1" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+        <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M10 19l-7-7m0 0l7-7m-7 7h18"/>
+      </svg>
+      Back to BOMs
+    </a>
+    <div class="flex gap-3">
+      <a href="{% url 'manufacturing:bom_edit' bom.pk %}"
+         class="inline-flex items-center px-4 py-2 border border-slate-300 rounded-lg text-sm font-semibold text-slate-700 bg-white hover:bg-slate-50 transition-colors">
+        <svg class="w-4 h-4 mr-2" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+          <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2"
+                d="M11 5H6a2 2 0 00-2 2v11a2 2 0 002 2h11a2 2 0 002-2v-5m-1.414-9.414a2 2 0 112.828 2.828L11.828 15H9v-2.828l8.586-8.586z"/>
+        </svg>
+        Edit BOM
+      </a>
+      {% if bom.is_active %}
+      <form method="POST" action="{% url 'manufacturing:bom_deactivate' bom.pk %}">
+        {% csrf_token %}
+        <button type="submit"
+                class="inline-flex items-center px-4 py-2 border border-transparent rounded-lg text-sm font-semibold text-white bg-red-600 hover:bg-red-700 transition-colors"
+                onclick="return confirm('Deactivate this BOM? It will no longer appear in manufacturing workflows.')">
+          Deactivate
+        </button>
+      </form>
+      {% endif %}
+    </div>
+  </div>
+
+  <!-- Header Card -->
+  <div class="bg-white shadow border border-slate-100 rounded-xl overflow-hidden">
+    <div class="px-6 py-5 border-b border-slate-100 flex items-center justify-between">
+      <div>
+        <div class="flex items-center gap-3">
+          <span class="font-mono text-lg font-bold text-indigo-600">{{ bom.reference }}</span>
+          {% if bom.is_active %}
+            <span class="px-2.5 py-0.5 rounded-full text-xs font-semibold bg-green-100 text-green-800">Active</span>
+          {% else %}
+            <span class="px-2.5 py-0.5 rounded-full text-xs font-semibold bg-slate-100 text-slate-500">Inactive</span>
+          {% endif %}
+        </div>
+        <h1 class="mt-1 text-2xl font-extrabold font-outfit text-slate-900">{{ bom.name }}</h1>
+      </div>
+    </div>
+
+    <div class="px-6 py-5 grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-6">
+      <!-- Finished Product -->
+      <div>
+        <p class="text-xs font-semibold text-slate-400 uppercase tracking-wider">Finished Product</p>
+        <p class="mt-1 text-sm font-semibold text-slate-800">
+          {% if bom.product %}{{ bom.product.name }}
+            <span class="text-slate-400 font-normal text-xs">({{ bom.product.sku }})</span>
+          {% else %}<span class="text-slate-400 italic">Template / No product</span>{% endif %}
+        </p>
+      </div>
+      <!-- Qty Produced -->
+      <div>
+        <p class="text-xs font-semibold text-slate-400 uppercase tracking-wider">Qty Produced</p>
+        <p class="mt-1 text-sm font-semibold text-slate-800">{{ bom.product_qty }}</p>
+      </div>
+      <!-- Material Cost -->
+      <div>
+        <p class="text-xs font-semibold text-slate-400 uppercase tracking-wider">Total Material Cost</p>
+        <p class="mt-1 text-lg font-bold text-brand">₹{{ total_cost }}</p>
+      </div>
+      <!-- Operation Time -->
+      <div>
+        <p class="text-xs font-semibold text-slate-400 uppercase tracking-wider">Total Op. Time</p>
+        <p class="mt-1 text-sm font-semibold text-slate-800">{{ total_time }} min</p>
+      </div>
+    </div>
+
+    {% if bom.notes %}
+    <div class="px-6 pb-5">
+      <p class="text-xs font-semibold text-slate-400 uppercase tracking-wider mb-1">Notes</p>
+      <p class="text-sm text-slate-600">{{ bom.notes }}</p>
+    </div>
+    {% endif %}
+  </div>
+
+  <!-- Components Table -->
+  <div class="bg-white shadow border border-slate-100 rounded-xl overflow-hidden">
+    <div class="px-6 py-4 border-b border-slate-100 flex items-center justify-between">
+      <h2 class="text-base font-bold text-slate-800">
+        Components
+        <span class="ml-2 text-xs font-semibold text-slate-400">({{ bom.components.count }})</span>
+      </h2>
+    </div>
+    {% if bom.components.all %}
+    <div class="overflow-x-auto">
+      <table class="min-w-full divide-y divide-slate-200">
+        <thead class="bg-slate-50">
+          <tr>
+            <th class="px-6 py-3 text-left text-xs font-semibold text-slate-500 uppercase tracking-wider">Seq</th>
+            <th class="px-6 py-3 text-left text-xs font-semibold text-slate-500 uppercase tracking-wider">Component</th>
+            <th class="px-6 py-3 text-left text-xs font-semibold text-slate-500 uppercase tracking-wider">SKU</th>
+            <th class="px-6 py-3 text-center text-xs font-semibold text-slate-500 uppercase tracking-wider">Qty</th>
+            <th class="px-6 py-3 text-center text-xs font-semibold text-slate-500 uppercase tracking-wider">UoM</th>
+            <th class="px-6 py-3 text-right text-xs font-semibold text-slate-500 uppercase tracking-wider">Unit Cost</th>
+            <th class="px-6 py-3 text-right text-xs font-semibold text-slate-500 uppercase tracking-wider">Line Cost</th>
+          </tr>
+        </thead>
+        <tbody class="divide-y divide-slate-200">
+          {% for line in bom.components.all %}
+          <tr class="hover:bg-slate-50 transition-colors">
+            <td class="px-6 py-3 text-xs text-slate-400">{{ line.sequence }}</td>
+            <td class="px-6 py-3 text-sm font-medium text-slate-800">{{ line.component.name }}</td>
+            <td class="px-6 py-3 text-xs font-mono text-slate-500">{{ line.component.sku }}</td>
+            <td class="px-6 py-3 text-center text-sm text-slate-700">{{ line.quantity }}</td>
+            <td class="px-6 py-3 text-center text-xs text-slate-500">{{ line.uom }}</td>
+            <td class="px-6 py-3 text-right text-sm text-slate-700">₹{{ line.component.cost_price }}</td>
+            <td class="px-6 py-3 text-right text-sm font-semibold text-slate-800">
+              ₹{{ line.component.cost_price|floatformat:2 }}
+            </td>
+          </tr>
+          {% endfor %}
+        </tbody>
+        <tfoot class="bg-slate-50 border-t border-slate-200">
+          <tr>
+            <td colspan="6" class="px-6 py-3 text-right text-xs font-semibold text-slate-500 uppercase">Total Material Cost</td>
+            <td class="px-6 py-3 text-right text-base font-bold text-brand">₹{{ total_cost }}</td>
+          </tr>
+        </tfoot>
+      </table>
+    </div>
+    {% else %}
+    <p class="px-6 py-8 text-center text-sm text-slate-400">No components defined. <a href="{% url 'manufacturing:bom_edit' bom.pk %}" class="text-brand hover:underline">Edit BOM</a> to add components.</p>
+    {% endif %}
+  </div>
+
+  <!-- Operations Table -->
+  <div class="bg-white shadow border border-slate-100 rounded-xl overflow-hidden">
+    <div class="px-6 py-4 border-b border-slate-100">
+      <h2 class="text-base font-bold text-slate-800">
+        Manufacturing Operations
+        <span class="ml-2 text-xs font-semibold text-slate-400">({{ bom.operations.count }})</span>
+      </h2>
+    </div>
+    {% if bom.operations.all %}
+    <div class="overflow-x-auto">
+      <table class="min-w-full divide-y divide-slate-200">
+        <thead class="bg-slate-50">
+          <tr>
+            <th class="px-6 py-3 text-left text-xs font-semibold text-slate-500 uppercase tracking-wider">Seq</th>
+            <th class="px-6 py-3 text-left text-xs font-semibold text-slate-500 uppercase tracking-wider">Operation</th>
+            <th class="px-6 py-3 text-left text-xs font-semibold text-slate-500 uppercase tracking-wider">Work Center</th>
+            <th class="px-6 py-3 text-center text-xs font-semibold text-slate-500 uppercase tracking-wider">Duration (min)</th>
+          </tr>
+        </thead>
+        <tbody class="divide-y divide-slate-200">
+          {% for op in bom.operations.all %}
+          <tr class="hover:bg-slate-50 transition-colors">
+            <td class="px-6 py-3 text-xs text-slate-400">{{ op.sequence }}</td>
+            <td class="px-6 py-3 text-sm font-medium text-slate-800">{{ op.name }}</td>
+            <td class="px-6 py-3 text-sm text-slate-600">
+              <span class="inline-flex items-center gap-1.5">
+                <svg class="w-3.5 h-3.5 text-purple-500" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                  <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2"
+                        d="M10.325 4.317c.426-1.756 2.924-1.756 3.35 0a1.724 1.724 0 002.573 1.066c1.543-.94 3.31.826 2.37 2.37a1.724 1.724 0 001.065 2.572c1.756.426 1.756 2.924 0 3.35a1.724 1.724 0 00-1.066 2.573c.94 1.543-.826 3.31-2.37 2.37a1.724 1.724 0 00-2.572 1.065c-.426 1.756-2.924 1.756-3.35 0a1.724 1.724 0 00-2.573-1.066c-1.543.94-3.31-.826-2.37-2.37a1.724 1.724 0 00-1.065-2.572c-1.756-.426-1.756-2.924 0-3.35a1.724 1.724 0 001.066-2.573c-.94-1.543.826-3.31 2.37-2.37.996.608 2.296.07 2.572-1.065z"/>
+                  <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M15 12a3 3 0 11-6 0 3 3 0 016 0z"/>
+                </svg>
+                {{ op.work_center.name }}
+              </span>
+            </td>
+            <td class="px-6 py-3 text-center text-sm text-slate-700 font-medium">{{ op.duration_minutes }}</td>
+          </tr>
+          {% endfor %}
+        </tbody>
+        <tfoot class="bg-slate-50 border-t border-slate-200">
+          <tr>
+            <td colspan="3" class="px-6 py-3 text-right text-xs font-semibold text-slate-500 uppercase">Total Time</td>
+            <td class="px-6 py-3 text-center text-base font-bold text-purple-700">{{ total_time }} min</td>
+          </tr>
+        </tfoot>
+      </table>
+    </div>
+    {% else %}
+    <p class="px-6 py-8 text-center text-sm text-slate-400">No operations defined. <a href="{% url 'manufacturing:bom_edit' bom.pk %}" class="text-brand hover:underline">Edit BOM</a> to add operations.</p>
+    {% endif %}
+  </div>
+
+</div>
+{% endblock %}

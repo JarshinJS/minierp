@@ -1,0 +1,96 @@
+{% extends "base.html" %}
+
+{% block title %}Work Centers — Shiv Furniture Works ERP{% endblock %}
+
+{% block content %}
+<div class="space-y-8">
+
+  <!-- Header -->
+  <div class="md:flex md:items-center md:justify-between">
+    <div class="flex-1 min-w-0">
+      <div class="flex items-center gap-3">
+        <a href="{% url 'manufacturing:bom_list' %}"
+           class="text-sm font-medium text-slate-500 hover:text-slate-700 transition-colors">
+          ← BOMs
+        </a>
+        <span class="text-slate-300">/</span>
+        <h2 class="text-2xl font-extrabold font-outfit text-slate-900 sm:text-3xl">Work Centers</h2>
+      </div>
+      <p class="mt-1 text-sm text-slate-500">Physical or virtual production stations used in manufacturing operations.</p>
+    </div>
+    <div class="mt-4 md:mt-0">
+      <a href="{% url 'manufacturing:workcenter_create' %}"
+         class="inline-flex items-center px-4 py-2 border border-transparent rounded-lg shadow-sm text-sm font-semibold text-white bg-brand hover:bg-brand-dark transition-colors">
+        <svg class="w-4 h-4 mr-2" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+          <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 4v16m8-8H4"/>
+        </svg>
+        Add Work Center
+      </a>
+    </div>
+  </div>
+
+  <!-- Filter -->
+  <div class="bg-white p-4 border border-slate-100 rounded-xl shadow">
+    <form method="GET" class="flex items-center gap-4">
+      <label class="flex items-center gap-2 text-sm text-slate-600 cursor-pointer">
+        <input type="checkbox" name="show_inactive" value="1" {% if show_inactive %}checked{% endif %}
+               class="h-4 w-4 text-brand border-slate-300 rounded">
+        Show inactive
+      </label>
+      <button type="submit"
+              class="px-3 py-1.5 border border-slate-300 rounded-lg text-sm font-medium text-slate-700 bg-white hover:bg-slate-50 transition-colors">
+        Filter
+      </button>
+    </form>
+  </div>
+
+  <!-- Table -->
+  <div class="bg-white shadow border border-slate-100 rounded-xl overflow-hidden">
+    <div class="overflow-x-auto">
+      <table class="min-w-full divide-y divide-slate-200">
+        <thead class="bg-slate-50">
+          <tr>
+            <th class="px-6 py-3.5 text-left text-xs font-semibold text-slate-500 uppercase tracking-wider">Name</th>
+            <th class="px-6 py-3.5 text-left text-xs font-semibold text-slate-500 uppercase tracking-wider">Code</th>
+            <th class="px-6 py-3.5 text-right text-xs font-semibold text-slate-500 uppercase tracking-wider">Cost / Hour</th>
+            <th class="px-6 py-3.5 text-center text-xs font-semibold text-slate-500 uppercase tracking-wider">Status</th>
+            <th class="px-6 py-3.5 text-right text-xs font-semibold text-slate-500 uppercase tracking-wider">Actions</th>
+          </tr>
+        </thead>
+        <tbody class="divide-y divide-slate-200 bg-white">
+          {% for wc in work_centers %}
+          <tr class="hover:bg-slate-50 transition-colors">
+            <td class="px-6 py-4 text-sm font-semibold text-slate-800">{{ wc.name }}</td>
+            <td class="px-6 py-4">
+              <span class="font-mono text-xs bg-slate-100 text-slate-600 px-2 py-0.5 rounded">{{ wc.code }}</span>
+            </td>
+            <td class="px-6 py-4 text-right text-sm text-slate-700">₹{{ wc.cost_per_hour }}/hr</td>
+            <td class="px-6 py-4 text-center">
+              {% if wc.is_active %}
+                <span class="px-2.5 py-0.5 rounded-full text-xs font-semibold bg-green-100 text-green-800">Active</span>
+              {% else %}
+                <span class="px-2.5 py-0.5 rounded-full text-xs font-semibold bg-slate-100 text-slate-500">Inactive</span>
+              {% endif %}
+            </td>
+            <td class="px-6 py-4 text-right">
+              <a href="{% url 'manufacturing:workcenter_edit' wc.pk %}"
+                 class="inline-flex items-center px-3 py-1.5 border border-slate-200 rounded-lg text-xs font-semibold text-slate-600 hover:bg-slate-50 hover:text-brand transition-colors">
+                Edit
+              </a>
+            </td>
+          </tr>
+          {% empty %}
+          <tr>
+            <td colspan="5" class="px-6 py-10 text-center text-sm text-slate-400">
+              No work centers found.
+              <a href="{% url 'manufacturing:workcenter_create' %}" class="text-brand hover:underline ml-1">Add one now.</a>
+            </td>
+          </tr>
+          {% endfor %}
+        </tbody>
+      </table>
+    </div>
+  </div>
+
+</div>
+{% endblock %}

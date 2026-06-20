@@ -1,0 +1,96 @@
+{% extends "base.html" %}
+
+{% block title %}{{ page_title }} — Shiv Furniture Works ERP{% endblock %}
+
+{% block content %}
+<div class="max-w-xl mx-auto px-4 space-y-6">
+
+  <!-- Back -->
+  <a href="{% url 'manufacturing:workcenter_list' %}"
+     class="inline-flex items-center text-sm font-medium text-slate-500 hover:text-slate-700 transition-colors">
+    <svg class="w-4 h-4 mr-1" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+      <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M10 19l-7-7m0 0l7-7m-7 7h18"/>
+    </svg>
+    Back to Work Centers
+  </a>
+
+  <!-- Header -->
+  <div>
+    <h1 class="text-2xl font-extrabold font-outfit text-slate-900">{{ page_title }}</h1>
+    <p class="mt-1 text-sm text-slate-500">Define a production station and its operating cost.</p>
+  </div>
+
+  <!-- Form Card -->
+  <div class="bg-white shadow-xl border border-slate-100 rounded-xl overflow-hidden">
+    <form method="POST"
+          action="{% if wc %}{% url 'manufacturing:workcenter_edit' wc.pk %}{% else %}{% url 'manufacturing:workcenter_create' %}{% endif %}"
+          class="divide-y divide-slate-100">
+      {% csrf_token %}
+
+      <div class="px-6 py-6 space-y-5">
+
+        {% if form.non_field_errors %}
+        <div class="rounded-md bg-red-50 p-4 border-l-4 border-red-500">
+          {% for error in form.non_field_errors %}
+          <p class="text-sm text-red-700">{{ error }}</p>
+          {% endfor %}
+        </div>
+        {% endif %}
+
+        <!-- Name -->
+        <div>
+          <label for="{{ form.name.id_for_label }}" class="block text-sm font-semibold text-slate-700">
+            Work Center Name <span class="text-red-500">*</span>
+          </label>
+          <div class="mt-1">{{ form.name }}</div>
+          {% if form.name.errors %}<p class="mt-1 text-xs text-red-600">{{ form.name.errors.0 }}</p>{% endif %}
+        </div>
+
+        <!-- Code -->
+        <div>
+          <label for="{{ form.code.id_for_label }}" class="block text-sm font-semibold text-slate-700">
+            Code <span class="text-red-500">*</span>
+          </label>
+          <div class="mt-1">{{ form.code }}</div>
+          {% if form.code.errors %}<p class="mt-1 text-xs text-red-600">{{ form.code.errors.0 }}</p>{% endif %}
+          <p class="mt-1 text-xs text-slate-400">Short unique identifier, e.g. WC-CNC</p>
+        </div>
+
+        <!-- Cost per Hour -->
+        <div>
+          <label for="{{ form.cost_per_hour.id_for_label }}" class="block text-sm font-semibold text-slate-700">Cost per Hour (₹)</label>
+          <div class="mt-1">{{ form.cost_per_hour }}</div>
+          {% if form.cost_per_hour.errors %}<p class="mt-1 text-xs text-red-600">{{ form.cost_per_hour.errors.0 }}</p>{% endif %}
+        </div>
+
+        <!-- Active -->
+        <div class="flex items-start gap-3 pt-2">
+          <div class="flex items-center h-5">{{ form.is_active }}</div>
+          <div>
+            <label for="{{ form.is_active.id_for_label }}" class="text-sm font-semibold text-slate-700 cursor-pointer">Active</label>
+            <p class="text-xs text-slate-400">Inactive work centers cannot be assigned to new operations.</p>
+          </div>
+        </div>
+
+      </div>
+
+      <!-- Submit -->
+      <div class="px-6 py-4 bg-slate-50 flex items-center justify-end gap-3">
+        <a href="{% url 'manufacturing:workcenter_list' %}"
+           class="inline-flex items-center px-4 py-2 border border-slate-300 rounded-lg text-sm font-semibold text-slate-700 bg-white hover:bg-slate-50 transition-colors">
+          Cancel
+        </a>
+        <button type="submit"
+                class="inline-flex items-center px-5 py-2 border border-transparent rounded-lg shadow-sm text-sm font-semibold text-white bg-brand hover:bg-brand-dark transition-colors">
+          <svg class="w-4 h-4 mr-1.5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+            <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M5 13l4 4L19 7"/>
+          </svg>
+          {{ submit_label }}
+        </button>
+      </div>
+
+    </form>
+  </div>
+
+</div>
+{% endblock %}
