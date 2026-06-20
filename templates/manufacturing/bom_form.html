@@ -1,0 +1,343 @@
+{% extends "base.html" %}
+
+{% block title %}{{ page_title }} — Shiv Furniture Works ERP{% endblock %}
+
+{% block extra_head %}
+<style>
+  .dyn-row-enter { animation: fadeSlideIn 0.2s ease-out; }
+  @keyframes fadeSlideIn {
+    from { opacity: 0; transform: translateY(-6px); }
+    to   { opacity: 1; transform: translateY(0); }
+  }
+</style>
+{% endblock %}
+
+{% block content %}
+<div class="max-w-5xl mx-auto px-4 space-y-6">
+
+  <!-- Back -->
+  <a href="{% url 'manufacturing:bom_list' %}"
+     class="inline-flex items-center text-sm font-medium text-slate-500 hover:text-slate-700 transition-colors">
+    <svg class="w-4 h-4 mr-1" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+      <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M10 19l-7-7m0 0l7-7m-7 7h18"/>
+    </svg>
+    Back to BOMs
+  </a>
+
+  <!-- Page Title -->
+  <div>
+    <h1 class="text-2xl font-extrabold font-outfit text-slate-900 sm:text-3xl">{{ page_title }}</h1>
+    <p class="mt-1 text-sm text-slate-500">
+      Fill in the BOM header, then add component materials and manufacturing operations below.
+    </p>
+  </div>
+
+  <!-- Alpine.js Root -->
+  <form id="bom-form" method="POST"
+        action="{% if bom %}{% url 'manufacturing:bom_edit' bom.pk %}{% else %}{% url 'manufacturing:bom_create' %}{% endif %}"
+        x-data="bomForm()"
+        @submit="serializeRows">
+
+    {% csrf_token %}
+    <!-- Hidden JSON fields populated on submit by Alpine -->
+    <input type="hidden" name="components_json" x-ref="componentsJson">
+    <input type="hidden" name="operations_json" x-ref="operationsJson">
+
+    <!-- ================================================================
+         SECTION 1: BOM Header
+    ================================================================ -->
+    <div class="bg-white shadow border border-slate-100 rounded-xl overflow-hidden">
+      <div class="px-6 py-4 border-b border-slate-100 bg-slate-50">
+        <h2 class="text-sm font-bold text-slate-700 uppercase tracking-wider">BOM Header</h2>
+      </div>
+      <div class="px-6 py-6 space-y-6">
+
+        {% if form.non_field_errors %}
+        <div class="rounded-md bg-red-50 p-4 border-l-4 border-red-500">
+          <div class="flex">
+            <svg class="h-5 w-5 text-red-400 flex-shrink-0" viewBox="0 0 20 20" fill="currentColor">
+              <path fill-rule="evenodd" d="M10 18a8 8 0 100-16 8 8 0 000 16zM8.707 7.293a1 1 0 00-1.414 1.414L8.586 10l-1.293 1.293a1 1 0 101.414 1.414L10 11.414l1.293 1.293a1 1 0 001.414-1.414L11.414 10l1.293-1.293a1 1 0 00-1.414-1.414L10 8.586 8.707 7.293z" clip-rule="evenodd"/>
+            </svg>
+            <div class="ml-3">
+              {% for error in form.non_field_errors %}
+              <p class="text-sm text-red-700">{{ error }}</p>
+              {% endfor %}
+            </div>
+          </div>
+        </div>
+        {% endif %}
+
+        <!-- Name + Reference -->
+        <div class="grid grid-cols-1 sm:grid-cols-2 gap-6">
+          <div>
+            <label for="{{ form.name.id_for_label }}" class="block text-sm font-semibold text-slate-700">BOM Name</label>
+            <div class="mt-1">{{ form.name }}</div>
+            {% if form.name.errors %}<p class="mt-1 text-xs text-red-600">{{ form.name.errors.0 }}</p>{% endif %}
+          </div>
+          <div>
+            <label for="{{ form.reference.id_for_label }}" class="block text-sm font-semibold text-slate-700">Reference Code</label>
+            <div class="mt-1">{{ form.reference }}</div>
+            {% if form.reference.errors %}<p class="mt-1 text-xs text-red-600">{{ form.reference.errors.0 }}</p>{% endif %}
+          </div>
+        </div>
+
+        <!-- Product + Qty -->
+        <div class="grid grid-cols-1 sm:grid-cols-2 gap-6">
+          <div>
+            <label for="{{ form.product.id_for_label }}" class="block text-sm font-semibold text-slate-700">Finished Product</label>
+            <div class="mt-1">{{ form.product }}</div>
+            {% if form.product.errors %}<p class="mt-1 text-xs text-red-600">{{ form.product.errors.0 }}</p>{% endif %}
+            <p class="mt-1 text-xs text-slate-400">Leave blank for generic templates.</p>
+          </div>
+          <div>
+            <label for="{{ form.product_qty.id_for_label }}" class="block text-sm font-semibold text-slate-700">Qty Produced</label>
+            <div class="mt-1">{{ form.product_qty }}</div>
+            {% if form.product_qty.errors %}<p class="mt-1 text-xs text-red-600">{{ form.product_qty.errors.0 }}</p>{% endif %}
+          </div>
+        </div>
+
+        <!-- Notes -->
+        <div>
+          <label for="{{ form.notes.id_for_label }}" class="block text-sm font-semibold text-slate-700">Notes <span class="font-normal text-slate-400">(optional)</span></label>
+          <div class="mt-1">{{ form.notes }}</div>
+        </div>
+
+      </div>
+    </div>
+
+    <!-- ================================================================
+         SECTION 2: Components (Alpine.js dynamic rows)
+    ================================================================ -->
+    <div class="bg-white shadow border border-slate-100 rounded-xl overflow-hidden">
+      <div class="px-6 py-4 border-b border-slate-100 bg-slate-50 flex items-center justify-between">
+        <div>
+          <h2 class="text-sm font-bold text-slate-700 uppercase tracking-wider">Components</h2>
+          <p class="text-xs text-slate-400 mt-0.5">Raw materials and sub-assemblies consumed by this BOM.</p>
+        </div>
+        <button type="button" @click="addComponent"
+                class="inline-flex items-center px-3 py-1.5 border border-brand text-brand text-xs font-semibold rounded-lg hover:bg-brand hover:text-white transition-colors">
+          <svg class="w-3.5 h-3.5 mr-1" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+            <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 4v16m8-8H4"/>
+          </svg>
+          Add Component
+        </button>
+      </div>
+
+      <div class="divide-y divide-slate-100">
+        <template x-for="(row, idx) in components" :key="idx">
+          <div class="px-6 py-4 dyn-row-enter grid grid-cols-12 gap-3 items-center">
+
+            <!-- Seq -->
+            <div class="col-span-1">
+              <label class="block text-xs text-slate-400 mb-1">Seq</label>
+              <input type="number" x-model="row.sequence" min="1"
+                     class="block w-full border border-slate-300 rounded-lg px-2 py-1.5 text-sm focus:outline-none focus:ring-1 focus:ring-brand focus:border-brand">
+            </div>
+
+            <!-- Component Product -->
+            <div class="col-span-5">
+              <label class="block text-xs text-slate-400 mb-1">Component *</label>
+              <select x-model="row.component_id"
+                      class="block w-full border border-slate-300 rounded-lg px-2 py-1.5 text-sm focus:outline-none focus:ring-1 focus:ring-brand focus:border-brand bg-white"
+                      @change="onComponentChange(idx)">
+                <option value="">— Select product —</option>
+                {% for p in products %}
+                <option value="{{ p.pk }}"
+                        data-uom="{{ p.unit_of_measure }}"
+                        data-name="{{ p.name }} ({{ p.sku }})">
+                  {{ p.name }} ({{ p.sku }})
+                </option>
+                {% endfor %}
+              </select>
+            </div>
+
+            <!-- Quantity -->
+            <div class="col-span-2">
+              <label class="block text-xs text-slate-400 mb-1">Quantity *</label>
+              <input type="number" x-model="row.quantity" min="0.0001" step="0.0001"
+                     class="block w-full border border-slate-300 rounded-lg px-2 py-1.5 text-sm focus:outline-none focus:ring-1 focus:ring-brand focus:border-brand">
+            </div>
+
+            <!-- UoM -->
+            <div class="col-span-2">
+              <label class="block text-xs text-slate-400 mb-1">UoM</label>
+              <select x-model="row.uom"
+                      class="block w-full border border-slate-300 rounded-lg px-2 py-1.5 text-sm focus:outline-none focus:ring-1 focus:ring-brand focus:border-brand bg-white">
+                <option value="PCS">PCS</option>
+                <option value="KG">KG</option>
+                <option value="M">M</option>
+                <option value="BOX">BOX</option>
+              </select>
+            </div>
+
+            <!-- Remove -->
+            <div class="col-span-2 flex justify-end">
+              <button type="button" @click="removeComponent(idx)"
+                      class="mt-5 p-1.5 text-slate-400 hover:text-red-600 transition-colors rounded" title="Remove">
+                <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                  <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M19 7l-.867 12.142A2 2 0 0116.138 21H7.862a2 2 0 01-1.995-1.858L5 7m5 4v6m4-6v6m1-10V4a1 1 0 00-1-1h-4a1 1 0 00-1 1v3M4 7h16"/>
+                </svg>
+              </button>
+            </div>
+
+          </div>
+        </template>
+
+        <!-- Empty state -->
+        <div x-show="components.length === 0"
+             class="px-6 py-8 text-center text-sm text-slate-400">
+          No components added yet. Click <strong>"Add Component"</strong> to begin.
+        </div>
+      </div>
+    </div>
+
+    <!-- ================================================================
+         SECTION 3: Operations (Alpine.js dynamic rows)
+    ================================================================ -->
+    <div class="bg-white shadow border border-slate-100 rounded-xl overflow-hidden">
+      <div class="px-6 py-4 border-b border-slate-100 bg-slate-50 flex items-center justify-between">
+        <div>
+          <h2 class="text-sm font-bold text-slate-700 uppercase tracking-wider">Manufacturing Operations</h2>
+          <p class="text-xs text-slate-400 mt-0.5">Work steps and routing for this BOM.</p>
+        </div>
+        <button type="button" @click="addOperation"
+                class="inline-flex items-center px-3 py-1.5 border border-purple-600 text-purple-600 text-xs font-semibold rounded-lg hover:bg-purple-600 hover:text-white transition-colors">
+          <svg class="w-3.5 h-3.5 mr-1" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+            <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 4v16m8-8H4"/>
+          </svg>
+          Add Operation
+        </button>
+      </div>
+
+      <div class="divide-y divide-slate-100">
+        <template x-for="(op, idx) in operations" :key="idx">
+          <div class="px-6 py-4 dyn-row-enter grid grid-cols-12 gap-3 items-center">
+
+            <!-- Seq -->
+            <div class="col-span-1">
+              <label class="block text-xs text-slate-400 mb-1">Seq</label>
+              <input type="number" x-model="op.sequence" min="1"
+                     class="block w-full border border-slate-300 rounded-lg px-2 py-1.5 text-sm focus:outline-none focus:ring-1 focus:ring-brand focus:border-brand">
+            </div>
+
+            <!-- Work Center -->
+            <div class="col-span-3">
+              <label class="block text-xs text-slate-400 mb-1">Work Center *</label>
+              <select x-model="op.work_center_id"
+                      class="block w-full border border-slate-300 rounded-lg px-2 py-1.5 text-sm focus:outline-none focus:ring-1 focus:ring-brand focus:border-brand bg-white">
+                <option value="">— Select —</option>
+                {% for wc in work_centers %}
+                <option value="{{ wc.pk }}">{{ wc.name }} ({{ wc.code }})</option>
+                {% endfor %}
+              </select>
+            </div>
+
+            <!-- Operation Name -->
+            <div class="col-span-5">
+              <label class="block text-xs text-slate-400 mb-1">Operation Name *</label>
+              <input type="text" x-model="op.name"
+                     placeholder="e.g. Cut panels to size"
+                     class="block w-full border border-slate-300 rounded-lg px-2 py-1.5 text-sm focus:outline-none focus:ring-1 focus:ring-brand focus:border-brand">
+            </div>
+
+            <!-- Duration -->
+            <div class="col-span-2">
+              <label class="block text-xs text-slate-400 mb-1">Duration (min)</label>
+              <input type="number" x-model="op.duration_minutes" min="0" step="0.5"
+                     class="block w-full border border-slate-300 rounded-lg px-2 py-1.5 text-sm focus:outline-none focus:ring-1 focus:ring-brand focus:border-brand">
+            </div>
+
+            <!-- Remove -->
+            <div class="col-span-1 flex justify-end">
+              <button type="button" @click="removeOperation(idx)"
+                      class="mt-5 p-1.5 text-slate-400 hover:text-red-600 transition-colors rounded" title="Remove">
+                <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                  <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M19 7l-.867 12.142A2 2 0 0116.138 21H7.862a2 2 0 01-1.995-1.858L5 7m5 4v6m4-6v6m1-10V4a1 1 0 00-1-1h-4a1 1 0 00-1 1v3M4 7h16"/>
+                </svg>
+              </button>
+            </div>
+
+          </div>
+        </template>
+
+        <div x-show="operations.length === 0"
+             class="px-6 py-8 text-center text-sm text-slate-400">
+          No operations added yet. Click <strong>"Add Operation"</strong> to define the routing.
+        </div>
+      </div>
+    </div>
+
+    <!-- Submit Panel -->
+    <div class="flex items-center justify-between py-4 border-t border-slate-200">
+      <a href="{% url 'manufacturing:bom_list' %}"
+         class="inline-flex items-center px-4 py-2 border border-slate-300 rounded-lg text-sm font-semibold text-slate-700 bg-white hover:bg-slate-50 transition-colors">
+        Cancel
+      </a>
+      <button type="submit"
+              class="inline-flex items-center px-6 py-2.5 border border-transparent rounded-lg shadow-sm text-sm font-semibold text-white bg-brand hover:bg-brand-dark transition-colors focus:outline-none">
+        <svg class="w-4 h-4 mr-2" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+          <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M5 13l4 4L19 7"/>
+        </svg>
+        {{ submit_label }}
+      </button>
+    </div>
+
+  </form>
+</div>
+
+<script>
+function bomForm() {
+  // Pre-populate from server when editing
+  const existingComponents = {{ existing_components|safe }};
+  const existingOperations = {{ existing_operations|safe }};
+
+  return {
+    components: existingComponents.length
+      ? existingComponents
+      : [],
+    operations: existingOperations.length
+      ? existingOperations
+      : [],
+
+    addComponent() {
+      this.components.push({
+        component_id: '',
+        quantity: 1,
+        uom: 'PCS',
+        sequence: (this.components.length + 1) * 10,
+      });
+    },
+    removeComponent(i) {
+      this.components.splice(i, 1);
+    },
+    onComponentChange(idx) {
+      // Auto-set UoM from the selected product's data-uom attribute
+      const select = document.querySelectorAll('[x-model="row.component_id"]')[idx];
+      if (!select) return;
+      const opt = select.options[select.selectedIndex];
+      if (opt && opt.dataset.uom) {
+        this.components[idx].uom = opt.dataset.uom;
+      }
+    },
+
+    addOperation() {
+      this.operations.push({
+        work_center_id: '',
+        name: '',
+        duration_minutes: 0,
+        sequence: (this.operations.length + 1) * 10,
+      });
+    },
+    removeOperation(i) {
+      this.operations.splice(i, 1);
+    },
+
+    serializeRows(e) {
+      // Serialize Alpine state into the hidden JSON fields before submission
+      this.$refs.componentsJson.value = JSON.stringify(this.components);
+      this.$refs.operationsJson.value = JSON.stringify(this.operations);
+    },
+  };
+}
+</script>
+{% endblock %}
