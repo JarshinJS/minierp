@@ -7,6 +7,7 @@ from rest_framework.response import Response
 from rest_framework.views import APIView
 
 from .selectors import get_dashboard_summary
+from apps.dashboard.services.dashboard_service import get_dashboard_data_for_user
 
 
 class DashboardHomeView(LoginRequiredMixin, TemplateView):
@@ -14,7 +15,19 @@ class DashboardHomeView(LoginRequiredMixin, TemplateView):
 
     def get_context_data(self, **kwargs):
         context = super().get_context_data(**kwargs)
+        data = get_dashboard_data_for_user(self.request.user)
+        context.update(data)
         context["summary_partial_url"] = reverse("dashboard:summary_partial")
+        return context
+
+
+class DashboardRefreshView(LoginRequiredMixin, TemplateView):
+    template_name = "dashboard/partials/dashboard_live.html"
+
+    def get_context_data(self, **kwargs):
+        context = super().get_context_data(**kwargs)
+        data = get_dashboard_data_for_user(self.request.user)
+        context.update(data)
         return context
 
 

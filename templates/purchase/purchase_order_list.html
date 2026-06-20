@@ -38,7 +38,7 @@
                         <td class="px-6 py-4 whitespace-nowrap text-sm text-slate-800 font-medium">{{ order.vendor.name }}</td>
                         <td class="px-6 py-4 whitespace-nowrap text-sm text-slate-500">{{ order.created_at|date:"M d, Y" }}</td>
                         <td class="px-6 py-4 whitespace-nowrap text-sm text-slate-500">{{ order.created_by.full_name }}</td>
-                        <td class="px-6 py-4 whitespace-nowrap text-sm text-right text-slate-800 font-bold">${{ order.total_amount }}</td>
+                        <td class="px-6 py-4 whitespace-nowrap text-sm text-right text-slate-800 font-bold">₹{{ order.total_amount }}</td>
                         <td class="px-6 py-4 whitespace-nowrap text-center">
                             {% if order.status == 'draft' %}
                             <span class="inline-flex items-center px-2.5 py-0.5 rounded-full text-xs font-semibold bg-amber-50 text-amber-700 border border-amber-200">Draft</span>
