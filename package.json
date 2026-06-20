@@ -4,9 +4,11 @@
   "description": "Tailwind configuration for Shiv Furniture Works ERP",
   "scripts": {
     "build:css": "npx tailwindcss -i ./static/css/src/input.css -o ./static/css/dist/styles.css --minify",
-    "watch:css": "npx tailwindcss -i ./static/css/src/input.css -o ./static/css/dist/styles.css --watch"
+    "watch:css": "npx tailwindcss -i ./static/css/src/input.css -o ./static/css/dist/styles.css --watch",
+    "dev": "concurrently \"npm run watch:css\" \"./.venv/Scripts/python.exe manage.py runserver\""
   },
   "devDependencies": {
+    "concurrently": "^10.0.3",
     "tailwindcss": "^3.4.4"
   }
 }
