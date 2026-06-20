@@ -1,20 +1,222 @@
 {% extends "base.html" %}
 
-{% block title %}Dashboard | Shiv Furniture Works ERP{% endblock %}
+{% block title %}Dashboard Command Center | Shiv Furniture Works ERP{% endblock %}
+
+{% block extra_head %}
+<script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
+{% endblock %}
 
 {% block content %}
-<div class="space-y-6">
+<span class="hidden">Loading dashboard...</span>
+<div class="space-y-8">
+    <!-- Header banner -->
     <div class="flex flex-col gap-4 md:flex-row md:items-end md:justify-between">
         <div>
-            <h1 class="text-3xl font-semibold text-slate-900">Dashboard</h1>
-            <p class="mt-2 text-sm text-slate-500">Overview of company KPIs, inventory alerts, and recent activity.</p>
+            <h1 class="text-3xl font-extrabold text-slate-900 font-outfit tracking-tight">ERP Control Center</h1>
+            <p class="mt-2 text-sm text-slate-500 font-medium">Real-time enterprise overview, status alerts, and activity audits.</p>
+        </div>
+        <div class="flex items-center gap-3">
+            <button class="inline-flex items-center gap-2 px-4 py-2 text-sm font-semibold text-slate-700 bg-white border border-slate-200 rounded-xl hover:bg-slate-50 transition-colors shadow-sm"
+                    hx-get="{% url 'dashboard:refresh' %}"
+                    hx-target="#dashboard-live-container"
+                    hx-swap="outerHTML">
+                <svg class="w-4 h-4 text-slate-500" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M4 4v5h.582m15.356 2A8.001 8.001 0 1121.21 7.89H18m0 0V5"/></svg>
+                Sync Now
+            </button>
         </div>
     </div>
 
-    <div hx-get="{{ summary_partial_url }}" hx-trigger="load, every 5s" hx-swap="innerHTML">
-        <div class="rounded-3xl border border-dashed border-slate-200 bg-white p-12 text-center text-slate-500">
-            Loading dashboard...
+    <!-- Live HTMX Auto-refreshing KPIs, Alerts, & Recent Activities -->
+    {% include "dashboard/partials/dashboard_live.html" %}
+
+    <!-- Business Trends & Charts (Static panels, dynamic data) -->
+    <div class="pt-8 border-t border-slate-200">
+        <h2 class="text-xl font-bold text-slate-900 font-outfit mb-6">Business Trends & Analytics</h2>
+        
+        <div class="grid gap-6 md:grid-cols-2">
+            <!-- 1. Sales Trend Chart -->
+            {% if request.user.role == 'ADMIN' or request.user.role == 'BUSINESS_OWNER' or request.user.role == 'SALES_USER' %}
+                <div class="rounded-3xl border border-slate-200 bg-white p-6 shadow-sm flex flex-col justify-between min-h-[350px]">
+                    <div>
+                        <h3 class="text-sm font-bold text-slate-900 font-outfit mb-4">Sales Order Value Trend (Last 6 Months)</h3>
+                        <div class="h-64 relative">
+                            <canvas id="salesChart"></canvas>
+                        </div>
+                    </div>
+                </div>
+            {% endif %}
+
+            <!-- 2. Purchase Trend Chart -->
+            {% if request.user.role == 'ADMIN' or request.user.role == 'BUSINESS_OWNER' or request.user.role == 'PURCHASE_USER' %}
+                <div class="rounded-3xl border border-slate-200 bg-white p-6 shadow-sm flex flex-col justify-between min-h-[350px]">
+                    <div>
+                        <h3 class="text-sm font-bold text-slate-900 font-outfit mb-4">Purchase Order Spend Trend (Last 6 Months)</h3>
+                        <div class="h-64 relative">
+                            <canvas id="purchaseChart"></canvas>
+                        </div>
+                    </div>
+                </div>
+            {% endif %}
+
+            <!-- 3. Manufacturing Progress Chart -->
+            {% if request.user.role == 'ADMIN' or request.user.role == 'BUSINESS_OWNER' or request.user.role == 'MANUFACTURING_USER' %}
+                <div class="rounded-3xl border border-slate-200 bg-white p-6 shadow-sm flex flex-col justify-between min-h-[350px]">
+                    <div>
+                        <h3 class="text-sm font-bold text-slate-900 font-outfit mb-4">Manufacturing Orders by Status</h3>
+                        <div class="h-64 relative">
+                            <canvas id="manufacturingChart"></canvas>
+                        </div>
+                    </div>
+                </div>
+            {% endif %}
+
+            <!-- 4. Inventory Movement Chart -->
+            {% if request.user.role == 'ADMIN' or request.user.role == 'BUSINESS_OWNER' or request.user.role == 'INVENTORY_MANAGER' %}
+                <div class="rounded-3xl border border-slate-200 bg-white p-6 shadow-sm flex flex-col justify-between min-h-[350px]">
+                    <div>
+                        <h3 class="text-sm font-bold text-slate-900 font-outfit mb-4">Inventory Movement History</h3>
+                        <div class="h-64 relative">
+                            <canvas id="inventoryChart"></canvas>
+                        </div>
+                    </div>
+                </div>
+            {% endif %}
         </div>
     </div>
 </div>
+
+<script>
+    document.addEventListener("DOMContentLoaded", function() {
+        fetch("{% url 'dashboard:analytics' %}")
+            .then(response => response.json())
+            .then(data => {
+                const initChart = (id, config) => {
+                    const el = document.getElementById(id);
+                    if (el) {
+                        new Chart(el, config);
+                    }
+                };
+
+                // 1. Sales Trend
+                if (data.sales_trend) {
+                    initChart("salesChart", {
+                        type: 'line',
+                        data: {
+                            labels: data.sales_trend.labels,
+                            datasets: [{
+                                label: 'Monthly Sales (₹)',
+                                data: data.sales_trend.data,
+                                borderColor: '#4f46e5',
+                                backgroundColor: 'rgba(79, 70, 229, 0.05)',
+                                borderWidth: 3,
+                                fill: true,
+                                tension: 0.4,
+                                pointBackgroundColor: '#4f46e5',
+                                pointRadius: 4,
+                                pointHoverRadius: 6
+                            }]
+                        },
+                        options: {
+                            responsive: true,
+                            maintainAspectRatio: false,
+                            plugins: {
+                                legend: { display: false }
+                            },
+                            scales: {
+                                y: { grid: { color: '#f1f5f9' }, ticks: { font: { family: 'Inter' } } },
+                                x: { grid: { display: false }, ticks: { font: { family: 'Inter' } } }
+                            }
+                        }
+                    });
+                }
+
+                // 2. Purchase Trend
+                if (data.purchase_trend) {
+                    initChart("purchaseChart", {
+                        type: 'bar',
+                        data: {
+                            labels: data.purchase_trend.labels,
+                            datasets: [{
+                                label: 'Monthly Spend (₹)',
+                                data: data.purchase_trend.data,
+                                backgroundColor: '#10b981',
+                                borderRadius: 8,
+                                maxBarThickness: 40
+                            }]
+                        },
+                        options: {
+                            responsive: true,
+                            maintainAspectRatio: false,
+                            plugins: {
+                                legend: { display: false }
+                            },
+                            scales: {
+                                y: { grid: { color: '#f1f5f9' }, ticks: { font: { family: 'Inter' } } },
+                                x: { grid: { display: false }, ticks: { font: { family: 'Inter' } } }
+                            }
+                        }
+                    });
+                }
+
+                // 3. Manufacturing Status
+                if (data.manufacturing_progress) {
+                    initChart("manufacturingChart", {
+                        type: 'doughnut',
+                        data: {
+                            labels: data.manufacturing_progress.labels,
+                            datasets: [{
+                                data: data.manufacturing_progress.data,
+                                backgroundColor: ['#94a3b8', '#3b82f6', '#f59e0b', '#10b981', '#ef4444'],
+                                borderWidth: 2,
+                                borderColor: '#ffffff'
+                            }]
+                        },
+                        options: {
+                            responsive: true,
+                            maintainAspectRatio: false,
+                            plugins: {
+                                legend: {
+                                    position: 'bottom',
+                                    labels: {
+                                        boxWidth: 12,
+                                        font: { family: 'Inter', size: 11 }
+                                    }
+                                }
+                            },
+                            cutout: '70%'
+                        }
+                    });
+                }
+
+                // 4. Inventory Movement
+                if (data.inventory_movement) {
+                    initChart("inventoryChart", {
+                        type: 'bar',
+                        data: {
+                            labels: data.inventory_movement.labels,
+                            datasets: [{
+                                label: 'Quantity Units',
+                                data: data.inventory_movement.data,
+                                backgroundColor: ['#6366f1', '#f43f5e', '#f59e0b', '#10b981'],
+                                borderRadius: 8,
+                                maxBarThickness: 40
+                            }]
+                        },
+                        options: {
+                            responsive: true,
+                            maintainAspectRatio: false,
+                            plugins: {
+                                legend: { display: false }
+                            },
+                            scales: {
+                                y: { grid: { color: '#f1f5f9' }, ticks: { font: { family: 'Inter' } } },
+                                x: { grid: { display: false }, ticks: { font: { family: 'Inter' } } }
+                            }
+                        }
+                    });
+                }
+            })
+            .catch(err => console.error("Error loading dashboard analytics:", err));
+    });
+</script>
 {% endblock %}

@@ -55,6 +55,16 @@ def render_sidebar(context):
             "url": "procurement:trigger_dashboard",
             "icon": '<svg class="w-6 h-6 mr-3" fill="none" stroke="currentColor" viewBox="0 0 24 24" xmlns="http://www.w3.org/2000/svg"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M19 11H5m14 0a2 2 0 012 2v6a2 2 0 01-2 2H5a2 2 0 01-2-2v-6a2 2 0 012-2m14 0V9a2 2 0 00-2-2M5 11V9a2 2 0 012-2m0 0V5a2 2 0 012-2h6a2 2 0 012 2v2M7 7h10"/></svg>',
         },
+        "delivery": {
+            "name": "Delivery Notes",
+            "url": "delivery:list",
+            "icon": '<svg class="w-6 h-6 mr-3" fill="none" stroke="currentColor" viewBox="0 0 24 24" xmlns="http://www.w3.org/2000/svg"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9 17a2 2 0 11-4 0 2 2 0 014 0zM19 17a2 2 0 11-4 0 2 2 0 014 0z"/><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M13 16V6a1 1 0 00-1-1H4a1 1 0 00-1 1v10a1 1 0 001 1h1m8-1a1 1 0 01-1 1H9m4-1V8a1 1 0 011-1h2.586a1 1 0 01.707.293l3.414 3.414a1 1 0 01.293.707V16a1 1 0 01-1 1h-1m-6-1a1 1 0 001 1h1M5 17h5m10 0h-5"/></svg>',
+        },
+        "reports": {
+            "name": "Reports",
+            "url": "reports:home",
+            "icon": '<svg class="w-6 h-6 mr-3" fill="none" stroke="currentColor" viewBox="0 0 24 24" xmlns="http://www.w3.org/2000/svg"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9 19v-6a2 2 0 00-2-2H5a2 2 0 00-2 2v6a2 2 0 002 2h2a2 2 0 002-2zm0 0V9a2 2 0 012-2h2a2 2 0 012 2v10m-6 0a2 2 0 002 2h2a2 2 0 002-2m0 0V5a2 2 0 012-2h2a2 2 0 012 2v14a2 2 0 002 2h2a2 2 0 002-2z"/></svg>',
+        },
         "audit_logs": {
             "name": "Audit Logs",
             "url": "audit_logs:list",
@@ -64,12 +74,13 @@ def render_sidebar(context):
 
     # Role permission mappings: dynamic navigation based on roles
     role_permissions = {
-        UserRole.ADMIN: ["dashboard", "accounts", "products", "inventory", "sales", "purchase", "manufacturing", "procurement", "audit_logs"],
-        UserRole.BUSINESS_OWNER: ["dashboard", "accounts", "products", "inventory", "sales", "purchase", "manufacturing", "procurement", "audit_logs"],
-        UserRole.SALES_USER: ["dashboard", "sales", "products"],
+        UserRole.ADMIN: ["dashboard", "accounts", "products", "inventory", "sales", "purchase", "manufacturing", "procurement", "delivery", "reports", "audit_logs"],
+        UserRole.BUSINESS_OWNER: ["dashboard", "accounts", "products", "inventory", "sales", "purchase", "manufacturing", "procurement", "delivery", "reports", "audit_logs"],
+        UserRole.SALES_USER: ["dashboard", "sales", "products", "delivery"],
         UserRole.PURCHASE_USER: ["dashboard", "purchase", "products", "procurement"],
         UserRole.MANUFACTURING_USER: ["dashboard", "manufacturing", "inventory"],
-        UserRole.INVENTORY_MANAGER: ["dashboard", "inventory", "products", "procurement"],
+        UserRole.INVENTORY_MANAGER: ["dashboard", "inventory", "products", "procurement", "delivery"],
+        UserRole.ACCOUNTANT: ["dashboard", "reports"],
     }
 
     allowed_keys = role_permissions.get(role, ["dashboard"])

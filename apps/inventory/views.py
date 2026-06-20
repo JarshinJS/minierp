@@ -32,9 +32,9 @@ class InventoryHomeView(LoginRequiredMixin, TemplateView):
         if category_id:
             products = products.filter(category_id=category_id)
 
-        # Annotate products with available qty and cost value
+        # Annotate products with cost value
         products = products.annotate(
-            available_qty=ExpressionWrapper(
+            avail_qty=ExpressionWrapper(
                 F("on_hand_qty") - F("reserved_qty"),
                 output_field=DecimalField()
             ),

@@ -49,6 +49,8 @@ INSTALLED_APPS = [
     "apps.purchase.apps.PurchaseConfig",
     "apps.manufacturing.apps.ManufacturingConfig",
     "apps.procurement.apps.ProcurementConfig",
+    "apps.delivery.apps.DeliveryConfig",
+    "apps.reports.apps.ReportsConfig",
     "apps.audit_logs.apps.AuditLogsConfig",
     "apps.dashboard.apps.DashboardConfig",
 ]

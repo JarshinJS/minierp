@@ -86,14 +86,14 @@
             <!-- Grid: Cost Price and Selling Price -->
             <div class="grid grid-cols-1 sm:grid-cols-2 gap-6">
                 <div>
-                    <label for="{{ form.cost_price.id_for_label }}" class="block text-sm font-semibold text-slate-700">Cost Price ($)</label>
+                    <label for="{{ form.cost_price.id_for_label }}" class="block text-sm font-semibold text-slate-700">Cost Price (₹)</label>
                     <div class="mt-1">{{ form.cost_price }}</div>
                     {% if form.cost_price.errors %}
                     <p class="mt-1 text-xs text-red-600">{{ form.cost_price.errors.0 }}</p>
                     {% endif %}
                 </div>
                 <div>
-                    <label for="{{ form.selling_price.id_for_label }}" class="block text-sm font-semibold text-slate-700">Selling Price ($)</label>
+                    <label for="{{ form.selling_price.id_for_label }}" class="block text-sm font-semibold text-slate-700">Selling Price (₹)</label>
                     <div class="mt-1">{{ form.selling_price }}</div>
                     {% if form.selling_price.errors %}
                     <p class="mt-1 text-xs text-red-600">{{ form.selling_price.errors.0 }}</p>

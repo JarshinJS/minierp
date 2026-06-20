@@ -72,7 +72,7 @@
                 </span>
             </div>
             <div class="mt-4 flex items-baseline gap-2">
-                <span class="text-2xl font-bold text-slate-900">${{ stats.total_value|floatformat:2 }}</span>
+                <span class="text-2xl font-bold text-slate-900">₹{{ stats.total_value|floatformat:2 }}</span>
             </div>
             <p class="text-xs text-slate-400 mt-2">Valued at standard cost</p>
         </div>
@@ -183,7 +183,7 @@
                                     {{ prod.category.name }}
                                 </span>
                             </td>
-                            <td class="px-6 py-4 text-right text-slate-500 font-medium">${{ prod.cost_price }}</td>
+                            <td class="px-6 py-4 text-right text-slate-500 font-medium">₹{{ prod.cost_price }}</td>
                             <td class="px-6 py-4 text-right font-semibold text-slate-900">{{ prod.on_hand_qty }}</td>
                             <td class="px-6 py-4 text-right text-slate-500">{{ prod.reserved_qty }}</td>
                             <td class="px-6 py-4 text-right font-semibold">
@@ -195,7 +195,7 @@
                                     <span class="inline-flex items-center text-emerald-600 bg-emerald-50 px-2 py-0.5 rounded-lg border border-emerald-100">{{ prod.available_qty }}</span>
                                 {% endif %}
                             </td>
-                            <td class="px-6 py-4 text-right font-medium text-slate-900">${{ prod.cost_value|floatformat:2 }}</td>
+                            <td class="px-6 py-4 text-right font-medium text-slate-900">₹{{ prod.cost_value|floatformat:2 }}</td>
                             <td class="px-6 py-4 text-center">
                                 <button @click="openAdjust('{{ prod.id }}', '{{ prod.name }}')" class="rounded-lg border border-slate-200 bg-white hover:bg-slate-50 hover:text-slate-900 text-slate-600 px-3 py-1.5 text-xs font-semibold transition-colors">
                                     Adjust

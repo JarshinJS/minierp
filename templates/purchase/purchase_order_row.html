@@ -3,7 +3,7 @@
     <td class="px-6 py-4 whitespace-nowrap text-sm text-slate-800 font-medium">{{ order.vendor.name }}</td>
     <td class="px-6 py-4 whitespace-nowrap text-sm text-slate-500">{{ order.created_at|date:"M d, Y" }}</td>
     <td class="px-6 py-4 whitespace-nowrap text-sm text-slate-500">{{ order.created_by.full_name }}</td>
-    <td class="px-6 py-4 whitespace-nowrap text-sm text-right text-slate-800 font-bold">${{ order.total_amount }}</td>
+    <td class="px-6 py-4 whitespace-nowrap text-sm text-right text-slate-800 font-bold">₹{{ order.total_amount }}</td>
     <td class="px-6 py-4 whitespace-nowrap text-center">
         <span class="inline-flex items-center px-2.5 py-0.5 rounded-full text-xs font-semibold bg-slate-100 text-slate-700 border border-slate-200">{{ order.get_status_display }}</span>
     </td>
