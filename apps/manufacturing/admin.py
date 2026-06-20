@@ -1,5 +1,5 @@
 from django.contrib import admin
-from .models import BoM, BOMComponent, BOMOperation, WorkCenter
+from .models import BoM, BOMComponent, BOMOperation, WorkCenter, ManufacturingOrder, MOComponent, WorkOrder
 
 
 class BOMComponentInline(admin.TabularInline):
@@ -47,3 +47,46 @@ class BOMOperationAdmin(admin.ModelAdmin):
     list_display = ["bom", "sequence", "name", "work_center", "duration_minutes"]
     list_select_related = ["bom", "work_center"]
     ordering = ["bom__reference", "sequence"]
+
+
+# ===========================================================================
+# Manufacturing Order Admin
+# ===========================================================================
+
+class MOComponentInline(admin.TabularInline):
+    model = MOComponent
+    extra = 0
+    fields = ["sequence", "product", "qty_required", "qty_consumed", "uom"]
+    readonly_fields = ["qty_consumed"]
+    ordering = ["sequence"]
+
+
+class WorkOrderInline(admin.TabularInline):
+    model = WorkOrder
+    extra = 0
+    fields = ["sequence", "work_center", "name", "duration_expected", "duration_actual", "status"]
+    ordering = ["sequence"]
+
+
+@admin.register(ManufacturingOrder)
+class ManufacturingOrderAdmin(admin.ModelAdmin):
+    list_display = ["reference", "product", "qty_to_produce", "qty_produced", "status", "scheduled_date", "created_at"]
+    list_filter  = ["status"]
+    search_fields = ["reference", "product__name", "product__sku"]
+    ordering     = ["-created_at"]
+    readonly_fields = ["reference", "qty_produced", "created_at", "updated_at"]
+    inlines      = [MOComponentInline, WorkOrderInline]
+
+
+@admin.register(MOComponent)
+class MOComponentAdmin(admin.ModelAdmin):
+    list_display = ["mo", "product", "qty_required", "qty_consumed", "uom"]
+    list_select_related = ["mo", "product"]
+
+
+@admin.register(WorkOrder)
+class WorkOrderAdmin(admin.ModelAdmin):
+    list_display = ["mo", "sequence", "name", "work_center", "duration_expected", "duration_actual", "status"]
+    list_filter  = ["status"]
+    list_select_related = ["mo", "work_center"]
+    ordering = ["mo__reference", "sequence"]

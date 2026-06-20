@@ -360,3 +360,284 @@ class WorkCenterUpdateView(LoginRequiredMixin, View):
             "page_title": f"Edit Work Center: {wc.name}",
             "submit_label": "Save Changes",
         })
+
+
+# ===========================================================================
+# DRF API — Manufacturing Orders
+# ===========================================================================
+
+from .models import ManufacturingOrder, WorkOrder, MOStatus, WorkOrderStatus
+from .serializers import (
+    ManufacturingOrderSerializer, ManufacturingOrderWriteSerializer,
+    WorkOrderSerializer,
+)
+from .forms import ManufacturingOrderForm, ProduceForm
+
+
+class ManufacturingOrderViewSet(viewsets.ModelViewSet):
+    queryset = ManufacturingOrder.objects.select_related("product", "bom").prefetch_related(
+        "components__product", "work_orders__work_center"
+    )
+
+    def get_serializer_class(self):
+        if self.action in ("create", "update", "partial_update"):
+            return ManufacturingOrderWriteSerializer
+        return ManufacturingOrderSerializer
+
+    def perform_create(self, serializer):
+        try:
+            mo = services.create_mo(
+                product=serializer.validated_data["product"],
+                qty_to_produce=serializer.validated_data["qty_to_produce"],
+                bom=serializer.validated_data.get("bom"),
+                scheduled_date=serializer.validated_data.get("scheduled_date"),
+                notes=serializer.validated_data.get("notes", ""),
+            )
+            serializer.instance = mo
+        except DomainError as e:
+            raise drf_serializers.ValidationError({"detail": str(e)})
+
+    @action(detail=True, methods=["post"])
+    def confirm(self, request, pk=None):
+        mo = self.get_object()
+        try:
+            services.confirm_mo(mo)
+        except DomainError as e:
+            return Response({"detail": str(e)}, status=400)
+        return Response(ManufacturingOrderSerializer(mo).data)
+
+    @action(detail=True, methods=["post"])
+    def start(self, request, pk=None):
+        mo = self.get_object()
+        try:
+            services.start_mo(mo)
+        except DomainError as e:
+            return Response({"detail": str(e)}, status=400)
+        return Response(ManufacturingOrderSerializer(mo).data)
+
+    @action(detail=True, methods=["post"])
+    def produce(self, request, pk=None):
+        mo = self.get_object()
+        qty = request.data.get("qty_produced")
+        if not qty:
+            return Response({"detail": "qty_produced is required."}, status=400)
+        try:
+            services.produce_mo(mo, qty)
+        except DomainError as e:
+            return Response({"detail": str(e)}, status=400)
+        return Response(ManufacturingOrderSerializer(mo).data)
+
+    @action(detail=True, methods=["post"])
+    def cancel(self, request, pk=None):
+        mo = self.get_object()
+        try:
+            services.cancel_mo(mo)
+        except DomainError as e:
+            return Response({"detail": str(e)}, status=400)
+        return Response(ManufacturingOrderSerializer(mo).data)
+
+
+class WorkOrderViewSet(viewsets.ModelViewSet):
+    serializer_class = WorkOrderSerializer
+    queryset = WorkOrder.objects.select_related("mo", "work_center")
+
+    @action(detail=True, methods=["post"])
+    def start(self, request, pk=None):
+        wo = self.get_object()
+        try:
+            services.start_work_order(wo)
+        except DomainError as e:
+            return Response({"detail": str(e)}, status=400)
+        return Response(WorkOrderSerializer(wo).data)
+
+    @action(detail=True, methods=["post"])
+    def complete(self, request, pk=None):
+        wo = self.get_object()
+        try:
+            services.complete_work_order(wo, duration_actual=request.data.get("duration_actual"))
+        except DomainError as e:
+            return Response({"detail": str(e)}, status=400)
+        return Response(WorkOrderSerializer(wo).data)
+
+
+# ===========================================================================
+# UI CBVs — Manufacturing Orders
+# ===========================================================================
+
+class MOListView(LoginRequiredMixin, ListView):
+    template_name = "manufacturing/mo_list.html"
+    context_object_name = "mos"
+
+    def get_queryset(self):
+        return selectors.get_manufacturing_orders(
+            search=self.request.GET.get("search"),
+            status=self.request.GET.get("status") or None,
+        )
+
+    def get_context_data(self, **kwargs):
+        ctx = super().get_context_data(**kwargs)
+        ctx["search_query"] = self.request.GET.get("search", "")
+        ctx["selected_status"] = self.request.GET.get("status", "")
+        ctx["status_choices"] = MOStatus.choices
+        return ctx
+
+
+class MODetailView(LoginRequiredMixin, View):
+    template_name = "manufacturing/mo_detail.html"
+
+    def get(self, request, pk):
+        mo = selectors.get_manufacturing_order(pk)
+        return render(request, self.template_name, {
+            "mo": mo,
+            "work_orders": selectors.get_work_orders_for_mo(mo),
+            "produce_form": ProduceForm(),
+        })
+
+
+class MOCreateView(LoginRequiredMixin, View):
+    template_name = "manufacturing/mo_form.html"
+
+    def get(self, request):
+        return render(request, self.template_name, {
+            "form": ManufacturingOrderForm(),
+            "page_title": "Create Manufacturing Order",
+            "submit_label": "Create MO",
+        })
+
+    def post(self, request):
+        form = ManufacturingOrderForm(request.POST)
+        if form.is_valid():
+            try:
+                mo = services.create_mo(
+                    product=form.cleaned_data["product"],
+                    qty_to_produce=form.cleaned_data["qty_to_produce"],
+                    bom=form.cleaned_data.get("bom"),
+                    scheduled_date=form.cleaned_data.get("scheduled_date"),
+                    notes=form.cleaned_data.get("notes", ""),
+                )
+                return redirect("manufacturing:mo_detail", pk=mo.pk)
+            except DomainError as e:
+                form.add_error(None, str(e))
+        return render(request, self.template_name, {
+            "form": form,
+            "page_title": "Create Manufacturing Order",
+            "submit_label": "Create MO",
+        })
+
+
+class MOUpdateView(LoginRequiredMixin, View):
+    """Edit a DRAFT MO's header fields."""
+    template_name = "manufacturing/mo_form.html"
+
+    def _get_mo(self, pk):
+        return get_object_or_404(ManufacturingOrder, pk=pk)
+
+    def get(self, request, pk):
+        mo = self._get_mo(pk)
+        if not mo.is_editable:
+            return redirect("manufacturing:mo_detail", pk=mo.pk)
+        return render(request, self.template_name, {
+            "form": ManufacturingOrderForm(instance=mo),
+            "mo": mo,
+            "page_title": f"Edit MO: {mo.reference}",
+            "submit_label": "Save Changes",
+        })
+
+    def post(self, request, pk):
+        mo = self._get_mo(pk)
+        if not mo.is_editable:
+            return redirect("manufacturing:mo_detail", pk=mo.pk)
+        form = ManufacturingOrderForm(request.POST, instance=mo)
+        if form.is_valid():
+            # Only DRAFT MOs can be edited — update fields directly (no service needed)
+            try:
+                mo.product       = form.cleaned_data["product"]
+                mo.qty_to_produce = form.cleaned_data["qty_to_produce"]
+                mo.bom           = form.cleaned_data.get("bom")
+                mo.scheduled_date = form.cleaned_data.get("scheduled_date")
+                mo.notes         = form.cleaned_data.get("notes", "")
+                mo.save()
+                return redirect("manufacturing:mo_detail", pk=mo.pk)
+            except Exception as e:
+                form.add_error(None, str(e))
+        return render(request, self.template_name, {
+            "form": form,
+            "mo": mo,
+            "page_title": f"Edit MO: {mo.reference}",
+            "submit_label": "Save Changes",
+        })
+
+
+class MOConfirmView(LoginRequiredMixin, View):
+    def post(self, request, pk):
+        mo = get_object_or_404(ManufacturingOrder, pk=pk)
+        try:
+            services.confirm_mo(mo)
+        except DomainError as e:
+            # Re-render detail with error message
+            return render(request, "manufacturing/mo_detail.html", {
+                "mo": selectors.get_manufacturing_order(pk),
+                "work_orders": selectors.get_work_orders_for_mo(mo),
+                "produce_form": ProduceForm(),
+                "error": str(e),
+            })
+        return redirect("manufacturing:mo_detail", pk=mo.pk)
+
+
+class MOStartView(LoginRequiredMixin, View):
+    def post(self, request, pk):
+        mo = get_object_or_404(ManufacturingOrder, pk=pk)
+        try:
+            services.start_mo(mo)
+        except DomainError as e:
+            return redirect("manufacturing:mo_detail", pk=mo.pk)
+        return redirect("manufacturing:mo_detail", pk=mo.pk)
+
+
+class MOProduceView(LoginRequiredMixin, View):
+    def post(self, request, pk):
+        mo = get_object_or_404(ManufacturingOrder, pk=pk)
+        form = ProduceForm(request.POST)
+        if form.is_valid():
+            try:
+                services.produce_mo(mo, form.cleaned_data["qty_produced"])
+                return redirect("manufacturing:mo_detail", pk=mo.pk)
+            except DomainError as e:
+                return render(request, "manufacturing/mo_detail.html", {
+                    "mo": selectors.get_manufacturing_order(pk),
+                    "work_orders": selectors.get_work_orders_for_mo(mo),
+                    "produce_form": form,
+                    "produce_error": str(e),
+                })
+        return redirect("manufacturing:mo_detail", pk=mo.pk)
+
+
+class MOCancelView(LoginRequiredMixin, View):
+    def post(self, request, pk):
+        mo = get_object_or_404(ManufacturingOrder, pk=pk)
+        try:
+            services.cancel_mo(mo)
+        except DomainError as e:
+            pass  # Redirect regardless; error is visible on detail page
+        return redirect("manufacturing:mo_list")
+
+
+class WorkOrderStartView(LoginRequiredMixin, View):
+    def post(self, request, pk):
+        wo = get_object_or_404(WorkOrder, pk=pk)
+        try:
+            services.start_work_order(wo)
+        except DomainError:
+            pass
+        return redirect("manufacturing:mo_detail", pk=wo.mo.pk)
+
+
+class WorkOrderCompleteView(LoginRequiredMixin, View):
+    def post(self, request, pk):
+        wo = get_object_or_404(WorkOrder, pk=pk)
+        duration_actual = request.POST.get("duration_actual") or None
+        try:
+            services.complete_work_order(wo, duration_actual=duration_actual)
+        except DomainError:
+            pass
+        return redirect("manufacturing:mo_detail", pk=wo.mo.pk)

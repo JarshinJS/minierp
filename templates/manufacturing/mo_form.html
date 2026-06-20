@@ -1,0 +1,120 @@
+{% extends "base.html" %}
+
+{% block title %}{{ page_title }} — Shiv Furniture Works ERP{% endblock %}
+
+{% block content %}
+<div class="max-w-2xl mx-auto px-4 space-y-6">
+
+  <!-- Back -->
+  <a href="{% url 'manufacturing:mo_list' %}"
+     class="inline-flex items-center text-sm font-medium text-slate-500 hover:text-slate-700 transition-colors">
+    <svg class="w-4 h-4 mr-1" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+      <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M10 19l-7-7m0 0l7-7m-7 7h18"/>
+    </svg>
+    Back to Manufacturing Orders
+  </a>
+
+  <!-- Title -->
+  <div>
+    <h1 class="text-2xl font-extrabold font-outfit text-slate-900">{{ page_title }}</h1>
+    <p class="mt-1 text-sm text-slate-500">
+      Select a product and optionally a BOM to auto-populate components and operations upon confirmation.
+    </p>
+  </div>
+
+  <!-- Form Card -->
+  <div class="bg-white shadow-xl border border-slate-100 rounded-xl overflow-hidden">
+    <form method="POST"
+          action="{% if mo %}{% url 'manufacturing:mo_edit' mo.pk %}{% else %}{% url 'manufacturing:mo_create' %}{% endif %}"
+          class="divide-y divide-slate-100">
+      {% csrf_token %}
+
+      <div class="px-6 py-6 space-y-5">
+
+        {% if form.non_field_errors %}
+        <div class="rounded-md bg-red-50 p-4 border-l-4 border-red-500">
+          {% for error in form.non_field_errors %}
+          <p class="text-sm text-red-700">{{ error }}</p>
+          {% endfor %}
+        </div>
+        {% endif %}
+
+        <!-- Product -->
+        <div>
+          <label for="{{ form.product.id_for_label }}" class="block text-sm font-semibold text-slate-700">
+            Finished Product <span class="text-red-500">*</span>
+          </label>
+          <div class="mt-1">{{ form.product }}</div>
+          {% if form.product.errors %}<p class="mt-1 text-xs text-red-600">{{ form.product.errors.0 }}</p>{% endif %}
+        </div>
+
+        <!-- BOM -->
+        <div>
+          <label for="{{ form.bom.id_for_label }}" class="block text-sm font-semibold text-slate-700">Source BOM</label>
+          <div class="mt-1">{{ form.bom }}</div>
+          {% if form.bom.errors %}<p class="mt-1 text-xs text-red-600">{{ form.bom.errors.0 }}</p>{% endif %}
+          <p class="mt-1 text-xs text-slate-400">
+            If selected, components and work orders are copied from the BOM when you confirm the MO.
+          </p>
+        </div>
+
+        <!-- Qty to Produce -->
+        <div>
+          <label for="{{ form.qty_to_produce.id_for_label }}" class="block text-sm font-semibold text-slate-700">
+            Quantity to Produce <span class="text-red-500">*</span>
+          </label>
+          <div class="mt-1">{{ form.qty_to_produce }}</div>
+          {% if form.qty_to_produce.errors %}<p class="mt-1 text-xs text-red-600">{{ form.qty_to_produce.errors.0 }}</p>{% endif %}
+        </div>
+
+        <!-- Scheduled Date -->
+        <div>
+          <label for="{{ form.scheduled_date.id_for_label }}" class="block text-sm font-semibold text-slate-700">
+            Scheduled Date <span class="font-normal text-slate-400">(optional)</span>
+          </label>
+          <div class="mt-1">{{ form.scheduled_date }}</div>
+          {% if form.scheduled_date.errors %}<p class="mt-1 text-xs text-red-600">{{ form.scheduled_date.errors.0 }}</p>{% endif %}
+        </div>
+
+        <!-- Notes -->
+        <div>
+          <label for="{{ form.notes.id_for_label }}" class="block text-sm font-semibold text-slate-700">
+            Notes <span class="font-normal text-slate-400">(optional)</span>
+          </label>
+          <div class="mt-1">{{ form.notes }}</div>
+        </div>
+
+      </div>
+
+      <!-- Submit Footer -->
+      <div class="px-6 py-4 bg-slate-50 flex items-center justify-between">
+        <a href="{% url 'manufacturing:mo_list' %}"
+           class="inline-flex items-center px-4 py-2 border border-slate-300 rounded-lg text-sm font-semibold text-slate-700 bg-white hover:bg-slate-50 transition-colors">
+          Cancel
+        </a>
+        <button type="submit"
+                class="inline-flex items-center px-6 py-2 border border-transparent rounded-lg shadow-sm text-sm font-semibold text-white bg-brand hover:bg-brand-dark transition-colors">
+          <svg class="w-4 h-4 mr-1.5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+            <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M5 13l4 4L19 7"/>
+          </svg>
+          {{ submit_label }}
+        </button>
+      </div>
+
+    </form>
+  </div>
+
+  <!-- Info box: workflow hint -->
+  <div class="rounded-xl border border-blue-100 bg-blue-50 p-5">
+    <h3 class="text-sm font-bold text-blue-800 mb-2">Manufacturing Order Workflow</h3>
+    <ol class="list-decimal list-inside text-xs text-blue-700 space-y-1">
+      <li><strong>Draft</strong> — Create and adjust the order freely.</li>
+      <li><strong>Confirm</strong> — Locks the MO and copies BOM lines. Components and work orders are generated.</li>
+      <li><strong>Start</strong> — Moves the MO to In Progress. First work order auto-starts.</li>
+      <li><strong>Record Production</strong> — Issues raw material stock and receives finished goods into inventory.</li>
+      <li><strong>Done</strong> — All quantities produced. Inventory updated.</li>
+    </ol>
+  </div>
+
+</div>
+{% endblock %}

@@ -65,3 +65,43 @@ def get_bom_operation_time(bom: BoM) -> Decimal:
     for op in bom.operations.all():
         total += op.duration_minutes
     return total
+
+
+# ===========================================================================
+# Manufacturing Order Selectors
+# ===========================================================================
+
+from django.db.models import Q  # already imported above, re-used here
+from .models import ManufacturingOrder, WorkOrder, MOStatus
+
+
+def get_manufacturing_orders(search: str = None, status: str = None):
+    """Returns filtered MOs with related data prefetched."""
+    qs = ManufacturingOrder.objects.select_related("product", "bom").prefetch_related(
+        "components__product",
+        "work_orders__work_center",
+    )
+    if status:
+        qs = qs.filter(status=status)
+    if search:
+        qs = qs.filter(
+            Q(reference__icontains=search) | Q(product__name__icontains=search)
+        )
+    return qs.order_by("-created_at")
+
+
+def get_manufacturing_order(pk) -> ManufacturingOrder:
+    """Returns a single MO or raises 404."""
+    from django.shortcuts import get_object_or_404
+    return get_object_or_404(
+        ManufacturingOrder.objects.select_related("product", "bom").prefetch_related(
+            "components__product",
+            "work_orders__work_center",
+        ),
+        pk=pk,
+    )
+
+
+def get_work_orders_for_mo(mo: ManufacturingOrder):
+    """Returns all work orders for an MO ordered by sequence."""
+    return mo.work_orders.select_related("work_center").order_by("sequence")

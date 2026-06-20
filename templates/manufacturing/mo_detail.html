@@ -1,0 +1,332 @@
+{% extends "base.html" %}
+
+{% block title %}{{ mo.reference }} — MO Detail — Shiv Furniture Works ERP{% endblock %}
+
+{% block content %}
+<div class="space-y-8">
+
+  <!-- Top bar -->
+  <div class="flex items-center justify-between flex-wrap gap-4">
+    <a href="{% url 'manufacturing:mo_list' %}"
+       class="inline-flex items-center text-sm font-medium text-slate-500 hover:text-slate-700 transition-colors">
+      <svg class="w-4 h-4 mr-1" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+        <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M10 19l-7-7m0 0l7-7m-7 7h18"/>
+      </svg>
+      Manufacturing Orders
+    </a>
+
+    <!-- Action buttons (context-sensitive) -->
+    <div class="flex flex-wrap gap-3">
+      {% if mo.status == 'DRAFT' %}
+        <a href="{% url 'manufacturing:mo_edit' mo.pk %}"
+           class="inline-flex items-center px-4 py-2 border border-slate-300 rounded-lg text-sm font-semibold text-slate-700 bg-white hover:bg-slate-50 transition-colors">
+          Edit
+        </a>
+        <form method="POST" action="{% url 'manufacturing:mo_confirm' mo.pk %}">
+          {% csrf_token %}
+          <button type="submit"
+                  class="inline-flex items-center px-4 py-2 border border-transparent rounded-lg shadow-sm text-sm font-semibold text-white bg-blue-600 hover:bg-blue-700 transition-colors">
+            Confirm MO
+          </button>
+        </form>
+        <form method="POST" action="{% url 'manufacturing:mo_cancel' mo.pk %}">
+          {% csrf_token %}
+          <button type="submit" onclick="return confirm('Cancel this MO?')"
+                  class="inline-flex items-center px-4 py-2 border border-red-300 rounded-lg text-sm font-semibold text-red-600 bg-white hover:bg-red-50 transition-colors">
+            Cancel MO
+          </button>
+        </form>
+      {% elif mo.status == 'CONFIRMED' %}
+        <form method="POST" action="{% url 'manufacturing:mo_start' mo.pk %}">
+          {% csrf_token %}
+          <button type="submit"
+                  class="inline-flex items-center px-5 py-2.5 border border-transparent rounded-lg shadow-sm text-sm font-semibold text-white bg-amber-500 hover:bg-amber-600 transition-colors">
+            <svg class="w-4 h-4 mr-2" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+              <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M14.752 11.168l-3.197-2.132A1 1 0 0010 9.87v4.263a1 1 0 001.555.832l3.197-2.132a1 1 0 000-1.664z"/>
+              <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M21 12a9 9 0 11-18 0 9 9 0 0118 0z"/>
+            </svg>
+            Start Production
+          </button>
+        </form>
+        <form method="POST" action="{% url 'manufacturing:mo_cancel' mo.pk %}">
+          {% csrf_token %}
+          <button type="submit" onclick="return confirm('Cancel this MO?')"
+                  class="inline-flex items-center px-4 py-2 border border-red-300 rounded-lg text-sm font-semibold text-red-600 bg-white hover:bg-red-50 transition-colors">
+            Cancel
+          </button>
+        </form>
+      {% elif mo.status == 'IN_PROGRESS' %}
+        <!-- Produce button triggers modal below -->
+        <button type="button"
+                onclick="document.getElementById('produce-modal').classList.remove('hidden')"
+                class="inline-flex items-center px-5 py-2.5 border border-transparent rounded-lg shadow-sm text-sm font-semibold text-white bg-brand hover:bg-brand-dark transition-colors">
+          <svg class="w-4 h-4 mr-2" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+            <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M5 13l4 4L19 7"/>
+          </svg>
+          Record Production
+        </button>
+      {% elif mo.status == 'DONE' %}
+        <span class="inline-flex items-center px-4 py-2 rounded-lg text-sm font-semibold bg-green-100 text-green-800">
+          ✓ Production Complete
+        </span>
+      {% endif %}
+    </div>
+  </div>
+
+  <!-- Error alert (from views) -->
+  {% if error %}
+  <div class="rounded-md bg-red-50 p-4 border-l-4 border-red-500">
+    <p class="text-sm text-red-700">{{ error }}</p>
+  </div>
+  {% endif %}
+
+  <!-- Header Card -->
+  <div class="bg-white shadow border border-slate-100 rounded-xl overflow-hidden">
+    <div class="px-6 py-5 border-b border-slate-100 flex items-start justify-between">
+      <div>
+        <div class="flex items-center gap-3 flex-wrap">
+          <span class="font-mono text-xl font-bold text-indigo-700">{{ mo.reference }}</span>
+          {% if mo.status == 'DRAFT' %}
+            <span class="px-2.5 py-0.5 rounded-full text-xs font-semibold bg-slate-100 text-slate-600">Draft</span>
+          {% elif mo.status == 'CONFIRMED' %}
+            <span class="px-2.5 py-0.5 rounded-full text-xs font-semibold bg-blue-100 text-blue-700">Confirmed</span>
+          {% elif mo.status == 'IN_PROGRESS' %}
+            <span class="px-2.5 py-0.5 rounded-full text-xs font-semibold bg-amber-100 text-amber-700">In Progress</span>
+          {% elif mo.status == 'DONE' %}
+            <span class="px-2.5 py-0.5 rounded-full text-xs font-semibold bg-green-100 text-green-800">Done</span>
+          {% elif mo.status == 'CANCELLED' %}
+            <span class="px-2.5 py-0.5 rounded-full text-xs font-semibold bg-red-100 text-red-600">Cancelled</span>
+          {% endif %}
+        </div>
+        <h1 class="mt-1 text-2xl font-extrabold font-outfit text-slate-900">
+          {{ mo.product.name }}
+        </h1>
+        <p class="text-sm text-slate-400 font-mono mt-0.5">{{ mo.product.sku }}</p>
+      </div>
+      <!-- Progress ring area -->
+      <div class="text-right hidden sm:block">
+        <p class="text-3xl font-black text-brand">{{ mo.progress_pct }}%</p>
+        <p class="text-xs text-slate-400 mt-0.5">{{ mo.qty_produced }} / {{ mo.qty_to_produce }} produced</p>
+      </div>
+    </div>
+
+    <!-- Stats row -->
+    <div class="px-6 py-5 grid grid-cols-2 sm:grid-cols-4 gap-6">
+      <div>
+        <p class="text-xs font-semibold text-slate-400 uppercase tracking-wider">Qty to Produce</p>
+        <p class="mt-1 text-lg font-bold text-slate-800">{{ mo.qty_to_produce }}</p>
+      </div>
+      <div>
+        <p class="text-xs font-semibold text-slate-400 uppercase tracking-wider">Qty Produced</p>
+        <p class="mt-1 text-lg font-bold text-brand">{{ mo.qty_produced }}</p>
+      </div>
+      <div>
+        <p class="text-xs font-semibold text-slate-400 uppercase tracking-wider">Source BOM</p>
+        <p class="mt-1 text-sm font-semibold text-slate-800">
+          {% if mo.bom %}
+            <a href="{% url 'manufacturing:bom_detail' mo.bom.pk %}" class="text-indigo-600 hover:underline">
+              {{ mo.bom.reference }}
+            </a>
+          {% else %}
+            <span class="text-slate-400 italic">Manual (no BOM)</span>
+          {% endif %}
+        </p>
+      </div>
+      <div>
+        <p class="text-xs font-semibold text-slate-400 uppercase tracking-wider">Scheduled Date</p>
+        <p class="mt-1 text-sm font-semibold text-slate-800">
+          {% if mo.scheduled_date %}{{ mo.scheduled_date }}{% else %}<span class="text-slate-400">—</span>{% endif %}
+        </p>
+      </div>
+    </div>
+
+    <!-- Progress bar -->
+    <div class="px-6 pb-5">
+      <div class="w-full bg-slate-100 rounded-full h-2.5 overflow-hidden">
+        <div class="bg-brand h-2.5 rounded-full transition-all duration-700"
+             style="width: {{ mo.progress_pct }}%"></div>
+      </div>
+    </div>
+
+    {% if mo.notes %}
+    <div class="px-6 pb-5 border-t border-slate-100 pt-4">
+      <p class="text-xs font-semibold text-slate-400 uppercase tracking-wider mb-1">Notes</p>
+      <p class="text-sm text-slate-600">{{ mo.notes }}</p>
+    </div>
+    {% endif %}
+  </div>
+
+  <!-- Components Table -->
+  <div class="bg-white shadow border border-slate-100 rounded-xl overflow-hidden">
+    <div class="px-6 py-4 border-b border-slate-100 flex items-center justify-between">
+      <h2 class="text-base font-bold text-slate-800">
+        Components
+        <span class="ml-2 text-xs font-semibold text-slate-400">({{ mo.components.count }})</span>
+      </h2>
+      {% if mo.status == 'DRAFT' %}
+      <span class="text-xs text-slate-400 italic">Copied from BOM on confirmation.</span>
+      {% endif %}
+    </div>
+    {% if mo.components.all %}
+    <div class="overflow-x-auto">
+      <table class="min-w-full divide-y divide-slate-200">
+        <thead class="bg-slate-50">
+          <tr>
+            <th class="px-6 py-3 text-left text-xs font-semibold text-slate-500 uppercase tracking-wider">Component</th>
+            <th class="px-6 py-3 text-center text-xs font-semibold text-slate-500 uppercase tracking-wider">Required</th>
+            <th class="px-6 py-3 text-center text-xs font-semibold text-slate-500 uppercase tracking-wider">Consumed</th>
+            <th class="px-6 py-3 text-center text-xs font-semibold text-slate-500 uppercase tracking-wider">UoM</th>
+            <th class="px-6 py-3 text-center text-xs font-semibold text-slate-500 uppercase tracking-wider">On Hand</th>
+          </tr>
+        </thead>
+        <tbody class="divide-y divide-slate-200">
+          {% for comp in mo.components.all %}
+          <tr class="hover:bg-slate-50 transition-colors">
+            <td class="px-6 py-3">
+              <p class="text-sm font-semibold text-slate-800">{{ comp.product.name }}</p>
+              <p class="text-xs font-mono text-slate-400">{{ comp.product.sku }}</p>
+            </td>
+            <td class="px-6 py-3 text-center text-sm font-medium text-slate-700">{{ comp.qty_required }}</td>
+            <td class="px-6 py-3 text-center text-sm font-medium
+                       {% if comp.qty_consumed >= comp.qty_required %}text-green-700{% else %}text-amber-600{% endif %}">
+              {{ comp.qty_consumed }}
+            </td>
+            <td class="px-6 py-3 text-center text-xs text-slate-500">{{ comp.uom }}</td>
+            <td class="px-6 py-3 text-center">
+              <span class="text-sm font-semibold
+                     {% if comp.product.on_hand_qty >= comp.qty_required %}text-green-700{% else %}text-red-600{% endif %}">
+                {{ comp.product.on_hand_qty }}
+              </span>
+              {% if comp.product.on_hand_qty < comp.qty_required %}
+              <span class="ml-1 text-xs text-red-500">⚠ Low</span>
+              {% endif %}
+            </td>
+          </tr>
+          {% endfor %}
+        </tbody>
+      </table>
+    </div>
+    {% else %}
+    <p class="px-6 py-8 text-center text-sm text-slate-400">
+      {% if mo.status == 'DRAFT' %}Components will appear after confirming the MO.
+      {% else %}No components linked to this MO.{% endif %}
+    </p>
+    {% endif %}
+  </div>
+
+  <!-- Work Orders Table -->
+  <div class="bg-white shadow border border-slate-100 rounded-xl overflow-hidden">
+    <div class="px-6 py-4 border-b border-slate-100">
+      <h2 class="text-base font-bold text-slate-800">
+        Work Orders
+        <span class="ml-2 text-xs font-semibold text-slate-400">({{ work_orders|length }})</span>
+      </h2>
+    </div>
+    {% if work_orders %}
+    <div class="overflow-x-auto">
+      <table class="min-w-full divide-y divide-slate-200">
+        <thead class="bg-slate-50">
+          <tr>
+            <th class="px-6 py-3 text-left text-xs font-semibold text-slate-500 uppercase tracking-wider">Seq</th>
+            <th class="px-6 py-3 text-left text-xs font-semibold text-slate-500 uppercase tracking-wider">Operation</th>
+            <th class="px-6 py-3 text-left text-xs font-semibold text-slate-500 uppercase tracking-wider">Work Center</th>
+            <th class="px-6 py-3 text-center text-xs font-semibold text-slate-500 uppercase tracking-wider">Expected (min)</th>
+            <th class="px-6 py-3 text-center text-xs font-semibold text-slate-500 uppercase tracking-wider">Actual (min)</th>
+            <th class="px-6 py-3 text-center text-xs font-semibold text-slate-500 uppercase tracking-wider">Status</th>
+            <th class="px-6 py-3 text-right text-xs font-semibold text-slate-500 uppercase tracking-wider">Action</th>
+          </tr>
+        </thead>
+        <tbody class="divide-y divide-slate-200">
+          {% for wo in work_orders %}
+          <tr class="hover:bg-slate-50 transition-colors">
+            <td class="px-6 py-3 text-xs text-slate-400">{{ wo.sequence }}</td>
+            <td class="px-6 py-3 text-sm font-semibold text-slate-800">{{ wo.name }}</td>
+            <td class="px-6 py-3 text-sm text-slate-600">{{ wo.work_center.name }}</td>
+            <td class="px-6 py-3 text-center text-sm text-slate-700">{{ wo.duration_expected }}</td>
+            <td class="px-6 py-3 text-center text-sm {% if wo.duration_actual %}font-semibold text-slate-800{% else %}text-slate-300{% endif %}">
+              {% if wo.duration_actual %}{{ wo.duration_actual }}{% else %}—{% endif %}
+            </td>
+            <td class="px-6 py-3 text-center">
+              {% if wo.status == 'PENDING' %}
+                <span class="px-2 py-0.5 rounded-full text-xs font-semibold bg-slate-100 text-slate-500">Pending</span>
+              {% elif wo.status == 'IN_PROGRESS' %}
+                <span class="px-2 py-0.5 rounded-full text-xs font-semibold bg-amber-100 text-amber-700">In Progress</span>
+              {% elif wo.status == 'DONE' %}
+                <span class="px-2 py-0.5 rounded-full text-xs font-semibold bg-green-100 text-green-700">Done</span>
+              {% endif %}
+            </td>
+            <td class="px-6 py-3 text-right">
+              {% if wo.status == 'PENDING' and mo.status == 'IN_PROGRESS' %}
+              <form method="POST" action="{% url 'manufacturing:wo_start' wo.pk %}" class="inline">
+                {% csrf_token %}
+                <button type="submit"
+                        class="inline-flex items-center px-3 py-1 border border-amber-300 text-amber-700 rounded-lg text-xs font-semibold hover:bg-amber-50 transition-colors">
+                  Start
+                </button>
+              </form>
+              {% elif wo.status == 'IN_PROGRESS' %}
+              <form method="POST" action="{% url 'manufacturing:wo_complete' wo.pk %}"
+                    class="inline flex items-center gap-2"
+                    x-data="{ dur: '' }" @submit.prevent="$el.submit()">
+                {% csrf_token %}
+                <input type="number" name="duration_actual" placeholder="min"
+                       class="w-20 border border-slate-300 rounded px-2 py-1 text-xs focus:outline-none focus:ring-1 focus:ring-brand"
+                       min="0" step="0.5">
+                <button type="submit"
+                        class="inline-flex items-center px-3 py-1 border border-green-300 text-green-700 rounded-lg text-xs font-semibold hover:bg-green-50 transition-colors">
+                  Complete
+                </button>
+              </form>
+              {% endif %}
+            </td>
+          </tr>
+          {% endfor %}
+        </tbody>
+      </table>
+    </div>
+    {% else %}
+    <p class="px-6 py-8 text-center text-sm text-slate-400">
+      {% if mo.status == 'DRAFT' %}Work orders will appear after confirming the MO.
+      {% else %}No work orders linked to this MO.{% endif %}
+    </p>
+    {% endif %}
+  </div>
+
+</div>
+
+<!-- Produce Modal -->
+{% if mo.status == 'IN_PROGRESS' %}
+<div id="produce-modal"
+     class="hidden fixed inset-0 z-50 flex items-center justify-center bg-black/40 backdrop-blur-sm"
+     x-data>
+  <div class="bg-white rounded-2xl shadow-2xl border border-slate-200 w-full max-w-md mx-4 overflow-hidden">
+    <div class="px-6 py-5 border-b border-slate-100">
+      <h2 class="text-lg font-bold text-slate-900">Record Production</h2>
+      <p class="text-sm text-slate-500 mt-1">
+        Remaining: <strong class="text-slate-800">{{ mo.qty_to_produce|floatformat:2 }} − {{ mo.qty_produced|floatformat:2 }} = {{ mo.qty_to_produce }}</strong>
+      </p>
+    </div>
+    <form method="POST" action="{% url 'manufacturing:mo_produce' mo.pk %}" class="px-6 py-5 space-y-4">
+      {% csrf_token %}
+      <div>
+        {{ produce_form.qty_produced.label_tag }}
+        {{ produce_form.qty_produced }}
+        {% if produce_error %}<p class="mt-1 text-xs text-red-600">{{ produce_error }}</p>{% endif %}
+      </div>
+      <div class="flex items-center justify-end gap-3 pt-2">
+        <button type="button"
+                onclick="document.getElementById('produce-modal').classList.add('hidden')"
+                class="px-4 py-2 border border-slate-300 rounded-lg text-sm font-semibold text-slate-700 hover:bg-slate-50 transition-colors">
+          Cancel
+        </button>
+        <button type="submit"
+                class="px-5 py-2 border border-transparent rounded-lg shadow-sm text-sm font-semibold text-white bg-brand hover:bg-brand-dark transition-colors">
+          Produce
+        </button>
+      </div>
+    </form>
+  </div>
+</div>
+{% endif %}
+
+{% endblock %}
