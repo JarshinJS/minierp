@@ -134,11 +134,11 @@ def get_recent_activity_queryset(limit=RECENT_ACTIVITY_LIMIT):
 
 def get_low_stock_products(limit=LOW_STOCK_LIMIT):
     annotated = Product.objects.filter(is_active=True).annotate(
-        available_qty=ExpressionWrapper(
+        avail_qty=ExpressionWrapper(
             F("on_hand_qty") - F("reserved_qty"),
             output_field=DecimalField(max_digits=20, decimal_places=2),
         )
-    ).filter(available_qty__lte=LOW_STOCK_THRESHOLD).order_by("available_qty", "name")[:limit]
+    ).filter(avail_qty__lte=LOW_STOCK_THRESHOLD).order_by("avail_qty", "name")[:limit]
 
     return [
         {

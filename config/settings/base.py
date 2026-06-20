@@ -49,6 +49,8 @@ INSTALLED_APPS = [
     "apps.purchase.apps.PurchaseConfig",
     "apps.manufacturing.apps.ManufacturingConfig",
     "apps.procurement.apps.ProcurementConfig",
+    "apps.delivery.apps.DeliveryConfig",
+    "apps.reports.apps.ReportsConfig",
     "apps.audit_logs.apps.AuditLogsConfig",
     "apps.dashboard.apps.DashboardConfig",
 ]
@@ -171,6 +173,6 @@ CELERY_TIMEZONE = TIME_ZONE
 # Authentication Customizations
 AUTH_USER_MODEL = "accounts.User"
 LOGIN_URL = "accounts:login"
-LOGIN_REDIRECT_URL = "accounts:user_list"
+LOGIN_REDIRECT_URL = "dashboard:home"
 LOGOUT_REDIRECT_URL = "accounts:login"
 

@@ -91,3 +91,34 @@ class TestInventoryServices:
 
         product.refresh_from_db()
         assert product.on_hand_qty == Decimal("0.0")
+
+
+@pytest.mark.django_db
+class TestInventorySelectors:
+    def test_get_ledger_entries_and_summary(self, inventory_setup):
+        from apps.inventory import selectors as inventory_selectors
+        product = inventory_setup["product"]
+        
+        # Initially empty
+        assert inventory_selectors.get_ledger_entries().count() == 0
+        
+        # Post receipt
+        inventory_services.receive_stock(product, Decimal("10.00"), reference="TEST-REC")
+        
+        # Post issue
+        inventory_services.issue_stock(product, Decimal("4.00"), reference="TEST-ISS")
+        
+        # Get entries
+        entries = inventory_selectors.get_ledger_entries()
+        assert entries.count() == 2
+        
+        # Get summary
+        summary = inventory_selectors.get_stock_summary()
+        assert summary["total_products"] == 1
+        assert summary["ledger_entries"] == 2
+        assert summary["total_movement"] == Decimal("14.00")
+
+        # Test filtering by entry type
+        receipts = inventory_selectors.get_ledger_entries({"entry_type": LedgerEntryType.RECEIPT})
+        assert receipts.count() == 1
+        assert receipts.first().reference == "TEST-REC"

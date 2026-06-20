@@ -10,5 +10,4 @@ urlpatterns = [
     path("users/", views.UserListView.as_view(), name="user_list"),
     path("users/<uuid:pk>/toggle-active/", views.UserToggleActiveView.as_view(), name="toggle_active"),
     path("users/<uuid:pk>/change-role/", views.UserChangeRoleView.as_view(), name="change_role"),
-    path("dashboard/", views.DashboardHomeView.as_view(), name="dashboard_home"),
 ]

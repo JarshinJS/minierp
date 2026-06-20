@@ -64,11 +64,15 @@ def confirm_order(order):
         # 1. Reserve stock
         inventory_services.reserve_stock(line.product, line.quantity)
         
+        # Refresh product to get the updated reserved_qty
+        product = line.product
+        product.refresh_from_db()
+        
         # 2. Check shortage: available quantity (available_qty)
-        if line.product.on_hand_qty < line.quantity:
-            shortage_qty = line.quantity - line.product.on_hand_qty
+        if product.available_qty < 0:
+            shortage_qty = -product.available_qty
             procurement_services.handle_shortage(
-                product=line.product,
+                product=product,
                 quantity_needed=shortage_qty,
                 reference=order.order_number,
                 created_by=order.created_by,
@@ -93,17 +97,17 @@ def confirm_order(order):
 @transaction.atomic
 def deliver_order(order, deliveries_data=None):
     """
-    Delivers quantities for a confirmed order.
+    Delivers quantities for a confirmed order by running the E2E Delivery Note workflow.
     'deliveries_data' is a dict mapping line IDs to quantities to deliver: {line_id: quantity}
     If deliveries_data is None, performs a full delivery of all remaining quantities.
     """
     if order.status not in [SalesOrderStatus.CONFIRMED, SalesOrderStatus.PARTIALLY_DELIVERED]:
         raise WorkflowError("Only CONFIRMED or PARTIALLY_DELIVERED orders can be delivered.")
 
-    delivered_any = False
-    
-    # Pre-fetch lines
+    from apps.delivery import services as delivery_services
+
     lines = order.lines.all()
+    lines_list = []
 
     for line in lines:
         qty_to_deliver = Decimal("0.0")
@@ -122,43 +126,28 @@ def deliver_order(order, deliveries_data=None):
         if qty_to_deliver <= 0:
             continue
 
-        if qty_to_deliver > line.pending_delivery_qty:
-            raise DomainError(
-                f"Cannot deliver {qty_to_deliver} for {line.product.sku}. Only {line.pending_delivery_qty} pending."
-            )
+        lines_list.append({
+            "sales_order_line": line,
+            "quantity": qty_to_deliver
+        })
 
-        # 1. Issue stock from inventory (reduces on_hand_qty, updates reserved_qty and records ledger entry)
-        inventory_services.issue_stock(line.product, qty_to_deliver, reference=order.order_number)
+    if not lines_list:
+        if deliveries_data is not None:
+            raise DomainError("No valid quantities were specified for delivery.")
+        return order
 
-        # 2. Update line delivered quantity
-        line.delivered_qty += qty_to_deliver
-        line.save()
-        delivered_any = True
+    # 1. Create PENDING delivery note
+    dn = delivery_services.create_delivery_note(
+        sales_order=order,
+        lines_data=lines_list,
+        created_by=order.created_by
+    )
 
-    if not delivered_any and deliveries_data is not None:
-        raise DomainError("No valid quantities were specified for delivery.")
+    # 2. Dispatch delivery note (issues stock)
+    delivery_services.dispatch_delivery_note(dn)
 
-    # Re-evaluate order status
-    old_status = order.status
-    all_delivered = all(l.delivered_qty == l.quantity for l in lines)
-    if all_delivered:
-        order.status = SalesOrderStatus.FULLY_DELIVERED
-    else:
-        order.status = SalesOrderStatus.PARTIALLY_DELIVERED
-
-    order.save()
-
-    # Log status changed if it changed
-    if old_status != order.status:
-        log_event(
-            user=None,
-            module="sales",
-            record=order,
-            action=AuditLogAction.STATUS_CHANGED,
-            field="status",
-            old=old_status,
-            new=order.status
-        )
+    # 3. Complete delivery (marks delivered, updates sales order lines/status)
+    delivery_services.deliver_delivery_note(dn)
 
     return order
 

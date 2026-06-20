@@ -1,14 +1,14 @@
-<div id="dashboard-summary" class="space-y-6">
+<div class="space-y-6">
     <div class="grid gap-4 md:grid-cols-3 xl:grid-cols-5">
         <div class="rounded-3xl border border-slate-200 bg-white p-6 shadow-sm">
             <p class="text-sm font-medium text-slate-500">Sales Orders</p>
             <p class="mt-4 text-3xl font-semibold text-slate-900">{{ summary.sales.order_count }}</p>
-            <p class="mt-2 text-sm text-slate-500">Total sales value: ${{ summary.sales.total_value }}</p>
+            <p class="mt-2 text-sm text-slate-500">Total sales value: ₹{{ summary.sales.total_value }}</p>
         </div>
         <div class="rounded-3xl border border-slate-200 bg-white p-6 shadow-sm">
             <p class="text-sm font-medium text-slate-500">Purchase Orders</p>
             <p class="mt-4 text-3xl font-semibold text-slate-900">{{ summary.purchase.order_count }}</p>
-            <p class="mt-2 text-sm text-slate-500">Total purchase value: ${{ summary.purchase.total_value }}</p>
+            <p class="mt-2 text-sm text-slate-500">Total purchase value: ₹{{ summary.purchase.total_value }}</p>
         </div>
         <div class="rounded-3xl border border-slate-200 bg-white p-6 shadow-sm">
             <p class="text-sm font-medium text-slate-500">Manufacturing Orders</p>

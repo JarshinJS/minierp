@@ -1,6 +1,5 @@
 from django.db.models import Sum
-
-from .models import StockLedger
+from .models import InventoryLedgerEntry, LedgerEntryType
 
 
 def _value(filters_data, key):
@@ -12,27 +11,19 @@ def _value(filters_data, key):
 
 
 def get_ledger_entries(filters_data=None):
-    queryset = StockLedger.objects.select_related("product").all()
+    queryset = InventoryLedgerEntry.objects.select_related("product").all()
 
     product = _value(filters_data, "product")
     if product:
         queryset = queryset.filter(product_id=product)
 
-    movement_type = _value(filters_data, "movement_type")
-    if movement_type:
-        queryset = queryset.filter(movement_type=movement_type)
+    entry_type = _value(filters_data, "entry_type")
+    if entry_type:
+        queryset = queryset.filter(entry_type=entry_type)
 
-    direction = _value(filters_data, "direction")
-    if direction:
-        queryset = queryset.filter(direction=direction)
-
-    reference_type = _value(filters_data, "reference_type")
-    if reference_type:
-        queryset = queryset.filter(reference_type=reference_type)
-
-    reference_id = _value(filters_data, "reference_id")
-    if reference_id:
-        queryset = queryset.filter(reference_id=reference_id)
+    reference = _value(filters_data, "reference")
+    if reference:
+        queryset = queryset.filter(reference__icontains=reference)
 
     return queryset.order_by("-created_at")
 
