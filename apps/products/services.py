@@ -1,5 +1,7 @@
 from decimal import Decimal
 from core.exceptions import DomainError
+from apps.audit_logs.services import log_event
+from apps.audit_logs.models import AuditLogAction
 from .models import Product
 
 def create_product(
@@ -60,11 +62,13 @@ def update_product(product, **fields):
     # Enforce read-only constraint on stock levels
     for stock_field in ["on_hand_qty", "reserved_qty"]:
         if stock_field in fields:
-            # We raise a DomainError if the caller tries to change it
-            # (or we could just silently pop it, but raising an error enforces the rule)
             if Decimal(str(fields[stock_field])) != getattr(product, stock_field):
                 raise DomainError(f"Cannot update stock quantity '{stock_field}' via the Product module.")
             fields.pop(stock_field)
+
+    old_cost = product.cost_price
+    old_selling = product.selling_price
+    old_active = product.is_active
 
     if "sku" in fields:
         new_sku = fields["sku"]
@@ -87,6 +91,24 @@ def update_product(product, **fields):
         setattr(product, key, val)
 
     product.save()
+
+    # Log audit events
+    price_changed = False
+    if "cost_price" in fields and old_cost != product.cost_price:
+        price_changed = True
+        log_event(user=None, module="products", record=product, action=AuditLogAction.PRICE_CHANGED, field="cost_price", old=old_cost, new=product.cost_price)
+    if "selling_price" in fields and old_selling != product.selling_price:
+        price_changed = True
+        log_event(user=None, module="products", record=product, action=AuditLogAction.PRICE_CHANGED, field="selling_price", old=old_selling, new=product.selling_price)
+
+    status_changed = False
+    if "is_active" in fields and old_active != product.is_active:
+        status_changed = True
+        log_event(user=None, module="products", record=product, action=AuditLogAction.STATUS_CHANGED, field="is_active", old=old_active, new=product.is_active)
+
+    if not price_changed and not status_changed:
+        log_event(user=None, module="products", record=product, action=AuditLogAction.UPDATED)
+
     return product
 
 
@@ -98,4 +120,15 @@ def deactivate_product(product):
         raise DomainError("Product is already inactive.")
     product.is_active = False
     product.save()
+
+    # Log status changed (deactivation)
+    log_event(
+        user=None,
+        module="products",
+        record=product,
+        action=AuditLogAction.STATUS_CHANGED,
+        field="is_active",
+        old=True,
+        new=False
+    )
     return product

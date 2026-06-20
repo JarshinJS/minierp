@@ -15,15 +15,15 @@ class Migration(migrations.Migration):
 
     operations = [
         migrations.CreateModel(
-            name='InventoryLedgerEntry',
+            name='ProcurementRequest',
             fields=[
                 ('id', models.UUIDField(default=uuid.uuid4, editable=False, primary_key=True, serialize=False)),
                 ('created_at', models.DateTimeField(auto_now_add=True, db_index=True)),
                 ('updated_at', models.DateTimeField(auto_now=True)),
-                ('quantity', models.DecimalField(decimal_places=2, max_digits=12)),
-                ('entry_type', models.CharField(choices=[('RECEIPT', 'Receipt (Stock In)'), ('ISSUE', 'Issue (Stock Out)'), ('RESERVATION', 'Reservation'), ('RELEASE', 'Reservation Release')], max_length=30)),
+                ('quantity_needed', models.DecimalField(decimal_places=2, max_digits=12)),
+                ('status', models.CharField(choices=[('PENDING', 'Pending'), ('IN_PROGRESS', 'In Progress'), ('COMPLETED', 'Completed')], default='PENDING', max_length=30)),
                 ('reference', models.CharField(blank=True, max_length=100)),
-                ('product', models.ForeignKey(on_delete=django.db.models.deletion.CASCADE, related_name='ledger_entries', to='products.product')),
+                ('product', models.ForeignKey(on_delete=django.db.models.deletion.CASCADE, related_name='procurement_requests', to='products.product')),
             ],
             options={
                 'abstract': False,

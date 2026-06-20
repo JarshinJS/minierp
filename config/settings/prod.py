@@ -33,3 +33,12 @@ DATABASES = {
 
 # Static file storage with compression (optional, e.g. ManifestStaticFilesStorage)
 STATICFILES_STORAGE = "django.contrib.staticfiles.storage.ManifestStaticFilesStorage"
+
+# REST Framework Security Hardening
+# Disable BasicAuthentication in production to prevent credentials exposure
+REST_FRAMEWORK = {
+    **REST_FRAMEWORK,
+    "DEFAULT_AUTHENTICATION_CLASSES": [
+        "rest_framework.authentication.SessionAuthentication",
+    ],
+}

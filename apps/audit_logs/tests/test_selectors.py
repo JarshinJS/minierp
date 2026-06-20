@@ -47,6 +47,10 @@ class TestAuditSelectors:
         assert list(get_audit_logs({"date_from": (timezone.now() - timedelta(days=1)).date()})) == [deleted, updated]
         assert list(get_audit_logs({"date_to": (timezone.now() - timedelta(days=1)).date()})) == [updated, created]
 
+        # Test invalid UUID values do not crash and return empty
+        assert list(get_audit_logs({"user": "qqq"})) == []
+        assert list(get_audit_logs({"record_id": "invalid-uuid"})) == []
+
     def test_get_audit_summary_counts_expected_actions(self):
         _log(AuditLogAction.CREATED, "sales", "SalesOrder")
         _log(AuditLogAction.CREATED, "sales", "SalesOrder")

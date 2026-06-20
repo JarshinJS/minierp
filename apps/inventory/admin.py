@@ -1,17 +1,10 @@
 from django.contrib import admin
-from .models import StockLedger
+from .models import InventoryLedgerEntry
 
+class InventoryLedgerEntryAdmin(admin.ModelAdmin):
+    list_display = ("product", "quantity", "entry_type", "reference", "created_at")
+    list_filter = ("entry_type", "created_at")
+    search_fields = ("product__name", "product__sku", "reference")
+    readonly_fields = ("product", "quantity", "entry_type", "reference")
 
-@admin.register(StockLedger)
-class StockLedgerAdmin(admin.ModelAdmin):
-	list_display = (
-		"created_at",
-		"product",
-		"movement_type",
-		"direction",
-		"quantity",
-		"reference_type",
-		"reference_id",
-	)
-	list_filter = ("movement_type", "direction", "reference_type", "created_at")
-	search_fields = ("product__name", "reference_type", "reference_id")
+admin.site.register(InventoryLedgerEntry, InventoryLedgerEntryAdmin)

@@ -1,3 +1,4 @@
+import uuid
 from django.db.models import Q
 from .models import Product
 
@@ -11,7 +12,11 @@ def get_products(search_query=None, category_id=None, is_active=None):
         queryset = queryset.filter(is_active=is_active)
 
     if category_id:
-        queryset = queryset.filter(category_id=category_id)
+        try:
+            uuid.UUID(str(category_id))
+            queryset = queryset.filter(category_id=category_id)
+        except ValueError:
+            queryset = queryset.none()
 
     if search_query:
         queryset = queryset.filter(

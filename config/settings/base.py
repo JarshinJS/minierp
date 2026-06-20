@@ -22,6 +22,7 @@ if not SECRET_KEY:
 DEBUG = os.getenv("DEBUG", "False").lower() == "true"
 
 ALLOWED_HOSTS = _csv(os.getenv("ALLOWED_HOSTS", ""))
+CSRF_TRUSTED_ORIGINS = _csv(os.getenv("CSRF_TRUSTED_ORIGINS", ""))
 
 # Application definition
 INSTALLED_APPS = [
@@ -96,6 +97,16 @@ DATABASES = {
         "PORT": os.getenv("DB_PORT", ""),
     }
 }
+
+# Email Configuration
+EMAIL_BACKEND = os.getenv("EMAIL_BACKEND", "django.core.mail.backends.smtp.EmailBackend")
+EMAIL_HOST = os.getenv("EMAIL_HOST", "smtp.gmail.com")
+EMAIL_PORT = int(os.getenv("EMAIL_PORT", "587"))
+EMAIL_USE_TLS = os.getenv("EMAIL_USE_TLS", "True").lower() == "true"
+EMAIL_USE_SSL = os.getenv("EMAIL_USE_SSL", "False").lower() == "true"
+EMAIL_HOST_USER = os.getenv("EMAIL_HOST_USER", "")
+EMAIL_HOST_PASSWORD = os.getenv("EMAIL_HOST_PASSWORD", "")
+DEFAULT_FROM_EMAIL = os.getenv("DEFAULT_FROM_EMAIL", EMAIL_HOST_USER)
 
 # Password validation
 AUTH_PASSWORD_VALIDATORS = [

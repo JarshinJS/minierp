@@ -1,0 +1,78 @@
+{% extends "base.html" %}
+
+{% block title %}Sales Orders Kanban - Shiv Furniture Works ERP{% endblock %}
+
+{% block content %}
+<div class="space-y-8">
+    <!-- Page Header -->
+    <div class="md:flex md:items-center md:justify-between">
+        <div class="flex-1 min-w-0">
+            <h2 class="text-2xl font-extrabold font-outfit text-slate-900 sm:text-3xl">
+                Sales Board
+            </h2>
+            <p class="mt-1 text-sm text-slate-500">
+                Kanban status workflow mapping active orders across stages.
+            </p>
+        </div>
+        <div class="mt-4 md:mt-0 flex space-x-2">
+            <!-- View Mode Switch -->
+            <a href="{% url 'sales:sales_order_list' %}" class="inline-flex items-center px-4 py-2 border border-slate-300 rounded-lg shadow-sm text-sm font-semibold text-slate-700 bg-white hover:bg-slate-50 transition-colors">
+                <svg class="w-4 h-4 mr-2" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M4 6h16M4 12h16M4 18h16"/></svg>
+                List View
+            </a>
+            
+            <a href="{% url 'sales:sales_order_create' %}" class="inline-flex items-center px-4 py-2 border border-transparent rounded-lg shadow-sm text-sm font-semibold text-white bg-brand hover:bg-brand-dark focus:outline-none transition-colors">
+                <svg class="w-4 h-4 mr-2" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 4v16m8-8H4"/></svg>
+                Create Sales Order
+            </a>
+        </div>
+    </div>
+
+    <!-- Kanban Board Layout -->
+    <div class="grid grid-cols-1 md:grid-cols-5 gap-4 items-start">
+        
+        <!-- Status Columns -->
+        {% for status_code, status_orders in kanban.items %}
+        <div class="bg-slate-100 rounded-xl p-3 border border-slate-200 shadow-sm flex flex-col min-h-[500px]">
+            <!-- Column Header -->
+            <div class="flex justify-between items-center mb-3 px-1">
+                <span class="text-xs font-bold text-slate-600 uppercase tracking-wider">
+                    {% if status_code == 'DRAFT' %}Draft
+                    {% elif status_code == 'CONFIRMED' %}Confirmed
+                    {% elif status_code == 'PARTIALLY_DELIVERED' %}Partial Del.
+                    {% elif status_code == 'FULLY_DELIVERED' %}Fully Del.
+                    {% elif status_code == 'CANCELLED' %}Cancelled
+                    {% endif %}
+                </span>
+                <span class="px-2 py-0.5 text-xs font-bold bg-slate-200 text-slate-700 rounded-full">
+                    {{ status_orders|length }}
+                </span>
+            </div>
+
+            <!-- Column Cards list -->
+            <div class="space-y-2 flex-grow overflow-y-auto max-h-[700px] scrollbar-thin">
+                {% for order in status_orders %}
+                <a href="{% url 'sales:sales_order_detail' order.pk %}" class="block bg-white hover:bg-slate-50 border border-slate-200 rounded-lg p-4 shadow-sm hover:shadow transition-all duration-150 relative group">
+                    <div class="text-xs font-bold font-mono text-brand mb-1">
+                        {{ order.order_number }}
+                    </div>
+                    <div class="text-sm font-semibold text-slate-800 truncate mb-2">
+                        {{ order.customer_name }}
+                    </div>
+                    <div class="border-t border-slate-100 pt-2 flex justify-between items-center text-xs">
+                        <span class="text-slate-400">{{ order.created_at|date:"M d" }}</span>
+                        <span class="font-bold text-slate-800">${{ order.total_amount }}</span>
+                    </div>
+                </a>
+                {% empty %}
+                <div class="text-center text-xs text-slate-400 py-10 border-2 border-dashed border-slate-200 rounded-lg">
+                    No orders
+                </div>
+                {% endfor %}
+            </div>
+        </div>
+        {% endfor %}
+
+    </div>
+</div>
+{% endblock %}
