@@ -1,0 +1,150 @@
+<div id="dashboard-summary" class="space-y-6">
+    <div class="grid gap-4 md:grid-cols-3 xl:grid-cols-5">
+        <div class="rounded-3xl border border-slate-200 bg-white p-6 shadow-sm">
+            <p class="text-sm font-medium text-slate-500">Sales Orders</p>
+            <p class="mt-4 text-3xl font-semibold text-slate-900">{{ summary.sales.order_count }}</p>
+            <p class="mt-2 text-sm text-slate-500">Total sales value: ${{ summary.sales.total_value }}</p>
+        </div>
+        <div class="rounded-3xl border border-slate-200 bg-white p-6 shadow-sm">
+            <p class="text-sm font-medium text-slate-500">Purchase Orders</p>
+            <p class="mt-4 text-3xl font-semibold text-slate-900">{{ summary.purchase.order_count }}</p>
+            <p class="mt-2 text-sm text-slate-500">Total purchase value: ${{ summary.purchase.total_value }}</p>
+        </div>
+        <div class="rounded-3xl border border-slate-200 bg-white p-6 shadow-sm">
+            <p class="text-sm font-medium text-slate-500">Manufacturing Orders</p>
+            <p class="mt-4 text-3xl font-semibold text-slate-900">{{ summary.manufacturing.order_count }}</p>
+            <p class="mt-2 text-sm text-slate-500">Qty to produce: {{ summary.manufacturing.total_quantity }}</p>
+        </div>
+        <div class="rounded-3xl border border-slate-200 bg-white p-6 shadow-sm">
+            <p class="text-sm font-medium text-slate-500">Inventory</p>
+            <p class="mt-4 text-3xl font-semibold text-slate-900">{{ summary.inventory.total_products }}</p>
+            <p class="mt-2 text-sm text-slate-500">Available: {{ summary.inventory.available_qty }}</p>
+        </div>
+        <div class="rounded-3xl border border-slate-200 bg-white p-6 shadow-sm">
+            <p class="text-sm font-medium text-slate-500">Procurement Requests</p>
+            <p class="mt-4 text-3xl font-semibold text-slate-900">{{ summary.procurement.request_count }}</p>
+            <p class="mt-2 text-sm text-slate-500">Pending: {{ summary.procurement.pending }}</p>
+        </div>
+    </div>
+
+    <div class="grid gap-4 xl:grid-cols-3">
+        <div class="rounded-3xl border border-slate-200 bg-white p-6 shadow-sm">
+            <h2 class="text-lg font-semibold text-slate-900">Sales Status</h2>
+            <div class="mt-5 space-y-3">
+                {% for item in summary.sales.status_chart %}
+                <div>
+                    <div class="flex items-center justify-between text-sm text-slate-600">
+                        <span>{{ item.label }}</span>
+                        <span>{{ item.count }}</span>
+                    </div>
+                    <div class="mt-2 h-2 overflow-hidden rounded-full bg-slate-100">
+                        <div class="h-full rounded-full bg-slate-900" style="width: {{ item.ratio }}%"></div>
+                    </div>
+                </div>
+                {% endfor %}
+            </div>
+        </div>
+
+        <div class="rounded-3xl border border-slate-200 bg-white p-6 shadow-sm">
+            <h2 class="text-lg font-semibold text-slate-900">Purchase Status</h2>
+            <div class="mt-5 space-y-3">
+                {% for item in summary.purchase.status_chart %}
+                <div>
+                    <div class="flex items-center justify-between text-sm text-slate-600">
+                        <span>{{ item.label }}</span>
+                        <span>{{ item.count }}</span>
+                    </div>
+                    <div class="mt-2 h-2 overflow-hidden rounded-full bg-slate-100">
+                        <div class="h-full rounded-full bg-emerald-500" style="width: {{ item.ratio }}%"></div>
+                    </div>
+                </div>
+                {% endfor %}
+            </div>
+        </div>
+
+        <div class="rounded-3xl border border-slate-200 bg-white p-6 shadow-sm">
+            <h2 class="text-lg font-semibold text-slate-900">Manufacturing Status</h2>
+            <div class="mt-5 space-y-3">
+                {% for item in summary.manufacturing.status_chart %}
+                <div>
+                    <div class="flex items-center justify-between text-sm text-slate-600">
+                        <span>{{ item.label }}</span>
+                        <span>{{ item.count }}</span>
+                    </div>
+                    <div class="mt-2 h-2 overflow-hidden rounded-full bg-slate-100">
+                        <div class="h-full rounded-full bg-cyan-500" style="width: {{ item.ratio }}%"></div>
+                    </div>
+                </div>
+                {% endfor %}
+            </div>
+        </div>
+    </div>
+
+    <div class="grid gap-4 xl:grid-cols-2">
+        <div class="rounded-3xl border border-slate-200 bg-white p-6 shadow-sm">
+            <h2 class="text-lg font-semibold text-slate-900">Recent Activity</h2>
+            <div class="mt-5 space-y-4">
+                <div class="overflow-hidden rounded-3xl border border-slate-200">
+                    <table class="min-w-full divide-y divide-slate-200 text-left text-sm">
+                        <thead class="bg-slate-50 text-slate-700 uppercase tracking-wider text-xs">
+                            <tr>
+                                <th class="px-4 py-3">When</th>
+                                <th class="px-4 py-3">User</th>
+                                <th class="px-4 py-3">Module</th>
+                                <th class="px-4 py-3">Action</th>
+                            </tr>
+                        </thead>
+                        <tbody class="divide-y divide-slate-200 bg-white">
+                            {% for activity in summary.recent_activities %}
+                            <tr>
+                                <td class="px-4 py-3 text-slate-500">{{ activity.timestamp|date:"M d, Y H:i" }}</td>
+                                <td class="px-4 py-3 text-slate-700">{{ activity.user }}</td>
+                                <td class="px-4 py-3 text-slate-700">{{ activity.module }}</td>
+                                <td class="px-4 py-3 text-slate-700">{{ activity.action }}</td>
+                            </tr>
+                            {% empty %}
+                            <tr>
+                                <td colspan="4" class="px-4 py-6 text-center text-slate-500">No recent activity found.</td>
+                            </tr>
+                            {% endfor %}
+                        </tbody>
+                    </table>
+                </div>
+            </div>
+        </div>
+
+        <div class="rounded-3xl border border-slate-200 bg-white p-6 shadow-sm">
+            <h2 class="text-lg font-semibold text-slate-900">Low Stock Products</h2>
+            <div class="mt-5 space-y-4">
+                <div class="overflow-hidden rounded-3xl border border-slate-200">
+                    <table class="min-w-full divide-y divide-slate-200 text-left text-sm">
+                        <thead class="bg-slate-50 text-slate-700 uppercase tracking-wider text-xs">
+                            <tr>
+                                <th class="px-4 py-3">SKU</th>
+                                <th class="px-4 py-3">Product</th>
+                                <th class="px-4 py-3">On-hand</th>
+                                <th class="px-4 py-3">Reserved</th>
+                                <th class="px-4 py-3">Available</th>
+                            </tr>
+                        </thead>
+                        <tbody class="divide-y divide-slate-200 bg-white">
+                            {% for product in summary.low_stock_products %}
+                            <tr>
+                                <td class="px-4 py-3 text-slate-700">{{ product.sku }}</td>
+                                <td class="px-4 py-3 text-slate-700">{{ product.name }}</td>
+                                <td class="px-4 py-3 text-slate-700">{{ product.on_hand_qty }}</td>
+                                <td class="px-4 py-3 text-slate-700">{{ product.reserved_qty }}</td>
+                                <td class="px-4 py-3 text-amber-700 font-semibold">{{ product.available_qty }}</td>
+                            </tr>
+                            {% empty %}
+                            <tr>
+                                <td colspan="5" class="px-4 py-6 text-center text-slate-500">No low stock products found.</td>
+                            </tr>
+                            {% endfor %}
+                        </tbody>
+                    </table>
+                </div>
+            </div>
+        </div>
+    </div>
+</div>

@@ -120,19 +120,7 @@ class UserChangeRoleView(LoginRequiredMixin, RoleRequiredMixin, View):
 # Dummy Dashboard view to support routing redirects for non-admin users
 class DashboardHomeView(LoginRequiredMixin, View):
     def get(self, request, *args, **kwargs):
-        return HttpResponse(f"""
-            <html>
-            <head><title>Dashboard</title></head>
-            <body>
-                <h1>Dashboard Home</h1>
-                <p>Welcome, {request.user.full_name} ({request.user.role})</p>
-                <form action="{reverse_lazy('accounts:logout')}" method="post">
-                    <input type="hidden" name="csrfmiddlewaretoken" value="{request.META.get('CSRF_COOKIE', '')}">
-                    <button type="submit">Logout</button>
-                </form>
-            </body>
-            </html>
-        """)
+        return redirect(reverse_lazy("dashboard:home"))
 
 
 def render_row_partial(request, user):
