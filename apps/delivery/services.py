@@ -1,4 +1,5 @@
 import datetime
+import logging
 from decimal import Decimal
 from django.db import transaction
 from django.utils import timezone
@@ -8,6 +9,8 @@ from apps.sales.models import SalesOrderStatus
 from apps.audit_logs.services import log_event
 from apps.audit_logs.models import AuditLogAction
 from .models import DeliveryNote, DeliveryNoteLine, DeliveryNoteStatus
+
+logger = logging.getLogger(__name__)
 
 @transaction.atomic
 def create_delivery_note(sales_order, lines_data, created_by, notes=""):
@@ -64,6 +67,7 @@ def create_delivery_note(sales_order, lines_data, created_by, notes=""):
     return delivery_note
 
 
+
 @transaction.atomic
 def dispatch_delivery_note(delivery_note, user=None):
     """
@@ -96,6 +100,8 @@ def dispatch_delivery_note(delivery_note, user=None):
         old=DeliveryNoteStatus.PENDING,
         new=DeliveryNoteStatus.DISPATCHED
     )
+    logger.info(f"Delivery dispatched notification would have been sent for delivery note {delivery_note.id}")
+
     return delivery_note
 
 

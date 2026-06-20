@@ -1,4 +1,5 @@
 import datetime
+import logging
 from decimal import Decimal
 
 from django.db import transaction
@@ -9,6 +10,8 @@ from apps.inventory import services as inventory_services
 from core.exceptions import DomainError, WorkflowError
 
 from .models import PurchaseOrder, PurchaseOrderLine, PurchaseOrderStatus
+
+logger = logging.getLogger(__name__)
 
 
 def _generate_order_number():
@@ -104,6 +107,9 @@ def confirm_order(order):
         old=old_status,
         new=order.status,
     )
+
+    logger.info(f"Purchase order notification would have been sent for purchase order {order.id}")
+
     return order
 
 
