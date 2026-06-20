@@ -80,3 +80,15 @@ class LoginForm(forms.Form):
 
     def get_user(self):
         return self.user_cache
+
+
+class VerifyOTPForm(forms.Form):
+    otp = forms.CharField(
+        max_length=6,
+        min_length=6,
+        widget=forms.TextInput(attrs={
+            "class": "appearance-none block w-full px-3 py-2 border border-slate-300 rounded-md shadow-sm placeholder-slate-400 focus:outline-none focus:ring-brand focus:border-brand sm:text-sm text-center tracking-widest text-lg font-bold",
+            "placeholder": "••••••",
+            "autocomplete": "one-time-code"
+        })
+    )
