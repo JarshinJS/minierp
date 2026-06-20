@@ -37,12 +37,17 @@ class LoginView(FormView):
     template_name = "accounts/login.html"
     form_class = LoginForm
 
+    def get_form_kwargs(self):
+        kwargs = super().get_form_kwargs()
+        kwargs["request"] = self.request
+        return kwargs
+
     def get_success_url(self):
         # Redirect based on user role to make a premium UX
         user = self.request.user
         if user.role in [UserRole.ADMIN, UserRole.BUSINESS_OWNER]:
             return reverse_lazy("accounts:user_list")
-        return reverse_lazy("accounts:dashboard_home")
+        return reverse_lazy("dashboard:home")
 
     def form_valid(self, form):
         auth_login(self.request, form.get_user())

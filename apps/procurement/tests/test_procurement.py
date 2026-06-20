@@ -72,7 +72,7 @@ class TestProcurementHandling:
         assert trigger.status == ProcurementTriggerStatus.COMPLETED
         assert trigger.document_type == ProcurementDocumentType.MANUFACTURING_ORDER
         assert trigger.document_number.startswith("MO-")
-        assert ManufacturingOrder.objects.filter(order_number=trigger.document_number).exists()
+        assert ManufacturingOrder.objects.filter(reference=trigger.document_number).exists()
 
     def test_trigger_dashboard_records(self, procurement_setup):
         product = procurement_setup["purchase_product"]
