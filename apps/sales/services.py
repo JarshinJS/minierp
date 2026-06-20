@@ -67,10 +67,11 @@ def confirm_order(order):
         # 2. Check shortage: available quantity (available_qty)
         if line.product.on_hand_qty < line.quantity:
             shortage_qty = line.quantity - line.product.on_hand_qty
-            procurement_services.trigger_procurement(
+            procurement_services.handle_shortage(
                 product=line.product,
                 quantity_needed=shortage_qty,
-                reference=order.order_number
+                reference=order.order_number,
+                created_by=order.created_by,
             )
 
     order.status = SalesOrderStatus.CONFIRMED

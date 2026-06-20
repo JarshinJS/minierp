@@ -7,7 +7,7 @@ from apps.dashboard.views import DashboardSummaryAPIView
 urlpatterns = [
     path("admin/", admin.site.urls),
     path("accounts/", include("apps.accounts.urls")),
-    path("dashboard/", include("apps.dashboard.urls")),
+    path("procurement/", include("apps.procurement.urls")),
     path("purchase/", include("apps.purchase.urls")),
     path("products/", include("apps.products.urls")),
     path("sales/", include("apps.sales.urls")),

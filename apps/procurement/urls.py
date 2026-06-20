@@ -1,6 +1,9 @@
 from django.urls import path
 
-app_name = f"apps.{app}"
+from . import views
+
+app_name = "procurement"
 
 urlpatterns = [
+	path("trigger-dashboard/", views.TriggerDashboardView.as_view(), name="trigger_dashboard"),
 ]

@@ -1,0 +1,72 @@
+{% extends "base.html" %}
+
+{% block title %}Procurement Triggers - Shiv Furniture Works ERP{% endblock %}
+
+{% block content %}
+<div class="space-y-8">
+    <div class="md:flex md:items-center md:justify-between">
+        <div class="flex-1 min-w-0">
+            <h2 class="text-2xl font-extrabold font-outfit text-slate-900 sm:text-3xl">Procurement Trigger Dashboard</h2>
+            <p class="mt-1 text-sm text-slate-500">Track shortages and the documents created automatically from them.</p>
+        </div>
+    </div>
+
+    <div class="grid grid-cols-1 gap-4 sm:grid-cols-4">
+        <div class="bg-white border border-slate-100 rounded-xl shadow p-4">
+            <div class="text-xs uppercase tracking-wide text-slate-500 font-semibold">Queued</div>
+            <div class="mt-2 text-3xl font-bold text-slate-900">{{ queued_count }}</div>
+        </div>
+        <div class="bg-white border border-slate-100 rounded-xl shadow p-4">
+            <div class="text-xs uppercase tracking-wide text-slate-500 font-semibold">Processing</div>
+            <div class="mt-2 text-3xl font-bold text-slate-900">{{ processing_count }}</div>
+        </div>
+        <div class="bg-white border border-slate-100 rounded-xl shadow p-4">
+            <div class="text-xs uppercase tracking-wide text-slate-500 font-semibold">Completed</div>
+            <div class="mt-2 text-3xl font-bold text-slate-900">{{ completed_count }}</div>
+        </div>
+        <div class="bg-white border border-slate-100 rounded-xl shadow p-4">
+            <div class="text-xs uppercase tracking-wide text-slate-500 font-semibold">Failed</div>
+            <div class="mt-2 text-3xl font-bold text-slate-900">{{ failed_count }}</div>
+        </div>
+    </div>
+
+    <div class="bg-white shadow border border-slate-100 rounded-xl overflow-hidden">
+        <div class="overflow-x-auto">
+            <table class="min-w-full divide-y divide-slate-200">
+                <thead class="bg-slate-50">
+                    <tr>
+                        <th class="px-6 py-3.5 text-left text-xs font-semibold text-slate-500 uppercase tracking-wider">Product</th>
+                        <th class="px-6 py-3.5 text-left text-xs font-semibold text-slate-500 uppercase tracking-wider">Qty Needed</th>
+                        <th class="px-6 py-3.5 text-left text-xs font-semibold text-slate-500 uppercase tracking-wider">Reference</th>
+                        <th class="px-6 py-3.5 text-left text-xs font-semibold text-slate-500 uppercase tracking-wider">Document</th>
+                        <th class="px-6 py-3.5 text-left text-xs font-semibold text-slate-500 uppercase tracking-wider">Status</th>
+                        <th class="px-6 py-3.5 text-left text-xs font-semibold text-slate-500 uppercase tracking-wider">Created</th>
+                    </tr>
+                </thead>
+                <tbody class="divide-y divide-slate-200 bg-white">
+                    {% for trigger in triggers %}
+                    <tr class="hover:bg-slate-50 transition-colors">
+                        <td class="px-6 py-4 whitespace-nowrap text-sm font-semibold text-slate-900">{{ trigger.product.name }} <span class="text-slate-500 font-mono">({{ trigger.product.sku }})</span></td>
+                        <td class="px-6 py-4 whitespace-nowrap text-sm text-slate-700">{{ trigger.quantity_needed }}</td>
+                        <td class="px-6 py-4 whitespace-nowrap text-sm text-slate-700">{{ trigger.reference|default:"-" }}</td>
+                        <td class="px-6 py-4 whitespace-nowrap text-sm text-slate-700">
+                            {% if trigger.document_number %}
+                                {{ trigger.get_document_type_display }} - {{ trigger.document_number }}
+                            {% else %}
+                                -
+                            {% endif %}
+                        </td>
+                        <td class="px-6 py-4 whitespace-nowrap text-sm text-slate-700">{{ trigger.get_status_display }}</td>
+                        <td class="px-6 py-4 whitespace-nowrap text-sm text-slate-500">{{ trigger.created_at|date:"M d, Y H:i" }}</td>
+                    </tr>
+                    {% empty %}
+                    <tr>
+                        <td colspan="6" class="px-6 py-10 text-center text-sm text-slate-500">No procurement triggers yet.</td>
+                    </tr>
+                    {% endfor %}
+                </tbody>
+            </table>
+        </div>
+    </div>
+</div>
+{% endblock %}
