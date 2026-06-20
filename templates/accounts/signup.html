@@ -2,8 +2,10 @@
 
 {% block title %}Sign Up - Shiv Furniture Works ERP{% endblock %}
 
+{% block body_class %}text-slate-900 bg-slate-50{% endblock %}
+
 {% block content %}
-<div class="sm:mx-auto sm:w-full sm:max-w-md px-4">
+<div class="sm:mx-auto sm:w-full sm:max-w-md px-4 py-12">
     <!-- Header -->
     <div class="text-center">
         <h2 class="text-3xl font-extrabold font-outfit text-slate-900 tracking-tight">
@@ -43,7 +45,7 @@
 
             <!-- Full Name -->
             <div>
-                <label for="{{ form.full_name.id_for_label }}" class="block text-sm font-medium text-slate-700">
+                <label for="{{ form.full_name.id_for_label }}" class="block text-sm font-semibold text-slate-700">
                     Full Name
                 </label>
                 <div class="mt-1">
@@ -56,7 +58,7 @@
 
             <!-- Email -->
             <div>
-                <label for="{{ form.email.id_for_label }}" class="block text-sm font-medium text-slate-700">
+                <label for="{{ form.email.id_for_label }}" class="block text-sm font-semibold text-slate-700">
                     Email Address
                 </label>
                 <div class="mt-1">
@@ -69,7 +71,7 @@
 
             <!-- Role Select -->
             <div>
-                <label for="{{ form.role.id_for_label }}" class="block text-sm font-medium text-slate-700">
+                <label for="{{ form.role.id_for_label }}" class="block text-sm font-semibold text-slate-700">
                     Initial System Role
                 </label>
                 <div class="mt-1">
@@ -82,7 +84,7 @@
 
             <!-- Password -->
             <div>
-                <label for="{{ form.password.id_for_label }}" class="block text-sm font-medium text-slate-700">
+                <label for="{{ form.password.id_for_label }}" class="block text-sm font-semibold text-slate-700">
                     Password
                 </label>
                 <div class="mt-1">
@@ -95,7 +97,7 @@
 
             <!-- Confirm Password -->
             <div>
-                <label for="{{ form.confirm_password.id_for_label }}" class="block text-sm font-medium text-slate-700">
+                <label for="{{ form.confirm_password.id_for_label }}" class="block text-sm font-semibold text-slate-700">
                     Confirm Password
                 </label>
                 <div class="mt-1">

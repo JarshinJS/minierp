@@ -46,14 +46,13 @@ class DashboardSummaryAPIView(APIView):
     def get(self, request, *args, **kwargs):
         return Response(get_dashboard_summary())
 
-<<<<<<< HEAD
-
 import json
 import time
 import hashlib
 from django.http import StreamingHttpResponse
 from django.template.loader import render_to_string
 from django.views import View
+from apps.inventory.services import InventoryRAGService
 
 class DashboardSSESummaryView(LoginRequiredMixin, View):
     def get(self, request, *args, **kwargs):
@@ -86,9 +85,6 @@ class DashboardSSESummaryView(LoginRequiredMixin, View):
         response["Cache-Control"] = "no-cache"
         response["X-Accel-Buffering"] = "no"
         return response
-=======
-from django.views import View
-from apps.inventory.services import InventoryRAGService
 
 class DashboardRAGView(LoginRequiredMixin, View):
     def post(self, request, *args, **kwargs):
@@ -107,5 +103,3 @@ class DashboardRAGView(LoginRequiredMixin, View):
             "user_query": query,
             "bot_response": answer
         })
-
->>>>>>> rag-integration-ui
