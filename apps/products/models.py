@@ -1,5 +1,6 @@
 from decimal import Decimal
 from django.db import models
+
 from core.models import UUIDBaseModel, TimeStampedModel
 from apps.purchase.models import Vendor
 from apps.manufacturing.models import BoM
