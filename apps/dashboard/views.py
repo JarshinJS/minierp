@@ -32,3 +32,25 @@ class DashboardSummaryAPIView(APIView):
 
     def get(self, request, *args, **kwargs):
         return Response(get_dashboard_summary())
+
+from django.views import View
+from apps.inventory.services import InventoryRAGService
+
+class DashboardRAGView(LoginRequiredMixin, View):
+    def post(self, request, *args, **kwargs):
+        query = request.POST.get("query", "").strip()
+        if not query:
+            return render(request, "dashboard/partials/rag_message.html", {"user_query": "", "bot_response": "Please enter a query."})
+        
+        try:
+            rag_service = InventoryRAGService()
+            # If no model configured, it handles failures gracefully inside generate()
+            answer = rag_service.generate(user_instruction=query)
+        except Exception as e:
+            answer = "Sorry, I encountered an error connecting to the AI."
+            
+        return render(request, "dashboard/partials/rag_message.html", {
+            "user_query": query,
+            "bot_response": answer
+        })
+

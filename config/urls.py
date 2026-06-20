@@ -13,6 +13,8 @@ urlpatterns = [
     path("sales/", include("apps.sales.urls")),
     path("audit-logs/", include("apps.audit_logs.urls")),
     path("manufacturing/", include("apps.manufacturing.urls")),
+    path("inventory/", include("apps.inventory.urls")),
+    path("dashboard/", include("apps.dashboard.urls")),
     path("api/dashboard/summary", DashboardSummaryAPIView.as_view(), name="dashboard_api_summary"),
     path("", RedirectView.as_view(pattern_name="accounts:login", permanent=False)),
 ]

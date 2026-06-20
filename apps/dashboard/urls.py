@@ -7,4 +7,5 @@ app_name = "dashboard"
 urlpatterns = [
     path("", views.DashboardHomeView.as_view(), name="home"),
     path("summary-partial/", views.DashboardSummaryPartialView.as_view(), name="summary_partial"),
+    path("rag-query/", views.DashboardRAGView.as_view(), name="rag_query"),
 ]
