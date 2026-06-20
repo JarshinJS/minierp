@@ -1,0 +1,20 @@
+{% extends "base.html" %}
+
+{% block title %}Dashboard | Shiv Furniture Works ERP{% endblock %}
+
+{% block content %}
+<div class="space-y-6">
+    <div class="flex flex-col gap-4 md:flex-row md:items-end md:justify-between">
+        <div>
+            <h1 class="text-3xl font-semibold text-slate-900">Dashboard</h1>
+            <p class="mt-2 text-sm text-slate-500">Overview of company KPIs, inventory alerts, and recent activity.</p>
+        </div>
+    </div>
+
+    <div id="dashboard-summary" hx-get="{{ summary_partial_url }}" hx-trigger="load" hx-swap="outerHTML">
+        <div class="rounded-3xl border border-dashed border-slate-200 bg-white p-12 text-center text-slate-500">
+            Loading dashboard...
+        </div>
+    </div>
+</div>
+{% endblock %}

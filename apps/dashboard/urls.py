@@ -1,6 +1,10 @@
 from django.urls import path
 
-app_name = f"apps.{app}"
+from . import views
+
+app_name = "dashboard"
 
 urlpatterns = [
+    path("", views.DashboardHomeView.as_view(), name="home"),
+    path("summary-partial/", views.DashboardSummaryPartialView.as_view(), name="summary_partial"),
 ]
