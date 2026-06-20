@@ -17,6 +17,11 @@ class SalesOrderStatus(models.TextChoices):
 class SalesOrder(AuditableMixin, UUIDBaseModel, TimeStampedModel):
     order_number = models.CharField(max_length=100, unique=True, db_index=True)
     customer_name = models.CharField(max_length=255)
+    customer_phone = models.CharField(
+        max_length=32, blank=True, db_index=True,
+        help_text="Phone in international format, no '+', e.g. 919876543210",
+    )
+    customer_email = models.EmailField(blank=True)
     status = models.CharField(
         max_length=30,
         choices=SalesOrderStatus.choices,

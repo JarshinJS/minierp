@@ -1,0 +1,8 @@
+{
+  "venvPath": "d:/minierp",
+  "venv": ".venv",
+  "extraPaths": [
+    "d:/minierp",
+    "d:/minierp/.venv/Lib/site-packages"
+  ]
+}
