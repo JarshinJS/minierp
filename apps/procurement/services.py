@@ -4,8 +4,6 @@ from django.conf import settings
 from django.utils import timezone
 
 from core.exceptions import DomainError
-from apps.purchase import services as purchase_services
-from apps.purchase.models import PurchaseOrderStatus
 from apps.manufacturing import services as manufacturing_services
 from .models import (
     ProcurementDocumentType,
@@ -80,6 +78,8 @@ def create_procurement_document(trigger):
         if trigger.product.procurement_type == "PURCHASE":
             if not trigger.product.default_vendor:
                 raise DomainError(f"Product {trigger.product.sku} requires a default vendor for purchase procurement.")
+            from apps.purchase import services as purchase_services
+
             order = purchase_services.create_order(
                 vendor=trigger.product.default_vendor,
                 created_by=trigger.created_by,
@@ -94,16 +94,14 @@ def create_procurement_document(trigger):
             trigger.document_id = order.id
             trigger.document_number = order.order_number
         elif trigger.product.procurement_type == "MANUFACTURING":
-            order = manufacturing_services.create_order(
+            order = manufacturing_services.create_mo(
                 product=trigger.product,
-                quantity=trigger.quantity_needed,
-                reference=trigger.reference,
-                created_by=trigger.created_by,
+                qty_to_produce=trigger.quantity_needed,
                 notes=f"Auto-generated from shortage reference {trigger.reference}",
             )
             trigger.document_type = ProcurementDocumentType.MANUFACTURING_ORDER
             trigger.document_id = order.id
-            trigger.document_number = order.order_number
+            trigger.document_number = order.reference
         else:
             raise DomainError(f"Unsupported procurement type: {trigger.product.procurement_type}")
 
