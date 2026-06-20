@@ -3,7 +3,6 @@ from django.db import models
 
 from core.models import UUIDBaseModel, TimeStampedModel
 from apps.purchase.models import Vendor
-from apps.manufacturing.models import BoM
 from apps.audit_logs.mixins import AuditableMixin
 
 class UnitOfMeasure(models.TextChoices):
@@ -61,7 +60,7 @@ class Product(AuditableMixin, UUIDBaseModel, TimeStampedModel):
         related_name="default_products"
     )
     default_bom = models.ForeignKey(
-        BoM,
+        "manufacturing.BoM",
         on_delete=models.SET_NULL,
         null=True,
         blank=True,
