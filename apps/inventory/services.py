@@ -1,10 +1,28 @@
+from __future__ import annotations
+
+import logging
 from decimal import Decimal
+from typing import Any
+
+from django.apps import apps
 from django.db import transaction
 from core.exceptions import DomainError
 from apps.products.models import Product
 from apps.audit_logs.services import log_event
 from apps.audit_logs.models import AuditLogAction
 from .models import InventoryLedgerEntry, LedgerEntryType
+
+logger = logging.getLogger(__name__)
+
+DEFAULT_NO_CONTEXT_MESSAGE = "No critical negative stock balances were found."
+DEFAULT_USER_INSTRUCTION = (
+    "Provide a concise inventory risk summary focused only on critical negative stock balances."
+)
+DEFAULT_SYSTEM_INSTRUCTIONS = (
+    "You are an inventory analytics assistant. Use only the provided context block. "
+    "Do not hallucinate product names, invent numbers, infer causes, or assume any data outside the context. "
+    "If the context is empty or indicates no issues, say so plainly and do not fabricate details."
+)
 
 @transaction.atomic
 def post_ledger_entry(product, entry_type, quantity, reference=""):
@@ -111,3 +129,6 @@ def receive_stock(product, quantity, reference=""):
     """
     post_ledger_entry(product, LedgerEntryType.RECEIPT, quantity, reference=reference)
     return product
+
+
+

@@ -29,6 +29,8 @@ urlpatterns = [
     path("procurement/", include("apps.procurement.urls")),
     path("delivery/", include("apps.delivery.urls")),
     path("reports/", include("apps.reports.urls")),
+    path("trade/", include("apps.foreign_trade.urls")),
+    path("blockchain/", include("apps.blockchain.urls")),
     path("users/", RedirectView.as_view(pattern_name="accounts:user_list", permanent=False)),
     path("bom/", RedirectView.as_view(pattern_name="manufacturing:bom_list", permanent=False)),
     path("login/", RedirectView.as_view(pattern_name="accounts:login", permanent=False)),

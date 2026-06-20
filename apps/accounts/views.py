@@ -3,11 +3,11 @@ from django.contrib.auth import get_user_model
 from django.contrib.auth.mixins import LoginRequiredMixin
 from django.http import HttpResponse, HttpResponseBadRequest
 from django.shortcuts import redirect
-from django.urls import reverse_lazy
+from django.urls import reverse, reverse_lazy
 from django.views import View
 from django.views.generic import FormView, ListView
 from core.exceptions import DomainError, WorkflowError
-from .forms import SignupForm, LoginForm
+from .forms import SignupForm, LoginForm, VerifyOTPForm
 from .permissions import RoleRequiredMixin
 from .models import UserRole
 from . import services
@@ -21,16 +21,118 @@ class SignupView(FormView):
 
     def form_valid(self, form):
         try:
+            email = form.cleaned_data["email"]
+            # Check if user already exists
+            if User.objects.filter(email=email).exists():
+                raise DomainError(f"A user with email '{email}' already exists.")
+            
+            # Generate OTP
+            import random
+            import time
+            otp = f"{random.randint(100000, 999999)}"
+            
+            # Print OTP to terminal/console
+            print("\n" + "="*80)
+            print(f"  SIGNUP OTP FOR {email}: {otp}")
+            print("="*80 + "\n")
+            
+            # Store signup details in session
+            self.request.session["signup_data"] = {
+                "email": email,
+                "password": form.cleaned_data["password"],
+                "full_name": form.cleaned_data["full_name"],
+                "role": form.cleaned_data["role"],
+                "otp": otp,
+                "otp_expiry": time.time() + 300,  # 5 minutes
+            }
+            
+            return redirect("accounts:verify_otp")
+        except DomainError as e:
+            form.add_error(None, e.message)
+            return self.form_invalid(form)
+
+
+class VerifyOTPView(FormView):
+    template_name = "accounts/verify_otp.html"
+    form_class = VerifyOTPForm
+    success_url = reverse_lazy("accounts:login")
+
+    def dispatch(self, request, *args, **kwargs):
+        # Redirect to signup if there is no signup data in the session
+        if "signup_data" not in request.session:
+            return redirect("accounts:signup")
+        return super().dispatch(request, *args, **kwargs)
+
+    def get_context_data(self, **kwargs):
+        context = super().get_context_data(**kwargs)
+        # Pass the email to display it nicely in the verification screen
+        signup_data = self.request.session.get("signup_data", {})
+        context["email"] = signup_data.get("email", "")
+        # Add the expiry time for the UI countdown
+        context["otp_expiry"] = signup_data.get("otp_expiry", 0)
+        context["resent"] = self.request.GET.get("resent") == "1"
+        return context
+
+    def form_valid(self, form):
+        import time
+        signup_data = self.request.session.get("signup_data")
+        if not signup_data:
+            return redirect("accounts:signup")
+
+        user_otp = form.cleaned_data["otp"]
+        session_otp = signup_data.get("otp")
+        otp_expiry = signup_data.get("otp_expiry", 0)
+
+        # Check expiration
+        if time.time() > otp_expiry:
+            form.add_error("otp", "The OTP has expired. Please request a new one.")
+            return self.form_invalid(form)
+
+        # Check correctness
+        if user_otp != session_otp:
+            form.add_error("otp", "Invalid OTP. Please try again.")
+            return self.form_invalid(form)
+
+        # OTP is valid, create the user
+        try:
             services.create_user(
-                email=form.cleaned_data["email"],
-                password=form.cleaned_data["password"],
-                full_name=form.cleaned_data["full_name"],
-                role=form.cleaned_data["role"],
+                email=signup_data["email"],
+                password=signup_data["password"],
+                full_name=signup_data["full_name"],
+                role=signup_data["role"],
             )
+            # Clear signup data from session
+            del self.request.session["signup_data"]
             return super().form_valid(form)
         except DomainError as e:
             form.add_error(None, e.message)
             return self.form_invalid(form)
+
+
+class ResendOTPView(View):
+    def post(self, request, *args, **kwargs):
+        signup_data = request.session.get("signup_data")
+        if not signup_data:
+            return redirect("accounts:signup")
+
+        import random
+        import time
+        
+        # Re-generate OTP
+        otp = f"{random.randint(100000, 999999)}"
+        email = signup_data.get("email")
+
+        # Print new OTP to terminal/console
+        print("\n" + "="*80)
+        print(f"  RESENT SIGNUP OTP FOR {email}: {otp}")
+        print("="*80 + "\n")
+
+        # Update session
+        signup_data["otp"] = otp
+        signup_data["otp_expiry"] = time.time() + 300  # 5 minutes
+        request.session["signup_data"] = signup_data
+
+        return redirect(reverse("accounts:verify_otp") + "?resent=1")
 
 
 class LoginView(FormView):

@@ -184,7 +184,7 @@ class TestRolePermissions:
 
 @pytest.mark.django_db
 class TestAuthenticationFlows:
-    def test_signup_view_creates_user(self, client):
+    def test_signup_view_redirects_to_verify_otp(self, client):
         url = reverse("accounts:signup")
         data = {
             "email": "signup@example.com",
@@ -194,9 +194,114 @@ class TestAuthenticationFlows:
             "confirm_password": "strongpassword123"
         }
         response = client.post(url, data)
+        # Should redirect to verify-otp on success
+        assert response.status_code == 302
+        assert response.url == reverse("accounts:verify_otp")
+        
+        # Verify user is NOT created yet
+        assert User.objects.filter(email="signup@example.com").exists() is False
+        
+        # Verify session data
+        session = client.session
+        assert "signup_data" in session
+        assert session["signup_data"]["email"] == "signup@example.com"
+        assert "otp" in session["signup_data"]
+
+    def test_verify_otp_success_creates_user(self, client):
+        # Set up session
+        session = client.session
+        session["signup_data"] = {
+            "email": "verify@example.com",
+            "password": "strongpassword123",
+            "full_name": "Verify Me",
+            "role": UserRole.SALES_USER,
+            "otp": "123456",
+            "otp_expiry": 9999999999, # far in future
+        }
+        session.save()
+
+        verify_url = reverse("accounts:verify_otp")
+        response = client.post(verify_url, {"otp": "123456"})
+        
         # Should redirect to login on success
         assert response.status_code == 302
-        assert User.objects.filter(email="signup@example.com").exists() is True
+        assert response.url == reverse("accounts:login")
+        
+        # Verify user IS created
+        assert User.objects.filter(email="verify@example.com").exists() is True
+        
+        # Verify session is cleaned up
+        assert "signup_data" not in client.session
+
+    def test_verify_otp_invalid_error(self, client):
+        session = client.session
+        session["signup_data"] = {
+            "email": "verify@example.com",
+            "password": "strongpassword123",
+            "full_name": "Verify Me",
+            "role": UserRole.SALES_USER,
+            "otp": "123456",
+            "otp_expiry": 9999999999,
+        }
+        session.save()
+
+        verify_url = reverse("accounts:verify_otp")
+        response = client.post(verify_url, {"otp": "654321"}) # wrong OTP
+        
+        # Should render verify page again (200 OK) with errors
+        assert response.status_code == 200
+        form = response.context["form"]
+        assert "otp" in form.errors
+        assert form.errors["otp"][0] == "Invalid OTP. Please try again."
+        
+        # Verify user is NOT created
+        assert User.objects.filter(email="verify@example.com").exists() is False
+
+    def test_verify_otp_expired_error(self, client):
+        session = client.session
+        session["signup_data"] = {
+            "email": "verify@example.com",
+            "password": "strongpassword123",
+            "full_name": "Verify Me",
+            "role": UserRole.SALES_USER,
+            "otp": "123456",
+            "otp_expiry": 0, # expired
+        }
+        session.save()
+
+        verify_url = reverse("accounts:verify_otp")
+        response = client.post(verify_url, {"otp": "123456"})
+        
+        assert response.status_code == 200
+        form = response.context["form"]
+        assert "otp" in form.errors
+        assert "expired" in form.errors["otp"][0]
+        
+        assert User.objects.filter(email="verify@example.com").exists() is False
+
+    def test_resend_otp_generates_new_otp(self, client):
+        session = client.session
+        session["signup_data"] = {
+            "email": "resend@example.com",
+            "password": "strongpassword123",
+            "full_name": "Resend Me",
+            "role": UserRole.SALES_USER,
+            "otp": "111111",
+            "otp_expiry": 100,
+        }
+        session.save()
+
+        resend_url = reverse("accounts:resend_otp")
+        response = client.post(resend_url)
+        
+        # Should redirect back to verify page
+        assert response.status_code == 302
+        assert response.url == reverse("accounts:verify_otp") + "?resent=1"
+        
+        # Verify new OTP in session
+        updated_session = client.session
+        assert updated_session["signup_data"]["otp"] != "111111"
+        assert updated_session["signup_data"]["otp_expiry"] > 100
 
     def test_login_logout_flows(self, client):
         # Create a user to log in

@@ -46,7 +46,6 @@ class DashboardSummaryAPIView(APIView):
     def get(self, request, *args, **kwargs):
         return Response(get_dashboard_summary())
 
-
 import json
 import time
 import hashlib
@@ -85,8 +84,6 @@ class DashboardSSESummaryView(LoginRequiredMixin, View):
         response["Cache-Control"] = "no-cache"
         response["X-Accel-Buffering"] = "no"
         return response
-<<<<<<< Updated upstream
-=======
 
 
 class RunSmartDemoView(LoginRequiredMixin, APIView):
@@ -97,4 +94,3 @@ class RunSmartDemoView(LoginRequiredMixin, APIView):
             return Response({"status": "success", "message": "Smart Demo Scenario executed successfully! UI will now reflect real-time business activity."})
         except Exception as e:
             return Response({"status": "error", "message": str(e)}, status=500)
->>>>>>> Stashed changes

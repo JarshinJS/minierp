@@ -1,5 +1,6 @@
 from decimal import Decimal
 
+# pyrefly: ignore [missing-import]
 from django.db.models import Sum, F, ExpressionWrapper, DecimalField, Count, Q
 
 from apps.audit_logs.models import AuditLog
@@ -8,6 +9,8 @@ from apps.products.models import Product
 from apps.procurement.models import ProcurementRequest
 from apps.purchase.models import PurchaseOrder, PurchaseOrderLine, PurchaseOrderStatus
 from apps.sales.models import SalesOrderLine, SalesOrder, SalesOrderStatus
+from apps.foreign_trade.models import ExportOrder, ImportOrder
+from apps.blockchain.models import BlockchainDocument
 
 LOW_STOCK_THRESHOLD = Decimal("10.00")
 RECENT_ACTIVITY_LIMIT = 6
@@ -167,8 +170,6 @@ def serialize_recent_activity(activity):
     }
 
 
-<<<<<<< Updated upstream
-=======
 def get_foreign_trade_summary():
     exports_count = ExportOrder.objects.count()
     imports_count = ImportOrder.objects.count()
@@ -184,6 +185,7 @@ def get_foreign_trade_summary():
         "blockchain_verified": bc_verified,
         "verified_ratio": int((bc_verified / bc_total) * 100) if bc_total > 0 else 0,
     }
+
 
 
 def get_ceo_kpis():
@@ -301,7 +303,7 @@ def get_manufacturing_progress():
         })
     return progress_list
 
->>>>>>> Stashed changes
+
 def get_dashboard_summary():
     return {
         "sales": get_sales_summary(),
@@ -309,6 +311,7 @@ def get_dashboard_summary():
         "manufacturing": get_manufacturing_summary(),
         "inventory": get_inventory_summary(),
         "procurement": get_procurement_summary(),
+        "foreign_trade": get_foreign_trade_summary(),
         "recent_activities": [
             serialize_recent_activity(activity)
             for activity in get_recent_activity_queryset()

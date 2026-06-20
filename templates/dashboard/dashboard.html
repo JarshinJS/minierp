@@ -89,7 +89,7 @@
 
 <script>
     document.addEventListener("DOMContentLoaded", function() {
-        fetch("{% url 'dashboard:analytics' %}")
+        fetch("{% url 'dashboard:analytics' %}", {credentials: "same-origin"})
             .then(response => response.json())
             .then(data => {
                 const initChart = (id, config) => {
@@ -221,4 +221,5 @@
             .catch(err => console.error("Error loading dashboard analytics:", err));
     });
 </script>
+
 {% endblock %}

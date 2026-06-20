@@ -11,6 +11,7 @@ A comprehensive security audit of the repository has been conducted to identify 
 
 | Secret Type | Status | Severity | File Path / Line | Recommendation / Status |
 |---|---|---|---|---|
+
 | **Django SECRET_KEY** | Secured | High | `config/settings/base.py` | Configured to load strictly from env via `os.getenv("SECRET_KEY")`. Throws `ImproperlyConfigured` if absent in production settings. |
 | **API Keys (OpenAI, Gemini, Anthropic)** | Secured | High | None | Not found in tracked codebase. Checked for keywords and regex. |
 | **Database Credentials** | Secured | High | `config/settings/base.py` | Configured to load database credentials (`DB_ENGINE`, `DB_NAME`, `DB_USER`, `DB_PASSWORD`, `DB_HOST`, `DB_PORT`) via environment variables. |

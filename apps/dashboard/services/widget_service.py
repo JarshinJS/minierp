@@ -8,7 +8,8 @@ from apps.dashboard.widgets.widget_classes import (
     ProcurementWidget,
     DeliveryWidget,
     ReportsWidget,
-    AuditWidget
+    AuditWidget,
+    ForeignTradeWidget
 )
 
 WIDGETS = [
@@ -20,7 +21,8 @@ WIDGETS = [
     ProcurementWidget(),
     DeliveryWidget(),
     ReportsWidget(),
-    AuditWidget()
+    AuditWidget(),
+    ForeignTradeWidget()
 ]
 
 def get_allowed_widgets_for_user(user):

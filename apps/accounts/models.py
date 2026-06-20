@@ -11,6 +11,11 @@ class UserRole(models.TextChoices):
     MANUFACTURING_USER = "MANUFACTURING_USER", "Manufacturing User"
     INVENTORY_MANAGER = "INVENTORY_MANAGER", "Inventory Manager"
     ACCOUNTANT = "ACCOUNTANT", "Accountant"
+    TRADE_MANAGER = "TRADE_MANAGER", "Trade Manager"
+    DOCUMENTATION_OFFICER = "DOCUMENTATION_OFFICER", "Documentation Officer"
+    FINANCE_MANAGER = "FINANCE_MANAGER", "Finance Manager"
+    AUDITOR = "AUDITOR", "Auditor"
+
 
 
 class UserManager(BaseUserManager):

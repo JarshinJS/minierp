@@ -1,4 +1,5 @@
 import datetime
+import logging
 from decimal import Decimal
 from django.db import transaction
 from core.exceptions import DomainError, WorkflowError
@@ -7,6 +8,8 @@ from apps.procurement import services as procurement_services
 from apps.audit_logs.services import log_event
 from apps.audit_logs.models import AuditLogAction
 from .models import SalesOrder, SalesOrderLine, SalesOrderStatus
+
+logger = logging.getLogger(__name__)
 
 @transaction.atomic
 def create_order(customer_name, created_by, lines_data, notes=""):
@@ -48,6 +51,7 @@ def create_order(customer_name, created_by, lines_data, notes=""):
             quantity=quantity,
             unit_price=unit_price
         )
+    logger.info(f"Order confirmation would have been sent for order {order.id}")
 
     return order
 
@@ -77,6 +81,7 @@ def confirm_order(order):
                 reference=order.order_number,
                 created_by=order.created_by,
             )
+            logger.info(f"Low stock alert would have been sent for product {product.id}")
 
     order.status = SalesOrderStatus.CONFIRMED
     order.save()
@@ -91,6 +96,8 @@ def confirm_order(order):
         old=SalesOrderStatus.DRAFT,
         new=SalesOrderStatus.CONFIRMED
     )
+    logger.info(f"Order status update would have been sent for order {order.id}")
+
     return order
 
 
@@ -182,4 +189,6 @@ def cancel_order(order):
         old=old_status,
         new=SalesOrderStatus.CANCELLED
     )
+    logger.info(f"Order status update would have been sent for order {order.id}")
+
     return order

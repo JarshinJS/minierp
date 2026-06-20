@@ -80,7 +80,7 @@
                         <td class="px-6 py-4 whitespace-nowrap text-sm font-semibold text-slate-900 font-mono">{{ order.order_number }}</td>
                         <td class="px-6 py-4 whitespace-nowrap text-sm text-slate-800 font-medium">{{ order.supplier.name }}</td>
                         <td class="px-6 py-4 whitespace-nowrap text-sm text-slate-500">{{ order.eta|date:"M d, Y"|default:"TBD" }}</td>
-                        <td class="px-6 py-4 whitespace-nowrap text-sm text-right text-slate-800 font-bold">{{ order.currency.symbol }}{{ order.total_amount|floatformat:"2g" }}</td>
+                        <td class="px-6 py-4 whitespace-nowrap text-sm text-right text-slate-800 font-bold">{{ order.currency.symbol }}{{ order.total_amount }}</td>
                         <td class="px-6 py-4 whitespace-nowrap text-center">
                             {% if order.customs_status == 'NOT_STARTED' %}
                             <span class="text-xs text-slate-500">Not Started</span>
