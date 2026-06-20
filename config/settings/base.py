@@ -1,21 +1,27 @@
-import environ
+import os
 from pathlib import Path
+
+from dotenv import load_dotenv
+from django.core.exceptions import ImproperlyConfigured
 
 # Build paths inside the project like this: BASE_DIR / 'subdir'.
 BASE_DIR = Path(__file__).resolve().parent.parent.parent
 
-env = environ.Env()
+load_dotenv(BASE_DIR / ".env")
 
-# Read env variables from .env file if present
-environ.Env.read_env(BASE_DIR / ".env")
+
+def _csv(value):
+    return [item.strip() for item in value.split(",") if item.strip()]
 
 # SECURITY WARNING: keep the secret key used in production secret!
-SECRET_KEY = env.str("SECRET_KEY", default="django-insecure-default-secret-key-for-development")
+SECRET_KEY = os.getenv("SECRET_KEY")
+if not SECRET_KEY:
+    raise ImproperlyConfigured("SECRET_KEY must be set in the environment.")
 
 # SECURITY WARNING: don't run with debug turned on in production!
-DEBUG = env.bool("DEBUG", default=False)
+DEBUG = os.getenv("DEBUG", "False").lower() == "true"
 
-ALLOWED_HOSTS = env.list("ALLOWED_HOSTS", default=[])
+ALLOWED_HOSTS = _csv(os.getenv("ALLOWED_HOSTS", ""))
 
 # Application definition
 INSTALLED_APPS = [
@@ -28,6 +34,7 @@ INSTALLED_APPS = [
     
     # Third party apps
     "rest_framework",
+    "django_filters",
     "django_htmx",
     
     # Local Core Layer
@@ -80,7 +87,14 @@ ASGI_APPLICATION = "config.asgi.application"
 # Database
 # Override in dev.py or prod.py as needed
 DATABASES = {
-    "default": env.db("DATABASE_URL", default="sqlite:///db.sqlite3")
+    "default": {
+        "ENGINE": os.getenv("DB_ENGINE", "django.db.backends.sqlite3"),
+        "NAME": os.getenv("DB_NAME", str(BASE_DIR / "db.sqlite3")),
+        "USER": os.getenv("DB_USER", ""),
+        "PASSWORD": os.getenv("DB_PASSWORD", ""),
+        "HOST": os.getenv("DB_HOST", ""),
+        "PORT": os.getenv("DB_PORT", ""),
+    }
 }
 
 # Password validation
@@ -128,13 +142,16 @@ REST_FRAMEWORK = {
         "rest_framework.authentication.SessionAuthentication",
         "rest_framework.authentication.BasicAuthentication",
     ],
+    "DEFAULT_FILTER_BACKENDS": [
+        "django_filters.rest_framework.DjangoFilterBackend",
+    ],
     "DEFAULT_PAGINATION_CLASS": "rest_framework.pagination.LimitOffsetPagination",
     "PAGE_SIZE": 25,
 }
 
 # Celery Configuration
-CELERY_BROKER_URL = env.str("CELERY_BROKER_URL", default="redis://localhost:6379/0")
-CELERY_RESULT_BACKEND = env.str("CELERY_RESULT_BACKEND", default="redis://localhost:6379/0")
+CELERY_BROKER_URL = os.getenv("CELERY_BROKER_URL", "")
+CELERY_RESULT_BACKEND = os.getenv("CELERY_RESULT_BACKEND", "")
 CELERY_ACCEPT_CONTENT = ["json"]
 CELERY_TASK_SERIALIZER = "json"
 CELERY_RESULT_SERIALIZER = "json"
