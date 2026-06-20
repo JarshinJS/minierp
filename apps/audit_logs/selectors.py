@@ -1,3 +1,4 @@
+import uuid
 from django.db.models import Count, Q
 
 from .models import AuditLog, AuditLogAction
@@ -18,7 +19,11 @@ def _apply_filters(queryset, filters_data):
 
     user = _value(filters_data, "user")
     if user:
-        queryset = queryset.filter(user_id=user)
+        try:
+            uuid.UUID(str(user))
+            queryset = queryset.filter(user_id=user)
+        except ValueError:
+            queryset = queryset.none()
 
     action = _value(filters_data, "action")
     if action:
@@ -30,7 +35,11 @@ def _apply_filters(queryset, filters_data):
 
     record_id = _value(filters_data, "record_id")
     if record_id:
-        queryset = queryset.filter(record_id=record_id)
+        try:
+            uuid.UUID(str(record_id))
+            queryset = queryset.filter(record_id=record_id)
+        except ValueError:
+            queryset = queryset.none()
 
     date_from = _value(filters_data, "date_from")
     if date_from:

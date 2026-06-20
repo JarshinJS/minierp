@@ -158,6 +158,10 @@ class TestProductSelectors:
         assert p1 in cat_res
         assert p2 not in cat_res
 
+        # Invalid Category UUID match does not crash and returns empty list
+        invalid_cat_res = list(selectors.get_products(category_id="invalid-uuid"))
+        assert len(invalid_cat_res) == 0
+
     def test_get_product_stock_selector(self, product_setup):
         product = services.create_product(
             name="Oak Chair", sku="OAK-CH", category=product_setup["category"], cost_price=10, selling_price=20, unit_of_measure="PCS"
@@ -230,3 +234,74 @@ class TestProductAPI:
         response = client.get(stock_url)
         assert response.status_code == status.HTTP_200_OK
         assert response.data["available"] == Decimal("0.00")
+
+
+@pytest.mark.django_db
+class TestProductExtraServices:
+    def test_create_product_validations(self, product_setup):
+        with pytest.raises(DomainError) as exc:
+            services.create_product(name="", sku="TEST-SKU", category=product_setup["category"], cost_price=10, selling_price=20, unit_of_measure="PCS")
+        assert "name cannot be empty" in str(exc.value)
+
+        with pytest.raises(DomainError) as exc:
+            services.create_product(name="Test", sku="", category=product_setup["category"], cost_price=10, selling_price=20, unit_of_measure="PCS")
+        assert "SKU cannot be empty" in str(exc.value)
+
+    def test_update_product_validations(self, product_setup):
+        p1 = services.create_product(name="P1", sku="SKU-1", category=product_setup["category"], cost_price=10, selling_price=20, unit_of_measure="PCS")
+        p2 = services.create_product(name="P2", sku="SKU-2", category=product_setup["category"], cost_price=10, selling_price=20, unit_of_measure="PCS")
+
+        with pytest.raises(DomainError) as exc:
+            services.update_product(p1, sku="")
+        assert "SKU cannot be empty" in str(exc.value)
+
+        with pytest.raises(DomainError) as exc:
+            services.update_product(p1, sku="SKU-2")
+        assert "already exists" in str(exc.value)
+
+        with pytest.raises(DomainError) as exc:
+            services.update_product(p1, cost_price=-5)
+        assert "Cost price cannot be negative" in str(exc.value)
+
+        with pytest.raises(DomainError) as exc:
+            services.update_product(p1, selling_price=-5)
+        assert "Selling price cannot be negative" in str(exc.value)
+
+    def test_deactivate_already_inactive(self, product_setup):
+        p = services.create_product(name="P", sku="SKU-P", category=product_setup["category"], cost_price=10, selling_price=20, unit_of_measure="PCS")
+        services.deactivate_product(p)
+        with pytest.raises(DomainError) as exc:
+            services.deactivate_product(p)
+        assert "already inactive" in str(exc.value)
+
+    def test_audit_logs_for_product_events(self, product_setup):
+        from apps.audit_logs.models import AuditLog, AuditLogAction
+        
+        # 1. Product creation audit log (created automatically via signal)
+        p = services.create_product(name="Audit P", sku="AUDIT-P", category=product_setup["category"], cost_price=Decimal("10.00"), selling_price=Decimal("20.00"), unit_of_measure="PCS")
+        creation_log = AuditLog.objects.filter(record_id=p.id, action=AuditLogAction.CREATED).first()
+        assert creation_log is not None
+
+        # 2. General update log (no price/status changed)
+        services.update_product(p, name="Audit P Updated")
+        update_log = AuditLog.objects.filter(record_id=p.id, action=AuditLogAction.UPDATED).first()
+        assert update_log is not None
+
+        # 3. Price change log
+        services.update_product(p, cost_price=Decimal("15.00"), selling_price=Decimal("25.00"))
+        cost_log = AuditLog.objects.filter(record_id=p.id, action=AuditLogAction.PRICE_CHANGED, field_changed="cost_price").first()
+        selling_log = AuditLog.objects.filter(record_id=p.id, action=AuditLogAction.PRICE_CHANGED, field_changed="selling_price").first()
+        assert cost_log is not None
+        assert cost_log.old_value == "10.00"
+        assert cost_log.new_value == "15.00"
+        assert selling_log is not None
+        assert selling_log.old_value == "20.00"
+        assert selling_log.new_value == "25.00"
+
+        # 4. Deactivation log
+        services.deactivate_product(p)
+        deact_log = AuditLog.objects.filter(record_id=p.id, action=AuditLogAction.STATUS_CHANGED, field_changed="is_active").first()
+        assert deact_log is not None
+        assert deact_log.old_value == "True"
+        assert deact_log.new_value == "False"
+
