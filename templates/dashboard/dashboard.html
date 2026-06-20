@@ -16,6 +16,7 @@
             <p class="mt-2 text-sm text-slate-500 font-medium">Real-time enterprise overview, status alerts, and activity audits.</p>
         </div>
         <div class="flex items-center gap-3">
+
             <button class="inline-flex items-center gap-2 px-4 py-2 text-sm font-semibold text-slate-700 bg-white border border-slate-200 rounded-xl hover:bg-slate-50 transition-colors shadow-sm"
                     hx-get="{% url 'dashboard:refresh' %}"
                     hx-target="#dashboard-live-container"
@@ -25,6 +26,7 @@
             </button>
         </div>
     </div>
+    
 
     <!-- Live HTMX Auto-refreshing KPIs, Alerts, & Recent Activities -->
     {% include "dashboard/partials/dashboard_live.html" %}

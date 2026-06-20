@@ -34,8 +34,11 @@
         {% endif %}
     </td>
     <td class="px-6 py-4 whitespace-nowrap text-right text-xs font-medium">
-        <button hx-post="{% url 'accounts:toggle_active' member.pk %}" hx-target="closest tr" hx-swap="outerHTML" class="inline-flex items-center justify-center px-3 py-1.5 border rounded-lg shadow-sm font-semibold transition-all duration-150 focus:outline-none {% if member.is_active %}text-red-700 bg-white border-red-200 hover:bg-red-50 hover:border-red-300{% else %}text-green-700 bg-white border-green-200 hover:bg-green-50 hover:border-green-300{% endif %}">
-            {% if member.is_active %}Deactivate{% else %}Activate{% endif %}
-        </button>
+        <form hx-post="{% url 'accounts:toggle_active' member.pk %}" hx-target="closest tr" hx-swap="outerHTML" class="inline-block">
+            {% csrf_token %}
+            <button type="submit" class="inline-flex items-center justify-center px-3 py-1.5 border rounded-lg shadow-sm font-semibold transition-all duration-150 focus:outline-none {% if member.is_active %}text-red-700 bg-white border-red-200 hover:bg-red-50 hover:border-red-300{% else %}text-green-700 bg-white border-green-200 hover:bg-green-50 hover:border-green-300{% endif %}">
+                {% if member.is_active %}Deactivate{% else %}Activate{% endif %}
+            </button>
+        </form>
     </td>
 </tr>

@@ -193,6 +193,9 @@ class UserToggleActiveView(LoginRequiredMixin, RoleRequiredMixin, View):
         except User.DoesNotExist:
             return HttpResponseBadRequest("User not found.")
 
+        if user == request.user:
+            return HttpResponseBadRequest("You cannot change your own active status.")
+
         try:
             if user.is_active:
                 services.deactivate_user(user)
@@ -213,6 +216,9 @@ class UserChangeRoleView(LoginRequiredMixin, RoleRequiredMixin, View):
             user = User.objects.get(pk=pk)
         except User.DoesNotExist:
             return HttpResponseBadRequest("User not found.")
+
+        if user == request.user:
+            return HttpResponseBadRequest("You cannot change your own role.")
 
         new_role = request.POST.get("role")
         try:
