@@ -85,3 +85,16 @@ class DashboardSSESummaryView(LoginRequiredMixin, View):
         response["Cache-Control"] = "no-cache"
         response["X-Accel-Buffering"] = "no"
         return response
+<<<<<<< Updated upstream
+=======
+
+
+class RunSmartDemoView(LoginRequiredMixin, APIView):
+    def post(self, request, *args, **kwargs):
+        from django.core.management import call_command
+        try:
+            call_command("generate_sample_data")
+            return Response({"status": "success", "message": "Smart Demo Scenario executed successfully! UI will now reflect real-time business activity."})
+        except Exception as e:
+            return Response({"status": "error", "message": str(e)}, status=500)
+>>>>>>> Stashed changes

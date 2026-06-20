@@ -173,27 +173,42 @@
                     <tbody class="divide-y divide-slate-200 bg-white">
                         {% for prod in products %}
                         <tr class="hover:bg-slate-50/80 transition-colors">
-                            <td class="px-6 py-4 font-mono font-semibold text-slate-900">{{ prod.sku }}</td>
-                            <td class="px-6 py-4">
+                            <td class="px-6 py-4 whitespace-nowrap font-mono font-semibold text-slate-900">{{ prod.sku }}</td>
+                            <td class="px-6 py-4 whitespace-nowrap">
                                 <div class="font-medium text-slate-900">{{ prod.name }}</div>
                                 <div class="text-xs text-slate-400 mt-0.5">UoM: {{ prod.get_unit_of_measure_display }}</div>
                             </td>
-                            <td class="px-6 py-4">
+                            <td class="px-6 py-4 whitespace-nowrap">
                                 <span class="px-2.5 py-1 text-xs font-medium rounded-full bg-slate-100 text-slate-700 border border-slate-200">
                                     {{ prod.category.name }}
                                 </span>
                             </td>
-                            <td class="px-6 py-4 text-right text-slate-500 font-medium">₹{{ prod.cost_price }}</td>
-                            <td class="px-6 py-4 text-right font-semibold text-slate-900">{{ prod.on_hand_qty }}</td>
-                            <td class="px-6 py-4 text-right text-slate-500">{{ prod.reserved_qty }}</td>
-                            <td class="px-6 py-4 text-right font-semibold">
-                                {% if prod.available_qty <= 0 %}
-                                    <span class="inline-flex items-center text-rose-600 bg-rose-50 px-2 py-0.5 rounded-lg border border-rose-100">{{ prod.available_qty }} (Out)</span>
-                                {% elif prod.available_qty <= 5 %}
-                                    <span class="inline-flex items-center text-amber-600 bg-amber-50 px-2 py-0.5 rounded-lg border border-amber-100">{{ prod.available_qty }} (Low)</span>
-                                {% else %}
-                                    <span class="inline-flex items-center text-emerald-600 bg-emerald-50 px-2 py-0.5 rounded-lg border border-emerald-100">{{ prod.available_qty }}</span>
-                                {% endif %}
+                            <td class="px-6 py-4 text-right text-slate-500 font-medium whitespace-nowrap">₹{{ prod.cost_price }}</td>
+                            <td class="px-6 py-4 text-right font-semibold text-slate-900 whitespace-nowrap">{{ prod.on_hand_qty }}</td>
+                            <td class="px-6 py-4 text-right text-slate-500 whitespace-nowrap">{{ prod.reserved_qty }}</td>
+                            <td class="px-6 py-4 whitespace-nowrap">
+                                <div class="flex flex-col gap-1 min-w-[120px]">
+                                    <div class="flex justify-between items-center text-xs font-bold">
+                                        <span class="text-slate-900">{{ prod.available_qty }}</span>
+                                        {% if prod.available_qty <= 0 %}
+                                            <span class="text-rose-600 whitespace-nowrap ml-2">OUT OF STOCK</span>
+                                        {% elif prod.available_qty <= 5 %}
+                                            <span class="text-amber-600 whitespace-nowrap ml-2">CRITICAL</span>
+                                        {% else %}
+                                            <span class="text-emerald-600 whitespace-nowrap ml-2">HEALTHY</span>
+                                        {% endif %}
+                                    </div>
+                                    <div class="w-full bg-slate-100 rounded-full h-1.5 overflow-hidden flex">
+                                        {% if prod.available_qty <= 0 %}
+                                            <div class="bg-rose-500 h-1.5 rounded-full" style="width: 100%"></div>
+                                        {% elif prod.available_qty <= 5 %}
+                                            <div class="bg-amber-500 h-1.5 rounded-full" style="width: 25%"></div>
+                                        {% else %}
+                                            <!-- Assume 50 is a healthy max for visual scaling -->
+                                            <div class="bg-emerald-500 h-1.5 rounded-full" style="width: {% widthratio prod.available_qty 50 100 %}%"></div>
+                                        {% endif %}
+                                    </div>
+                                </div>
                             </td>
                             <td class="px-6 py-4 text-right font-medium text-slate-900">₹{{ prod.cost_value|floatformat:2 }}</td>
                             <td class="px-6 py-4 text-center">

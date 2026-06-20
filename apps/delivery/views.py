@@ -69,8 +69,6 @@ class DeliveryUIDispatchView(LoginRequiredMixin, RoleRequiredMixin, View):
                 return render(request, "delivery/partials/delivery_card.html", {"delivery": delivery_note})
             return redirect("delivery:detail", pk=delivery_note.pk)
         except (DomainError, WorkflowError) as e:
-            if request.headers.get("HX-Request"):
-                return HttpResponse(f'<div class="text-sm font-semibold text-rose-600 bg-rose-50 border border-rose-200 rounded-xl p-3 mb-4">{str(e)}</div>', status=400)
             return HttpResponseBadRequest(str(e))
 
 
@@ -85,6 +83,4 @@ class DeliveryUIDeliverView(LoginRequiredMixin, RoleRequiredMixin, View):
                 return render(request, "delivery/partials/delivery_card.html", {"delivery": delivery_note})
             return redirect("delivery:detail", pk=delivery_note.pk)
         except (DomainError, WorkflowError) as e:
-            if request.headers.get("HX-Request"):
-                return HttpResponse(f'<div class="text-sm font-semibold text-rose-600 bg-rose-50 border border-rose-200 rounded-xl p-3 mb-4">{str(e)}</div>', status=400)
             return HttpResponseBadRequest(str(e))
