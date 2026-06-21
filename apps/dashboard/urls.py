@@ -13,4 +13,5 @@ urlpatterns = [
     path("summary-partial/", views.DashboardSummaryPartialView.as_view(), name="summary_partial"),
     path("sse-summary/", views.DashboardSSESummaryView.as_view(), name="sse_summary"),
     path("run-demo/", views.RunSmartDemoView.as_view(), name="run_demo"),
+    path("system-status/", views.SystemStatusView.as_view(), name="system_status"),
 ]

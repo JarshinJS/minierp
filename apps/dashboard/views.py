@@ -5,6 +5,8 @@ from django.views.generic import TemplateView
 from rest_framework.permissions import IsAuthenticated
 from rest_framework.response import Response
 from rest_framework.views import APIView
+from django.db import connection
+from django.http import HttpResponse
 
 from .selectors import get_dashboard_summary
 from apps.dashboard.services.dashboard_service import get_dashboard_data_for_user
@@ -94,3 +96,27 @@ class RunSmartDemoView(LoginRequiredMixin, APIView):
             return Response({"status": "success", "message": "Smart Demo Scenario executed successfully! UI will now reflect real-time business activity."})
         except Exception as e:
             return Response({"status": "error", "message": str(e)}, status=500)
+
+class SystemStatusView(View):
+    def get(self, request, *args, **kwargs):
+        try:
+            connection.ensure_connection()
+            is_ok = True
+        except Exception:
+            is_ok = False
+            
+        color = "emerald" if is_ok else "red"
+        message = "All Systems Operational" if is_ok else "System Degraded"
+        
+        url = reverse('dashboard:system_status')
+        html = f'''
+            <div class="flex items-center gap-2.5" hx-get="{url}" hx-trigger="every 30s" hx-swap="outerHTML">
+                <!-- System status indicator -->
+                <span class="relative flex h-2.5 w-2.5">
+                    <span class="animate-ping absolute inline-flex h-full w-full rounded-full bg-{color}-400 opacity-75"></span>
+                    <span class="relative inline-flex rounded-full h-2.5 w-2.5 bg-{color}-500"></span>
+                </span>
+                <span class="text-xs font-semibold text-slate-500 tracking-wide">{message}</span>
+            </div>
+        '''
+        return HttpResponse(html)

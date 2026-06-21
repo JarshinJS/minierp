@@ -27,7 +27,7 @@ class BlockchainAuditListView(LoginRequiredMixin, RoleRequiredMixin, ListView):
     model = BlockchainAuditLog
     template_name = "blockchain/audit_log_list.html"
     context_object_name = "audit_logs"
-    paginate_by = 25
+    paginate_by = 10
     allowed_roles = ["ADMIN", "BUSINESS_OWNER", "TRADE_MANAGER", "AUDITOR"]
 
     def get_queryset(self):
@@ -48,7 +48,7 @@ class BlockchainDocumentListView(LoginRequiredMixin, RoleRequiredMixin, ListView
     model = BlockchainDocument
     template_name = "blockchain/document_list.html"
     context_object_name = "blockchain_docs"
-    paginate_by = 25
+    paginate_by = 10
     allowed_roles = ["ADMIN", "BUSINESS_OWNER", "TRADE_MANAGER", "DOCUMENTATION_OFFICER", "AUDITOR"]
 
     def get_queryset(self):
