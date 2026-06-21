@@ -10,7 +10,8 @@
          x-transition:leave="transition ease-in duration-200"
          x-transition:leave-start="opacity-100 translate-y-0 scale-100"
          x-transition:leave-end="opacity-0 translate-y-4 scale-95"
-         style="position:fixed; bottom:90px; right:24px; z-index:99998; width:380px; max-height:520px; background:#fff; border-radius:16px; box-shadow:0 8px 40px rgba(0,0,0,0.18); border:1px solid #e2e8f0; display:flex; flex-direction:column; overflow:hidden; font-family:'Inter',sans-serif;">
+         class="flex flex-col"
+         style="position:fixed; bottom:90px; right:24px; z-index:99998; width:380px; max-height:520px; background:#fff; border-radius:16px; box-shadow:0 8px 40px rgba(0,0,0,0.18); border:1px solid #e2e8f0; overflow:hidden; font-family:'Inter',sans-serif;">
 
         <!-- Header -->
         <div style="background:linear-gradient(135deg,#8c6239,#5c3d21); color:#fff; padding:14px 18px; display:flex; align-items:center; justify-content:space-between; flex-shrink:0;">
@@ -58,7 +59,7 @@
                         : 'background:#fff; color:#1e293b; padding:10px 14px; border-radius:14px 14px 14px 4px; font-size:13px; line-height:1.5; border:1px solid #e2e8f0; box-shadow:0 1px 3px rgba(0,0,0,0.06);'"
                         x-html="formatMessage(msg.text)">
                     </div>
-                    <div :style="msg.role === 'user' ? 'text-align:right;' : 'text-align:left;'"
+                    <div :style="{ textAlign: msg.role === 'user' ? 'right' : 'left' }"
                          style="font-size:10px; color:#94a3b8; margin-top:4px; padding:0 4px;">
                         <span x-text="msg.time"></span>
                         <span x-show="msg.action && msg.action !== 'error' && msg.action !== 'general_query'" x-text="'• ' + (msg.action || '').replace(/_/g, ' ')" style="text-transform:capitalize;"></span>
@@ -87,7 +88,7 @@
 
             <!-- Mic button in chat -->
             <button @click="toggleMic" :disabled="isProcessing"
-                    :style="isListening ? 'background:#dc2626;' : 'background:#8c6239;'"
+                    :style="{ background: isListening ? '#dc2626' : '#8c6239' }"
                     style="width:38px; height:38px; border-radius:50%; border:none; cursor:pointer; display:flex; align-items:center; justify-content:center; color:#fff; transition:all 0.2s; flex-shrink:0;"
                     onmouseenter="this.style.opacity='0.85'" onmouseleave="this.style.opacity='1'">
                 <svg x-show="!isListening" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
@@ -102,7 +103,8 @@
 
         <!-- Listening overlay -->
         <div x-show="isListening" x-transition
-             style="position:absolute; bottom:58px; left:0; right:0; background:rgba(220,38,38,0.95); color:#fff; padding:10px 16px; display:flex; align-items:center; gap:10px; font-size:13px; font-weight:500;">
+             class="flex items-center"
+             style="position:absolute; bottom:58px; left:0; right:0; background:rgba(220,38,38,0.95); color:#fff; padding:10px 16px; gap:10px; font-size:13px; font-weight:500;">
             <span style="display:inline-block; width:10px; height:10px; border-radius:50%; background:#fff; animation:pulse-dot 1.2s infinite;"></span>
             <span>Listening… Click stop or just speak</span>
         </div>
@@ -110,8 +112,10 @@
 
     <!-- FAB Button -->
     <button @click="panelOpen = !panelOpen"
+            x-show="!panelOpen"
+            class="flex items-center justify-center"
             :style="{ background: panelOpen ? '#5c3d21' : '#8c6239' }"
-            style="position:fixed; bottom:24px; right:24px; z-index:99999; width:56px; height:56px; border-radius:50%; border:none; cursor:pointer; display:flex; align-items:center; justify-content:center; box-shadow:0 4px 14px rgba(0,0,0,0.25); transition:all 0.3s ease; color:#fff;"
+            style="position:fixed; bottom:24px; right:24px; z-index:99999; width:56px; height:56px; border-radius:50%; border:none; cursor:pointer; box-shadow:0 4px 14px rgba(0,0,0,0.25); transition:all 0.3s ease; color:#fff;"
             @mouseenter="$el.style.transform='scale(1.1)'"
             @mouseleave="$el.style.transform='scale(1)'">
         <!-- Mic icon when closed -->
@@ -129,7 +133,8 @@
 
     <!-- Notification dot -->
     <div x-show="unreadCount > 0 && !panelOpen"
-         style="position:fixed; bottom:70px; right:24px; z-index:100000; background:#dc2626; color:#fff; font-size:10px; font-weight:700; width:18px; height:18px; border-radius:50%; display:flex; align-items:center; justify-content:center; border:2px solid #fff; box-shadow:0 1px 4px rgba(0,0,0,0.2);"
+         class="flex items-center justify-center"
+         style="position:fixed; bottom:70px; right:24px; z-index:100000; background:#dc2626; color:#fff; font-size:10px; font-weight:700; width:18px; height:18px; border-radius:50%; border:2px solid #fff; box-shadow:0 1px 4px rgba(0,0,0,0.2);"
          x-text="unreadCount"></div>
 </div>
 

@@ -31,7 +31,7 @@
 <body
     class="font-sans antialiased h-full flex flex-col {% block body_class %}{% if request.user.is_authenticated %}text-slate-900 bg-slate-50{% else %}text-slate-100 bg-slate-950{% endif %}{% endblock %}"
     hx-headers='{"X-CSRFToken": "{{ csrf_token }}"}' x-data="toastManager()"
-    @htmx-response-error.window="showToast($event.detail.xhr.responseText || 'Server error')"
+    @htmx:response-error.window="showToast($event.detail.xhr.responseText || 'Server error')"
     @toast.window="showToast($event.detail.message)">
     <div class="fixed inset-x-0 top-4 flex justify-end px-4 pointer-events-none z-50">
         <div class="space-y-2 w-full max-w-sm">
