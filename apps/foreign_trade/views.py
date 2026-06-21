@@ -35,7 +35,7 @@ class ExportOrderListView(LoginRequiredMixin, RoleRequiredMixin, ListView):
     model = ExportOrder
     template_name = "foreign_trade/export_order_list.html"
     context_object_name = "orders"
-    paginate_by = 20
+    paginate_by = 10
     allowed_roles = ["ADMIN", "BUSINESS_OWNER", "TRADE_MANAGER", "DOCUMENTATION_OFFICER", "FINANCE_MANAGER", "AUDITOR"]
 
     def get_queryset(self):
@@ -259,7 +259,7 @@ class ImportOrderListView(LoginRequiredMixin, RoleRequiredMixin, ListView):
     model = ImportOrder
     template_name = "foreign_trade/import_order_list.html"
     context_object_name = "orders"
-    paginate_by = 20
+    paginate_by = 10
     allowed_roles = ["ADMIN", "BUSINESS_OWNER", "TRADE_MANAGER", "DOCUMENTATION_OFFICER", "FINANCE_MANAGER", "AUDITOR"]
 
     def get_queryset(self):
@@ -532,7 +532,7 @@ class ShipmentListView(LoginRequiredMixin, RoleRequiredMixin, ListView):
     model = Shipment
     template_name = "foreign_trade/shipment_list.html"
     context_object_name = "shipments"
-    paginate_by = 20
+    paginate_by = 10
     allowed_roles = ["ADMIN", "BUSINESS_OWNER", "TRADE_MANAGER", "DOCUMENTATION_OFFICER", "AUDITOR"]
 
     def get_queryset(self):
@@ -558,7 +558,7 @@ class TradeCustomerListView(LoginRequiredMixin, RoleRequiredMixin, ListView):
     model = TradeCustomer
     template_name = "foreign_trade/customer_list.html"
     context_object_name = "customers"
-    paginate_by = 20
+    paginate_by = 10
     allowed_roles = ["ADMIN", "BUSINESS_OWNER", "TRADE_MANAGER"]
 
     def get_queryset(self):
@@ -587,7 +587,7 @@ class TradeSupplierListView(LoginRequiredMixin, RoleRequiredMixin, ListView):
     model = TradeSupplier
     template_name = "foreign_trade/supplier_list.html"
     context_object_name = "suppliers"
-    paginate_by = 20
+    paginate_by = 10
     allowed_roles = ["ADMIN", "BUSINESS_OWNER", "TRADE_MANAGER"]
 
     def get_queryset(self):

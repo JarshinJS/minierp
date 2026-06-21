@@ -171,7 +171,7 @@
                         </tr>
                     </thead>
                     <tbody class="divide-y divide-slate-200 bg-white">
-                        {% for prod in products %}
+                        {% for prod in paginated_products %}
                         <tr class="hover:bg-slate-50/80 transition-colors">
                             <td class="px-6 py-4 whitespace-nowrap font-mono font-semibold text-slate-900">{{ prod.sku }}</td>
                             <td class="px-6 py-4 whitespace-nowrap">
@@ -225,6 +225,23 @@
                     </tbody>
                 </table>
             </div>
+            
+            <!-- Products Pagination -->
+            {% if paginated_products.has_other_pages %}
+            <div class="border-t border-slate-200 bg-slate-50 px-6 py-3 flex items-center justify-between">
+                <div class="text-sm text-slate-500">
+                    Showing <span class="font-medium text-slate-900">{{ paginated_products.start_index }}</span> to <span class="font-medium text-slate-900">{{ paginated_products.end_index }}</span> of <span class="font-medium text-slate-900">{{ paginated_products.paginator.count }}</span> results
+                </div>
+                <div class="flex items-center gap-1">
+                    {% if paginated_products.has_previous %}
+                        <a href="?tab=stock&page={{ paginated_products.previous_page_number }}{% if search_query %}&q={{ search_query }}{% endif %}{% if category_id %}&category={{ category_id }}{% endif %}" class="px-3 py-1.5 border border-slate-200 bg-white text-slate-600 rounded-lg text-sm hover:bg-slate-50 font-medium">Prev</a>
+                    {% endif %}
+                    {% if paginated_products.has_next %}
+                        <a href="?tab=stock&page={{ paginated_products.next_page_number }}{% if search_query %}&q={{ search_query }}{% endif %}{% if category_id %}&category={{ category_id }}{% endif %}" class="px-3 py-1.5 border border-slate-200 bg-white text-slate-600 rounded-lg text-sm hover:bg-slate-50 font-medium">Next</a>
+                    {% endif %}
+                </div>
+            </div>
+            {% endif %}
         </div>
     </div>
 
@@ -283,7 +300,7 @@
                         </tr>
                     </thead>
                     <tbody class="divide-y divide-slate-200 bg-white">
-                        {% for entry in ledger_entries %}
+                        {% for entry in paginated_ledger %}
                         <tr class="hover:bg-slate-50/80 transition-colors">
                             <td class="px-6 py-4 text-slate-500 whitespace-nowrap">{{ entry.created_at|date:"M d, Y H:i:s" }}</td>
                             <td class="px-6 py-4">
@@ -326,6 +343,23 @@
                     </tbody>
                 </table>
             </div>
+            
+            <!-- Ledger Pagination -->
+            {% if paginated_ledger.has_other_pages %}
+            <div class="border-t border-slate-200 bg-slate-50 px-6 py-3 flex items-center justify-between">
+                <div class="text-sm text-slate-500">
+                    Showing <span class="font-medium text-slate-900">{{ paginated_ledger.start_index }}</span> to <span class="font-medium text-slate-900">{{ paginated_ledger.end_index }}</span> of <span class="font-medium text-slate-900">{{ paginated_ledger.paginator.count }}</span> results
+                </div>
+                <div class="flex items-center gap-1">
+                    {% if paginated_ledger.has_previous %}
+                        <a href="?tab=ledger&page={{ paginated_ledger.previous_page_number }}{% if ledger_product_id %}&ledger_product={{ ledger_product_id }}{% endif %}{% if ledger_entry_type %}&ledger_type={{ ledger_entry_type }}{% endif %}{% if ledger_ref %}&ledger_ref={{ ledger_ref }}{% endif %}" class="px-3 py-1.5 border border-slate-200 bg-white text-slate-600 rounded-lg text-sm hover:bg-slate-50 font-medium">Prev</a>
+                    {% endif %}
+                    {% if paginated_ledger.has_next %}
+                        <a href="?tab=ledger&page={{ paginated_ledger.next_page_number }}{% if ledger_product_id %}&ledger_product={{ ledger_product_id }}{% endif %}{% if ledger_entry_type %}&ledger_type={{ ledger_entry_type }}{% endif %}{% if ledger_ref %}&ledger_ref={{ ledger_ref }}{% endif %}" class="px-3 py-1.5 border border-slate-200 bg-white text-slate-600 rounded-lg text-sm hover:bg-slate-50 font-medium">Next</a>
+                    {% endif %}
+                </div>
+            </div>
+            {% endif %}
         </div>
     </div>
 

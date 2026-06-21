@@ -13,6 +13,7 @@ class AuditLogListView(LoginRequiredMixin, ListView):
 	model = AuditLog
 	template_name = "audit_logs/audit_list.html"
 	context_object_name = "audit_logs"
+	paginate_by = 10
 
 	def get_queryset(self):
 		return get_audit_logs(self.request.GET)

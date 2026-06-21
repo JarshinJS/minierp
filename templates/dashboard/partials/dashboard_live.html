@@ -4,7 +4,7 @@
      hx-swap="outerHTML" 
      class="space-y-8 fade-in">
      
-<<<<<<< Updated upstream
+
     <!-- Row of widgets (KPI Cards) -->
     <div class="grid gap-6 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4">
         {% for widget in widgets %}
@@ -112,83 +112,7 @@
                 </div>
             </div>
         {% endfor %}
-=======
-    <!-- Phase 1: Executive Dashboard (CEO View) -->
-    <div class="grid gap-4 grid-cols-2 md:grid-cols-4 xl:grid-cols-8">
-        <!-- 1. Total Products -->
-        <div class="rounded-2xl border border-slate-200 bg-white p-4 shadow-sm hover:shadow-md transition-shadow relative overflow-hidden group">
-            <div class="absolute inset-y-0 left-0 w-1 bg-brand rounded-l-2xl"></div>
-            <p class="text-xs font-semibold text-slate-500 uppercase tracking-wider mb-1">Total Products</p>
-            <h3 class="text-2xl font-black text-slate-900 font-outfit">{{ ceo_kpis.total_products.value }}</h3>
-            <p class="text-xs font-bold mt-2 {% if ceo_kpis.total_products.is_up %}text-emerald-600{% else %}text-rose-600{% endif %}">
-                {% if ceo_kpis.total_products.is_up %}↑{% else %}↓{% endif %} {{ ceo_kpis.total_products.trend }}
-            </p>
-        </div>
 
-        <!-- 2. Inventory Value -->
-        <div class="rounded-2xl border border-slate-200 bg-white p-4 shadow-sm hover:shadow-md transition-shadow relative overflow-hidden">
-            <p class="text-xs font-semibold text-slate-500 uppercase tracking-wider mb-1">Stock Value</p>
-            <h3 class="text-2xl font-black text-slate-900 font-outfit truncate">₹{{ ceo_kpis.inventory_value.value|floatformat:0 }}</h3>
-            <p class="text-xs font-bold mt-2 {% if ceo_kpis.inventory_value.is_up %}text-emerald-600{% else %}text-rose-600{% endif %}">
-                {% if ceo_kpis.inventory_value.is_up %}↑{% else %}↓{% endif %} {{ ceo_kpis.inventory_value.trend }}
-            </p>
-        </div>
-
-        <!-- 3. Sales Orders -->
-        <div class="rounded-2xl border border-slate-200 bg-white p-4 shadow-sm hover:shadow-md transition-shadow relative overflow-hidden">
-            <p class="text-xs font-semibold text-slate-500 uppercase tracking-wider mb-1">Sales Orders</p>
-            <h3 class="text-2xl font-black text-slate-900 font-outfit">{{ ceo_kpis.sales_orders.value }}</h3>
-            <p class="text-xs font-bold mt-2 {% if ceo_kpis.sales_orders.is_up %}text-emerald-600{% else %}text-rose-600{% endif %}">
-                {% if ceo_kpis.sales_orders.is_up %}↑{% else %}↓{% endif %} {{ ceo_kpis.sales_orders.trend }}
-            </p>
-        </div>
-
-        <!-- 4. Purchase Orders -->
-        <div class="rounded-2xl border border-slate-200 bg-white p-4 shadow-sm hover:shadow-md transition-shadow relative overflow-hidden">
-            <p class="text-xs font-semibold text-slate-500 uppercase tracking-wider mb-1">Purchase Orders</p>
-            <h3 class="text-2xl font-black text-slate-900 font-outfit">{{ ceo_kpis.purchase_orders.value }}</h3>
-            <p class="text-xs font-bold mt-2 {% if ceo_kpis.purchase_orders.is_up %}text-emerald-600{% else %}text-rose-600{% endif %}">
-                {% if ceo_kpis.purchase_orders.is_up %}↑{% else %}↓{% endif %} {{ ceo_kpis.purchase_orders.trend }}
-            </p>
-        </div>
-
-        <!-- 5. Manufacturing -->
-        <div class="rounded-2xl border border-slate-200 bg-white p-4 shadow-sm hover:shadow-md transition-shadow relative overflow-hidden">
-            <p class="text-xs font-semibold text-slate-500 uppercase tracking-wider mb-1">Manufacturing</p>
-            <h3 class="text-2xl font-black text-slate-900 font-outfit">{{ ceo_kpis.manufacturing_orders.value }}</h3>
-            <p class="text-xs font-bold mt-2 {% if ceo_kpis.manufacturing_orders.is_up %}text-emerald-600{% else %}text-rose-600{% endif %}">
-                {% if ceo_kpis.manufacturing_orders.is_up %}↑{% else %}↓{% endif %} {{ ceo_kpis.manufacturing_orders.trend }}
-            </p>
-        </div>
-
-        <!-- 6. Revenue -->
-        <div class="rounded-2xl border border-slate-200 bg-white p-4 shadow-sm hover:shadow-md transition-shadow relative overflow-hidden">
-            <div class="absolute inset-y-0 right-0 w-1 bg-emerald-500 rounded-r-2xl"></div>
-            <p class="text-xs font-semibold text-slate-500 uppercase tracking-wider mb-1">Revenue</p>
-            <h3 class="text-2xl font-black text-slate-900 font-outfit truncate">₹{{ ceo_kpis.revenue.value|floatformat:0 }}</h3>
-            <p class="text-xs font-bold mt-2 {% if ceo_kpis.revenue.is_up %}text-emerald-600{% else %}text-rose-600{% endif %}">
-                {% if ceo_kpis.revenue.is_up %}↑{% else %}↓{% endif %} {{ ceo_kpis.revenue.trend }}
-            </p>
-        </div>
-
-        <!-- 7. Pending Delivery -->
-        <div class="rounded-2xl border border-slate-200 bg-white p-4 shadow-sm hover:shadow-md transition-shadow relative overflow-hidden">
-            <p class="text-xs font-semibold text-slate-500 uppercase tracking-wider mb-1">Pending Delivery</p>
-            <h3 class="text-2xl font-black text-slate-900 font-outfit">{{ ceo_kpis.pending_deliveries.value }}</h3>
-            <p class="text-xs font-bold mt-2 {% if ceo_kpis.pending_deliveries.is_up %}text-emerald-600{% else %}text-amber-500{% endif %}">
-                {% if ceo_kpis.pending_deliveries.is_up %}↑{% else %}↓{% endif %} {{ ceo_kpis.pending_deliveries.trend }}
-            </p>
-        </div>
-
-        <!-- 8. Low Stock Alerts -->
-        <div class="rounded-2xl border border-slate-200 bg-white p-4 shadow-sm hover:shadow-md transition-shadow relative overflow-hidden bg-gradient-to-br from-white to-rose-50">
-            <p class="text-xs font-semibold text-slate-500 uppercase tracking-wider mb-1">Low Stock</p>
-            <h3 class="text-2xl font-black text-rose-700 font-outfit">{{ ceo_kpis.low_stock_alerts.value }}</h3>
-            <p class="text-xs font-bold mt-2 {% if ceo_kpis.low_stock_alerts.is_up %}text-emerald-600{% else %}text-rose-600{% endif %}">
-                {% if ceo_kpis.low_stock_alerts.is_up %}↑{% else %}↓{% endif %} {{ ceo_kpis.low_stock_alerts.trend }}
-            </p>
-        </div>
->>>>>>> Stashed changes
     </div>
 
     <!-- Phase 2: Live ERP Workflow Widget -->

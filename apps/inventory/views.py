@@ -1,6 +1,7 @@
 from decimal import Decimal
 from django.contrib.auth.mixins import LoginRequiredMixin
 from django.db.models import Sum, F, ExpressionWrapper, DecimalField
+from django.core.paginator import Paginator
 from django.shortcuts import render, redirect
 from django.views import View
 from django.views.generic import TemplateView
@@ -54,6 +55,11 @@ class InventoryHomeView(LoginRequiredMixin, TemplateView):
             "low_stock": sum(1 for p in all_active if 0 < (p.on_hand_qty - p.reserved_qty) <= 5),
         }
 
+        # Paginate products (10 per page)
+        page_number = request.GET.get("page", 1)
+        products_paginator = Paginator(products, 10)
+        products_page = products_paginator.get_page(page_number if tab == "stock" else 1)
+
         # 4. Get Ledger Entries
         filters_data = {}
         ledger_product_id = request.GET.get("ledger_product", "")
@@ -68,12 +74,18 @@ class InventoryHomeView(LoginRequiredMixin, TemplateView):
             filters_data["reference"] = ledger_ref
 
         ledger_entries = get_ledger_entries(filters_data)
+        
+        # Paginate ledger entries (10 per page)
+        ledger_paginator = Paginator(ledger_entries, 10)
+        ledger_page = ledger_paginator.get_page(page_number if tab == "ledger" else 1)
 
         # 5. Populate Context
         context.update({
             "products": products,
+            "paginated_products": products_page,
             "categories": Category.objects.all(),
             "ledger_entries": ledger_entries,
+            "paginated_ledger": ledger_page,
             "ledger_types": LedgerEntryType.choices,
             "stats": stats,
             "current_tab": tab,
@@ -96,7 +108,7 @@ class InventoryAdjustView(LoginRequiredMixin, View):
         if not product_id or not adjustment_type or not quantity:
             err_msg = "All fields (product, type, quantity) are required."
             if request.headers.get("HX-Request"):
-                return HttpResponse(f'<div class="text-sm font-semibold text-rose-600 bg-rose-50 border border-rose-200 rounded-xl p-3 mb-4">{err_msg}</div>', status=422)
+                return HttpResponse(f'<div class="text-sm font-semibold text-rose-600 bg-rose-50 border border-rose-200 rounded-xl p-3 mb-4">{err_msg}</div>')
             return HttpResponse(err_msg, status=400)
 
         try:
@@ -121,17 +133,17 @@ class InventoryAdjustView(LoginRequiredMixin, View):
         except Product.DoesNotExist:
             err_msg = "Selected product does not exist."
             if request.headers.get("HX-Request"):
-                return HttpResponse(f'<div class="text-sm font-semibold text-rose-600 bg-rose-50 border border-rose-200 rounded-xl p-3 mb-4">{err_msg}</div>', status=422)
+                return HttpResponse(f'<div class="text-sm font-semibold text-rose-600 bg-rose-50 border border-rose-200 rounded-xl p-3 mb-4">{err_msg}</div>')
             return HttpResponse(err_msg, status=404)
 
         except DomainError as e:
             err_msg = str(e)
             if request.headers.get("HX-Request"):
-                return HttpResponse(f'<div class="text-sm font-semibold text-rose-600 bg-rose-50 border border-rose-200 rounded-xl p-3 mb-4">{err_msg}</div>', status=422)
+                return HttpResponse(f'<div class="text-sm font-semibold text-rose-600 bg-rose-50 border border-rose-200 rounded-xl p-3 mb-4">{err_msg}</div>')
             return HttpResponse(err_msg, status=400)
 
         except Exception as e:
             err_msg = f"System error: {str(e)}"
             if request.headers.get("HX-Request"):
-                return HttpResponse(f'<div class="text-sm font-semibold text-rose-600 bg-rose-50 border border-rose-200 rounded-xl p-3 mb-4">{err_msg}</div>', status=422)
+                return HttpResponse(f'<div class="text-sm font-semibold text-rose-600 bg-rose-50 border border-rose-200 rounded-xl p-3 mb-4">{err_msg}</div>')
             return HttpResponse(err_msg, status=500)

@@ -62,6 +62,7 @@ class SalesOrderUIListView(LoginRequiredMixin, ListView):
     model = SalesOrder
     template_name = "sales/sales_order_list.html"
     context_object_name = "orders"
+    paginate_by = 10
 
     def get_queryset(self):
         # Order by creation date descending

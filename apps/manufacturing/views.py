@@ -467,6 +467,7 @@ class WorkOrderViewSet(viewsets.ModelViewSet):
 class MOListView(LoginRequiredMixin, ListView):
     template_name = "manufacturing/mo_list.html"
     context_object_name = "mos"
+    paginate_by = 10
 
     def get_queryset(self):
         return selectors.get_manufacturing_orders(

@@ -69,6 +69,7 @@ class PurchaseOrderUIListView(LoginRequiredMixin, ListView):
     model = PurchaseOrder
     template_name = "purchase/purchase_order_list.html"
     context_object_name = "orders"
+    paginate_by = 10
 
     def get_queryset(self):
         return PurchaseOrder.objects.all().select_related("vendor", "created_by").prefetch_related("lines__product").order_by("-created_at")

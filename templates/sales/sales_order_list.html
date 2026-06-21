@@ -90,6 +90,23 @@
                 </tbody>
             </table>
         </div>
+        
+        <!-- Pagination -->
+        {% if is_paginated %}
+        <div class="border-t border-slate-200 bg-slate-50 px-6 py-3 flex items-center justify-between">
+            <div class="text-sm text-slate-500">
+                Showing <span class="font-medium text-slate-900">{{ page_obj.start_index }}</span> to <span class="font-medium text-slate-900">{{ page_obj.end_index }}</span> of <span class="font-medium text-slate-900">{{ paginator.count }}</span> results
+            </div>
+            <div class="flex items-center gap-1">
+                {% if page_obj.has_previous %}
+                    <a href="?page={{ page_obj.previous_page_number }}" class="px-3 py-1.5 border border-slate-200 bg-white text-slate-600 rounded-lg text-sm hover:bg-slate-50 font-medium">Prev</a>
+                {% endif %}
+                {% if page_obj.has_next %}
+                    <a href="?page={{ page_obj.next_page_number }}" class="px-3 py-1.5 border border-slate-200 bg-white text-slate-600 rounded-lg text-sm hover:bg-slate-50 font-medium">Next</a>
+                {% endif %}
+            </div>
+        </div>
+        {% endif %}
     </div>
 </div>
 {% endblock %}
