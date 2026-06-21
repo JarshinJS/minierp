@@ -5,6 +5,7 @@ from django.views import View
 from django.views.generic import RedirectView
 
 from apps.dashboard.views import DashboardSummaryAPIView
+from core.api_views import VoiceExtractAPIView, VoiceAssistantAPIView
 
 
 class RootRedirectView(View):
@@ -37,4 +38,6 @@ urlpatterns = [
     path("signup/", RedirectView.as_view(pattern_name="accounts:signup", permanent=False)),
     path("logout/", RedirectView.as_view(pattern_name="accounts:logout", permanent=False)),
     path("api/dashboard/summary", DashboardSummaryAPIView.as_view(), name="dashboard_api_summary"),
+    path("api/voice/extract/", VoiceExtractAPIView.as_view(), name="voice_extract"),
+    path("api/voice/assistant/", VoiceAssistantAPIView.as_view(), name="voice_assistant"),
 ]

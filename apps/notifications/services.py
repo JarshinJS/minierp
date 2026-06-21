@@ -4,6 +4,7 @@ from django.conf import settings
 from django.core.mail import EmailMultiAlternatives
 # pyrefly: ignore [missing-import]
 from django.template.loader import render_to_string
+# pyrefly: ignore [missing-import]
 from django.utils.html import strip_tags    
 
 logger = logging.getLogger(__name__)
