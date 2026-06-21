@@ -575,6 +575,9 @@ class MOUpdateView(LoginRequiredMixin, View):
 
 
 class MOConfirmView(LoginRequiredMixin, View):
+    def get(self, request, pk):
+        return redirect("manufacturing:mo_detail", pk=pk)
+
     def post(self, request, pk):
         mo = get_object_or_404(ManufacturingOrder, pk=pk)
         try:
@@ -591,6 +594,9 @@ class MOConfirmView(LoginRequiredMixin, View):
 
 
 class MOStartView(LoginRequiredMixin, View):
+    def get(self, request, pk):
+        return redirect("manufacturing:mo_detail", pk=pk)
+
     def post(self, request, pk):
         mo = get_object_or_404(ManufacturingOrder, pk=pk)
         try:
@@ -601,6 +607,9 @@ class MOStartView(LoginRequiredMixin, View):
 
 
 class MOProduceView(LoginRequiredMixin, View):
+    def get(self, request, pk):
+        return redirect("manufacturing:mo_detail", pk=pk)
+
     def post(self, request, pk):
         mo = get_object_or_404(ManufacturingOrder, pk=pk)
         form = ProduceForm(request.POST)
@@ -619,6 +628,9 @@ class MOProduceView(LoginRequiredMixin, View):
 
 
 class MOCancelView(LoginRequiredMixin, View):
+    def get(self, request, pk):
+        return redirect("manufacturing:mo_list")
+
     def post(self, request, pk):
         mo = get_object_or_404(ManufacturingOrder, pk=pk)
         try:
@@ -629,6 +641,10 @@ class MOCancelView(LoginRequiredMixin, View):
 
 
 class WorkOrderStartView(LoginRequiredMixin, View):
+    def get(self, request, pk):
+        wo = get_object_or_404(WorkOrder, pk=pk)
+        return redirect("manufacturing:mo_detail", pk=wo.mo.pk)
+
     def post(self, request, pk):
         wo = get_object_or_404(WorkOrder, pk=pk)
         try:
@@ -639,6 +655,10 @@ class WorkOrderStartView(LoginRequiredMixin, View):
 
 
 class WorkOrderCompleteView(LoginRequiredMixin, View):
+    def get(self, request, pk):
+        wo = get_object_or_404(WorkOrder, pk=pk)
+        return redirect("manufacturing:mo_detail", pk=wo.mo.pk)
+
     def post(self, request, pk):
         wo = get_object_or_404(WorkOrder, pk=pk)
         duration_actual = request.POST.get("duration_actual") or None

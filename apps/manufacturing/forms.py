@@ -1,3 +1,4 @@
+from decimal import Decimal
 from django import forms
 from .models import BoM, WorkCenter
 from apps.products.models import Product
@@ -116,7 +117,7 @@ class ProduceForm(forms.Form):
     """Form for recording partial or full production on an MO."""
     qty_produced = forms.DecimalField(
         label="Quantity to Produce",
-        min_value="0.01",
+        min_value=Decimal("0.01"),
         max_digits=12,
         decimal_places=2,
         widget=forms.NumberInput(attrs={
