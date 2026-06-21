@@ -33,10 +33,10 @@
                                 <span>Reserved: <strong class="text-slate-800">{{ widget.data.reserved_stock }}</strong></span>
                             </div>
                             {% if widget.data.low_stock_count > 0 %}
-                                <div class="mt-2 text-xs text-rose-600 font-medium flex items-center gap-1">
+                                <a href="{% url 'inventory:home' %}?filter=low_stock" class="mt-2 text-xs text-rose-600 font-medium flex items-center gap-1 hover:underline cursor-pointer">
                                     <span class="w-1.5 h-1.5 bg-rose-600 rounded-full animate-pulse"></span>
                                     {{ widget.data.low_stock_count }} Low Stock Item(s)
-                                </div>
+                                </a>
                             {% endif %}
                         </div>
                     {% elif widget.class_name == "SalesWidget" %}

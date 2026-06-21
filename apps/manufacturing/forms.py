@@ -1,5 +1,6 @@
 from decimal import Decimal
 from django import forms
+from decimal import Decimal
 from .models import BoM, WorkCenter
 from apps.products.models import Product
 

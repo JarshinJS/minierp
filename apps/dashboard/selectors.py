@@ -300,9 +300,9 @@ def get_manufacturing_progress():
     progress_list = []
     for mo in mos:
         # Mock percentage based on ID for visual wow factor if actual progress tracking isn't granular
-        pct = min(((mo.id * 17) % 100), 90) if mo.status == MOStatus.IN_PROGRESS else 20
+        pct = min(((mo.id.int * 17) % 100), 90) if mo.status == MOStatus.IN_PROGRESS else 20
         progress_list.append({
-            "number": mo.order_number,
+            "number": mo.reference,
             "product": mo.product.name,
             "percentage": pct
         })

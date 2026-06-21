@@ -86,6 +86,16 @@
                    style="flex:1; border:1px solid #cbd5e1; border-radius:10px; padding:10px 14px; font-size:13px; outline:none; transition:border-color 0.2s; font-family:inherit;"
                    onfocus="this.style.borderColor='#8c6239'" onblur="this.style.borderColor='#cbd5e1'">
 
+            <!-- Enter / Send button -->
+            <button @click="sendText" :disabled="isProcessing || !textInput.trim()"
+                    style="width:38px; height:38px; border-radius:50%; border:none; cursor:pointer; display:flex; align-items:center; justify-content:center; background:#f8fafc; color:#8c6239; transition:all 0.2s; flex-shrink:0; border: 1px solid #e2e8f0;"
+                    onmouseenter="this.style.background='#f1f5f9'" onmouseleave="this.style.background='#f8fafc'">
+                <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round">
+                    <line x1="22" y1="2" x2="11" y2="13"></line>
+                    <polygon points="22 2 15 22 11 13 2 9 22 2"></polygon>
+                </svg>
+            </button>
+
             <!-- Mic button in chat -->
             <button @click="toggleMic" :disabled="isProcessing"
                     :style="{ background: isListening ? '#dc2626' : '#8c6239' }"

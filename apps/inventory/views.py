@@ -30,6 +30,7 @@ class InventoryHomeView(LoginRequiredMixin, TemplateView):
         search_query = request.GET.get("q", "").strip()
         category_id = request.GET.get("category", "")
         tab = request.GET.get("tab", "stock")  # stock or ledger
+        stock_filter = request.GET.get("filter", "")
 
         # 2. Get Products with computed fields
         products = Product.objects.select_related("category").filter(is_active=True)
@@ -48,7 +49,12 @@ class InventoryHomeView(LoginRequiredMixin, TemplateView):
                 F("on_hand_qty") * F("cost_price"),
                 output_field=DecimalField()
             )
-        ).order_by("sku")
+        )
+        
+        if stock_filter == "low_stock":
+            products = products.filter(avail_qty__lte=5, avail_qty__gt=0)
+
+        products = products.order_by("sku")
 
         # 3. Stats Calculation (based on all active products)
         all_active = Product.objects.filter(is_active=True)
@@ -96,6 +102,7 @@ class InventoryHomeView(LoginRequiredMixin, TemplateView):
             "current_tab": tab,
             "search_query": search_query,
             "category_id": category_id,
+            "stock_filter": stock_filter,
             "ledger_product_id": ledger_product_id,
             "ledger_entry_type": ledger_entry_type,
             "ledger_ref": ledger_ref,
