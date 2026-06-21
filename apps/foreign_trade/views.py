@@ -1,3 +1,8 @@
+"""
+views.py for the Foreign_trade app.
+
+This module contains the views logic for the Foreign_trade functionality.
+"""
 from django.contrib.auth.mixins import LoginRequiredMixin
 from django.contrib.contenttypes.models import ContentType
 from django.http import HttpResponseBadRequest

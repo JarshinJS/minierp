@@ -1,3 +1,8 @@
+"""
+models.py for the Foreign_trade app.
+
+This module contains the models logic for the Foreign_trade functionality.
+"""
 import uuid
 
 from django.conf import settings

@@ -1,3 +1,8 @@
+"""
+admin.py for the Blockchain app.
+
+This module contains the admin logic for the Blockchain functionality.
+"""
 from django.contrib import admin
 from .models import BlockchainDocument, BlockchainAuditLog
 

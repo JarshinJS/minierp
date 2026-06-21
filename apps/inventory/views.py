@@ -1,3 +1,8 @@
+"""
+views.py for the Inventory app.
+
+This module contains the views logic for the Inventory functionality.
+"""
 from decimal import Decimal
 from django.contrib.auth.mixins import LoginRequiredMixin
 from django.db.models import Sum, F, ExpressionWrapper, DecimalField

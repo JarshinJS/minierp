@@ -1,3 +1,8 @@
+"""
+services.py for the Delivery app.
+
+This module contains the services logic for the Delivery functionality.
+"""
 import datetime
 import logging
 from decimal import Decimal

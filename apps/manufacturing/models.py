@@ -1,3 +1,8 @@
+"""
+models.py for the Manufacturing app.
+
+This module contains the models logic for the Manufacturing functionality.
+"""
 from decimal import Decimal
 from django.db import models
 

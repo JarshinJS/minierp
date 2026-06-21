@@ -1,3 +1,8 @@
+"""
+admin.py for the Products app.
+
+This module contains the admin logic for the Products functionality.
+"""
 from django.contrib import admin
 from .models import Category, Product
 

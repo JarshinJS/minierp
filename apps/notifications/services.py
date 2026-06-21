@@ -1,3 +1,8 @@
+"""
+services.py for the Notifications app.
+
+This module contains the services logic for the Notifications functionality.
+"""
 import logging
 # pyrefly: ignore [missing-import]
 from django.conf import settings

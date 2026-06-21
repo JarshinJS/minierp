@@ -1,3 +1,8 @@
+"""
+views.py for the Reports app.
+
+This module contains the views logic for the Reports functionality.
+"""
 import csv
 from decimal import Decimal
 from django.contrib.auth.mixins import LoginRequiredMixin

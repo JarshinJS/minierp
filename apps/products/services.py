@@ -1,3 +1,8 @@
+"""
+services.py for the Products app.
+
+This module contains the services logic for the Products functionality.
+"""
 from decimal import Decimal
 from core.exceptions import DomainError
 from apps.audit_logs.services import log_event

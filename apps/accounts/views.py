@@ -1,3 +1,8 @@
+"""
+views.py for the Accounts app.
+
+This module contains the views logic for the Accounts functionality.
+"""
 from django.contrib.auth import login as auth_login, logout as auth_logout
 from django.contrib.auth import get_user_model
 from django.contrib.auth.mixins import LoginRequiredMixin

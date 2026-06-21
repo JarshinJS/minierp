@@ -1,3 +1,8 @@
+"""
+urls.py for the Delivery app.
+
+This module contains the urls logic for the Delivery functionality.
+"""
 from django.urls import path
 from . import views
 

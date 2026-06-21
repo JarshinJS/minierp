@@ -1,3 +1,8 @@
+"""
+services.py for the Sales app.
+
+This module contains the services logic for the Sales functionality.
+"""
 import datetime
 import logging
 from decimal import Decimal

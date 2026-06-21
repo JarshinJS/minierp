@@ -1,3 +1,8 @@
+"""
+urls.py for the Purchase app.
+
+This module contains the urls logic for the Purchase functionality.
+"""
 from django.urls import path, include
 from rest_framework.routers import DefaultRouter
 

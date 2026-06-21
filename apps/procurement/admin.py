@@ -1,3 +1,8 @@
+"""
+admin.py for the Procurement app.
+
+This module contains the admin logic for the Procurement functionality.
+"""
 from django.contrib import admin
 
 from .models import ProcurementRequest, ProcurementTrigger

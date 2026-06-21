@@ -1,3 +1,8 @@
+"""
+views.py for the Delivery app.
+
+This module contains the views logic for the Delivery functionality.
+"""
 from django.contrib.auth.mixins import LoginRequiredMixin
 from django.views.generic import ListView, DetailView
 from django.shortcuts import get_object_or_404, redirect, render

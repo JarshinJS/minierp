@@ -1,3 +1,8 @@
+"""
+models.py for the Blockchain app.
+
+This module contains the models logic for the Blockchain functionality.
+"""
 from django.conf import settings
 from django.db import models
 

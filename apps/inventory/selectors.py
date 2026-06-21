@@ -1,3 +1,8 @@
+"""
+selectors.py for the Inventory app.
+
+This module contains the selectors logic for the Inventory functionality.
+"""
 from django.db.models import Sum
 from .models import InventoryLedgerEntry, LedgerEntryType
 

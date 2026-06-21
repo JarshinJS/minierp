@@ -1,3 +1,8 @@
+"""
+admin.py for the Sales app.
+
+This module contains the admin logic for the Sales functionality.
+"""
 from django.contrib import admin
 from .models import SalesOrder, SalesOrderLine
 

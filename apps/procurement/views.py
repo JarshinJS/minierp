@@ -1,3 +1,8 @@
+"""
+views.py for the Procurement app.
+
+This module contains the views logic for the Procurement functionality.
+"""
 from django.contrib.auth.mixins import LoginRequiredMixin
 from django.views.generic import ListView
 

@@ -1,3 +1,8 @@
+"""
+services.py for the Manufacturing app.
+
+This module contains the services logic for the Manufacturing functionality.
+"""
 from decimal import Decimal
 
 from django.db import transaction

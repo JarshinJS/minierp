@@ -1,3 +1,8 @@
+"""
+services.py for the Purchase app.
+
+This module contains the services logic for the Purchase functionality.
+"""
 import datetime
 import logging
 from decimal import Decimal

@@ -1,3 +1,8 @@
+"""
+selectors.py for the Manufacturing app.
+
+This module contains the selectors logic for the Manufacturing functionality.
+"""
 from decimal import Decimal
 from django.db.models import Q
 from django.shortcuts import get_object_or_404

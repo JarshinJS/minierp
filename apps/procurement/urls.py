@@ -1,3 +1,8 @@
+"""
+urls.py for the Procurement app.
+
+This module contains the urls logic for the Procurement functionality.
+"""
 from django.urls import path
 
 from . import views

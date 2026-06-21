@@ -1,3 +1,8 @@
+"""
+selectors.py for the Audit_logs app.
+
+This module contains the selectors logic for the Audit_logs functionality.
+"""
 import uuid
 from django.db.models import Count, Q
 
