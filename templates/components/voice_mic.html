@@ -1,0 +1,300 @@
+<!-- Voice AI Assistant — Full Chat UI with inline styles -->
+
+<!-- FAB Button -->
+<div id="voice-assistant-root" x-data="voiceAI()">
+
+    <!-- Chat Panel (slides up from FAB) -->
+    <div x-show="panelOpen" x-transition:enter="transition ease-out duration-300"
+         x-transition:enter-start="opacity-0 translate-y-4 scale-95"
+         x-transition:enter-end="opacity-100 translate-y-0 scale-100"
+         x-transition:leave="transition ease-in duration-200"
+         x-transition:leave-start="opacity-100 translate-y-0 scale-100"
+         x-transition:leave-end="opacity-0 translate-y-4 scale-95"
+         style="position:fixed; bottom:90px; right:24px; z-index:99998; width:380px; max-height:520px; background:#fff; border-radius:16px; box-shadow:0 8px 40px rgba(0,0,0,0.18); border:1px solid #e2e8f0; display:flex; flex-direction:column; overflow:hidden; font-family:'Inter',sans-serif;">
+
+        <!-- Header -->
+        <div style="background:linear-gradient(135deg,#8c6239,#5c3d21); color:#fff; padding:14px 18px; display:flex; align-items:center; justify-content:space-between; flex-shrink:0;">
+            <div style="display:flex; align-items:center; gap:10px;">
+                <div style="width:32px; height:32px; border-radius:50%; background:rgba(255,255,255,0.2); display:flex; align-items:center; justify-content:center;">
+                    <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="white" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+                        <rect x="9" y="1" width="6" height="11" rx="3"></rect>
+                        <path d="M19 10v1a7 7 0 0 1-14 0v-1"></path>
+                        <line x1="12" y1="19" x2="12" y2="23"></line>
+                        <line x1="8" y1="23" x2="16" y2="23"></line>
+                    </svg>
+                </div>
+                <div>
+                    <div style="font-weight:700; font-size:14px;">ERP Voice Assistant</div>
+                    <div style="font-size:11px; opacity:0.8;">Powered by Ollama AI</div>
+                </div>
+            </div>
+            <button @click="panelOpen=false" style="background:rgba(255,255,255,0.15); border:none; color:#fff; width:28px; height:28px; border-radius:8px; cursor:pointer; display:flex; align-items:center; justify-content:center; transition:background 0.2s;" onmouseenter="this.style.background='rgba(255,255,255,0.3)'" onmouseleave="this.style.background='rgba(255,255,255,0.15)'">
+                <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5"><path d="M18 6L6 18M6 6l12 12"/></svg>
+            </button>
+        </div>
+
+        <!-- Messages Area -->
+        <div x-ref="messageArea" style="flex:1; overflow-y:auto; padding:16px; display:flex; flex-direction:column; gap:12px; background:#f8fafc; min-height:200px; max-height:340px;">
+
+            <!-- Welcome message -->
+            <template x-if="messages.length === 0">
+                <div style="text-align:center; padding:24px 12px;">
+                    <div style="font-size:36px; margin-bottom:8px;">🎤</div>
+                    <div style="font-size:14px; font-weight:600; color:#334155; margin-bottom:6px;">Hi! I'm your ERP Assistant</div>
+                    <div style="font-size:12px; color:#64748b; line-height:1.6;">
+                        Click the mic or type below. Try saying:<br>
+                        <span style="background:#e0f2fe; padding:2px 6px; border-radius:4px; font-size:11px; display:inline-block; margin:3px 2px;">"Add a product called Oak Chair, cost 500, selling price 800"</span><br>
+                        <span style="background:#dcfce7; padding:2px 6px; border-radius:4px; font-size:11px; display:inline-block; margin:3px 2px;">"Create a sales order for customer Raj with 5 tables"</span><br>
+                        <span style="background:#fef3c7; padding:2px 6px; border-radius:4px; font-size:11px; display:inline-block; margin:3px 2px;">"Search for products with 'chair'"</span>
+                    </div>
+                </div>
+            </template>
+
+            <!-- Message bubbles -->
+            <template x-for="(msg, idx) in messages" :key="idx">
+                <div :style="msg.role === 'user' ? 'align-self:flex-end; max-width:85%;' : 'align-self:flex-start; max-width:85%;'">
+                    <div :style="msg.role === 'user'
+                        ? 'background:#8c6239; color:#fff; padding:10px 14px; border-radius:14px 14px 4px 14px; font-size:13px; line-height:1.5;'
+                        : 'background:#fff; color:#1e293b; padding:10px 14px; border-radius:14px 14px 14px 4px; font-size:13px; line-height:1.5; border:1px solid #e2e8f0; box-shadow:0 1px 3px rgba(0,0,0,0.06);'"
+                        x-html="formatMessage(msg.text)">
+                    </div>
+                    <div :style="msg.role === 'user' ? 'text-align:right;' : 'text-align:left;'"
+                         style="font-size:10px; color:#94a3b8; margin-top:4px; padding:0 4px;">
+                        <span x-text="msg.time"></span>
+                        <span x-show="msg.action && msg.action !== 'error' && msg.action !== 'general_query'" x-text="'• ' + (msg.action || '').replace(/_/g, ' ')" style="text-transform:capitalize;"></span>
+                    </div>
+                </div>
+            </template>
+
+            <!-- Typing indicator -->
+            <div x-show="isProcessing" style="align-self:flex-start;">
+                <div style="background:#fff; padding:10px 16px; border-radius:14px 14px 14px 4px; border:1px solid #e2e8f0; display:flex; gap:4px; align-items:center;">
+                    <span style="width:6px; height:6px; border-radius:50%; background:#94a3b8; animation:bounce-dot 1.4s infinite ease-in-out both; animation-delay:0s;"></span>
+                    <span style="width:6px; height:6px; border-radius:50%; background:#94a3b8; animation:bounce-dot 1.4s infinite ease-in-out both; animation-delay:0.2s;"></span>
+                    <span style="width:6px; height:6px; border-radius:50%; background:#94a3b8; animation:bounce-dot 1.4s infinite ease-in-out both; animation-delay:0.4s;"></span>
+                </div>
+            </div>
+        </div>
+
+        <!-- Input Area -->
+        <div style="padding:12px 14px; border-top:1px solid #e2e8f0; background:#fff; display:flex; gap:8px; align-items:center; flex-shrink:0;">
+            <input type="text" x-model="textInput"
+                   @keydown.enter="sendText"
+                   placeholder="Type or use mic..."
+                   :disabled="isProcessing"
+                   style="flex:1; border:1px solid #cbd5e1; border-radius:10px; padding:10px 14px; font-size:13px; outline:none; transition:border-color 0.2s; font-family:inherit;"
+                   onfocus="this.style.borderColor='#8c6239'" onblur="this.style.borderColor='#cbd5e1'">
+
+            <!-- Mic button in chat -->
+            <button @click="toggleMic" :disabled="isProcessing"
+                    :style="isListening ? 'background:#dc2626;' : 'background:#8c6239;'"
+                    style="width:38px; height:38px; border-radius:50%; border:none; cursor:pointer; display:flex; align-items:center; justify-content:center; color:#fff; transition:all 0.2s; flex-shrink:0;"
+                    onmouseenter="this.style.opacity='0.85'" onmouseleave="this.style.opacity='1'">
+                <svg x-show="!isListening" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+                    <rect x="9" y="1" width="6" height="11" rx="3"></rect>
+                    <path d="M19 10v1a7 7 0 0 1-14 0v-1"></path>
+                    <line x1="12" y1="19" x2="12" y2="23"></line>
+                    <line x1="8" y1="23" x2="16" y2="23"></line>
+                </svg>
+                <div x-show="isListening" style="width:14px; height:14px; border-radius:3px; background:#fff;"></div>
+            </button>
+        </div>
+
+        <!-- Listening overlay -->
+        <div x-show="isListening" x-transition
+             style="position:absolute; bottom:58px; left:0; right:0; background:rgba(220,38,38,0.95); color:#fff; padding:10px 16px; display:flex; align-items:center; gap:10px; font-size:13px; font-weight:500;">
+            <span style="display:inline-block; width:10px; height:10px; border-radius:50%; background:#fff; animation:pulse-dot 1.2s infinite;"></span>
+            <span>Listening… Click stop or just speak</span>
+        </div>
+    </div>
+
+    <!-- FAB Button -->
+    <button @click="panelOpen = !panelOpen"
+            :style="{ background: panelOpen ? '#5c3d21' : '#8c6239' }"
+            style="position:fixed; bottom:24px; right:24px; z-index:99999; width:56px; height:56px; border-radius:50%; border:none; cursor:pointer; display:flex; align-items:center; justify-content:center; box-shadow:0 4px 14px rgba(0,0,0,0.25); transition:all 0.3s ease; color:#fff;"
+            @mouseenter="$el.style.transform='scale(1.1)'"
+            @mouseleave="$el.style.transform='scale(1)'">
+        <!-- Mic icon when closed -->
+        <svg x-show="!panelOpen" width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+            <rect x="9" y="1" width="6" height="11" rx="3"></rect>
+            <path d="M19 10v1a7 7 0 0 1-14 0v-1"></path>
+            <line x1="12" y1="19" x2="12" y2="23"></line>
+            <line x1="8" y1="23" x2="16" y2="23"></line>
+        </svg>
+        <!-- Close icon when open -->
+        <svg x-show="panelOpen" x-cloak width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round">
+            <path d="M18 6L6 18M6 6l12 12"/>
+        </svg>
+    </button>
+
+    <!-- Notification dot -->
+    <div x-show="unreadCount > 0 && !panelOpen"
+         style="position:fixed; bottom:70px; right:24px; z-index:100000; background:#dc2626; color:#fff; font-size:10px; font-weight:700; width:18px; height:18px; border-radius:50%; display:flex; align-items:center; justify-content:center; border:2px solid #fff; box-shadow:0 1px 4px rgba(0,0,0,0.2);"
+         x-text="unreadCount"></div>
+</div>
+
+<style>
+[x-cloak] { display: none !important; }
+@keyframes bounce-dot {
+    0%, 80%, 100% { transform: scale(0); }
+    40% { transform: scale(1); }
+}
+@keyframes pulse-dot {
+    0%, 100% { opacity: 1; transform: scale(1); }
+    50% { opacity: 0.5; transform: scale(0.8); }
+}
+/* Scrollbar styling for the message area */
+#voice-assistant-root [x-ref="messageArea"]::-webkit-scrollbar { width: 4px; }
+#voice-assistant-root [x-ref="messageArea"]::-webkit-scrollbar-thumb { background: #cbd5e1; border-radius: 4px; }
+</style>
+
+<script>
+function voiceAI() {
+    return {
+        panelOpen: false,
+        messages: [],
+        textInput: '',
+        isListening: false,
+        isProcessing: false,
+        isSupported: false,
+        recognition: null,
+        unreadCount: 0,
+
+        init() {
+            const SR = window.SpeechRecognition || window.webkitSpeechRecognition;
+            if (SR) {
+                this.isSupported = true;
+                this.recognition = new SR();
+                this.recognition.continuous = false;
+                this.recognition.interimResults = true; // Enabled interim results for live feedback
+                this.recognition.lang = 'en-US';
+
+                this.recognition.onstart = () => { this.isListening = true; this.textInput = ''; };
+                this.recognition.onresult = (e) => {
+                    let finalTranscript = '';
+                    let interimTranscript = '';
+                    
+                    for (let i = e.resultIndex; i < e.results.length; ++i) {
+                        if (e.results[i].isFinal) {
+                            finalTranscript += e.results[i][0].transcript;
+                        } else {
+                            interimTranscript += e.results[i][0].transcript;
+                        }
+                    }
+                    
+                    if (interimTranscript !== '') {
+                        this.textInput = interimTranscript;
+                    }
+                    if (finalTranscript !== '') {
+                        // Just populate the input box, do NOT auto-submit.
+                        // This gives the user a chance to correct mistakes.
+                        this.textInput = finalTranscript;
+                    }
+                };
+                this.recognition.onerror = (e) => {
+                    this.isListening = false;
+                    if (e.error !== 'no-speech' && e.error !== 'aborted') {
+                        this.addMessage('assistant', '⚠ Microphone error: ' + e.error);
+                    }
+                };
+                this.recognition.onend = () => { this.isListening = false; };
+            }
+
+            // Listen for voice-transcript-ready from legacy form-fill integration
+            window.addEventListener('voice-transcript-ready', (e) => {
+                this.panelOpen = true;
+                this.textInput = e.detail.transcript;
+                this.sendText();
+                e.detail.callback(true);
+            });
+        },
+
+        toggleMic() {
+            if (!this.isSupported || this.isProcessing) return;
+            if (this.isListening) {
+                this.recognition.stop();
+            } else {
+                if (!this.panelOpen) this.panelOpen = true;
+                try { this.recognition.start(); } catch(e) { console.error(e); }
+            }
+        },
+
+        addMessage(role, text, action) {
+            const now = new Date();
+            const time = now.toLocaleTimeString([], {hour:'2-digit', minute:'2-digit'});
+            this.messages.push({ role, text, time, action });
+            if (role === 'assistant' && !this.panelOpen) {
+                this.unreadCount++;
+            }
+            this.$nextTick(() => {
+                if (this.$refs.messageArea) {
+                    this.$refs.messageArea.scrollTop = this.$refs.messageArea.scrollHeight;
+                }
+            });
+        },
+
+        formatMessage(text) {
+            // Convert newlines to <br> and highlight emojis
+            return (text || '')
+                .replace(/&/g, '&amp;').replace(/</g, '&lt;').replace(/>/g, '&gt;')
+                .replace(/\n/g, '<br>')
+                .replace(/(✅|⚠|❌|⏳|🔍)/g, '<span style="font-size:16px;">$1</span>');
+        },
+
+        async sendText() {
+            const text = this.textInput.trim();
+            if (!text || this.isProcessing) return;
+
+            this.textInput = '';
+            this.addMessage('user', text);
+            this.isProcessing = true;
+            this.unreadCount = 0;
+
+            try {
+                const csrfToken = this.getCSRFToken();
+
+                const resp = await fetch('/api/voice/assistant/', {
+                    method: 'POST',
+                    headers: {
+                        'Content-Type': 'application/json',
+                        'X-CSRFToken': csrfToken,
+                    },
+                    body: JSON.stringify({ transcript: text }),
+                });
+
+                const data = await resp.json();
+                this.addMessage('assistant', data.reply || data.error || 'No response from AI.', data.action);
+            } catch (err) {
+                console.error('[VoiceAI]', err);
+                this.addMessage('assistant', '❌ Network error. Check that Django and Ollama are running.');
+            } finally {
+                this.isProcessing = false;
+            }
+        },
+
+        // Called when panel opens
+        openPanel() {
+            this.panelOpen = true;
+            this.unreadCount = 0;
+        },
+
+        getCSRFToken() {
+            // 1. From a form's hidden input
+            const fromInput = document.querySelector('[name=csrfmiddlewaretoken]');
+            if (fromInput) return fromInput.value;
+            // 2. From hx-headers on body
+            try {
+                const hxHeaders = document.body.getAttribute('hx-headers');
+                if (hxHeaders) {
+                    const parsed = JSON.parse(hxHeaders);
+                    if (parsed['X-CSRFToken']) return parsed['X-CSRFToken'];
+                }
+            } catch(e) {}
+            // 3. From cookie
+            const match = document.cookie.match(/csrftoken=([^;]+)/);
+            if (match) return match[1];
+            return '';
+        }
+    }
+}
+</script>
