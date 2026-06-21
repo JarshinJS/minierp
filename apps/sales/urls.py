@@ -1,3 +1,8 @@
+"""
+urls.py for the Sales app.
+
+This module contains the urls logic for the Sales functionality.
+"""
 from django.urls import path, include
 from rest_framework.routers import DefaultRouter
 from . import views

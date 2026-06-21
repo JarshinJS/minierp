@@ -1,3 +1,8 @@
+"""
+admin.py for the Accounts app.
+
+This module contains the admin logic for the Accounts functionality.
+"""
 from django.contrib import admin
 from django.contrib.auth.admin import UserAdmin as BaseUserAdmin
 from .models import User

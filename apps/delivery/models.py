@@ -1,3 +1,8 @@
+"""
+models.py for the Delivery app.
+
+This module contains the models logic for the Delivery functionality.
+"""
 from django.db import models
 from django.contrib.auth import get_user_model
 from core.models import UUIDBaseModel, TimeStampedModel

@@ -1,3 +1,8 @@
+"""
+services.py for the Audit_logs app.
+
+This module contains the services logic for the Audit_logs functionality.
+"""
 import json
 import uuid
 from datetime import date, datetime

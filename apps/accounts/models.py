@@ -1,9 +1,18 @@
+"""
+models.py for the Accounts app.
+
+This module contains the models logic for the Accounts functionality.
+"""
 import uuid
 from django.contrib.auth.models import AbstractBaseUser, BaseUserManager, PermissionsMixin
 from django.db import models
 from core.models import UUIDBaseModel, TimeStampedModel
 
 class UserRole(models.TextChoices):
+    """
+    Defines the standard roles available within the ERP system.
+    Used for basic Role-Based Access Control (RBAC).
+    """
     ADMIN = "ADMIN", "Admin"
     BUSINESS_OWNER = "BUSINESS_OWNER", "Business Owner"
     SALES_USER = "SALES_USER", "Sales User"
@@ -19,6 +28,10 @@ class UserRole(models.TextChoices):
 
 
 class UserManager(BaseUserManager):
+    """
+    Custom user manager that uses email as the unique identifier
+    instead of a username for authentication.
+    """
     def create_user(self, email, password=None, **extra_fields):
         if not email:
             raise ValueError("The Email field must be set")
@@ -44,6 +57,10 @@ class UserManager(BaseUserManager):
 
 
 class User(AbstractBaseUser, PermissionsMixin, UUIDBaseModel, TimeStampedModel):
+    """
+    Custom User model representing individuals who log into the ERP.
+    Uses an email address instead of a username and includes a 'role' field.
+    """
     email = models.EmailField(unique=True, db_index=True)
     full_name = models.CharField(max_length=255)
     role = models.CharField(

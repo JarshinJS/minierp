@@ -1,3 +1,8 @@
+"""
+services.py for the Accounts app.
+
+This module contains the services logic for the Accounts functionality.
+"""
 from django.contrib.auth import get_user_model
 from core.exceptions import DomainError, WorkflowError
 from .models import UserRole

@@ -1,3 +1,8 @@
+"""
+views.py for the Purchase app.
+
+This module contains the views logic for the Purchase functionality.
+"""
 from django.contrib.auth.mixins import LoginRequiredMixin
 from django.http import HttpResponseBadRequest
 from django.shortcuts import get_object_or_404, redirect, render

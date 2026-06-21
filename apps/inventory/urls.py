@@ -1,3 +1,8 @@
+"""
+urls.py for the Inventory app.
+
+This module contains the urls logic for the Inventory functionality.
+"""
 from django.urls import path
 from . import views
 

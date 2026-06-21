@@ -1,3 +1,8 @@
+"""
+selectors.py for the Dashboard app.
+
+This module contains the selectors logic for the Dashboard functionality.
+"""
 from decimal import Decimal
 
 # pyrefly: ignore [missing-import]

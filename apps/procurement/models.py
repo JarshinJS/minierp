@@ -1,3 +1,8 @@
+"""
+models.py for the Procurement app.
+
+This module contains the models logic for the Procurement functionality.
+"""
 from django.conf import settings
 from django.db import models
 

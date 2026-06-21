@@ -1,3 +1,8 @@
+"""
+views.py for the Manufacturing app.
+
+This module contains the views logic for the Manufacturing functionality.
+"""
 import json
 
 from django.contrib.auth.mixins import LoginRequiredMixin

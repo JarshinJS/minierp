@@ -1,3 +1,8 @@
+"""
+models.py for the Products app.
+
+This module contains the models logic for the Products functionality.
+"""
 from decimal import Decimal
 from django.db import models
 

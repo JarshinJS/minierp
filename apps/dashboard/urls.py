@@ -1,3 +1,8 @@
+"""
+urls.py for the Dashboard app.
+
+This module contains the urls logic for the Dashboard functionality.
+"""
 # pyrefly: ignore [missing-import]
 from django.urls import path
 

@@ -1,3 +1,8 @@
+"""
+urls.py for the Manufacturing app.
+
+This module contains the urls logic for the Manufacturing functionality.
+"""
 from django.urls import path, include
 from rest_framework.routers import DefaultRouter
 from . import views

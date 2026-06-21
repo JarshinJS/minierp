@@ -1,3 +1,8 @@
+"""
+services.py for the Foreign_trade app.
+
+This module contains the services logic for the Foreign_trade functionality.
+"""
 import datetime
 from decimal import Decimal
 

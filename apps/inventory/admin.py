@@ -1,3 +1,8 @@
+"""
+admin.py for the Inventory app.
+
+This module contains the admin logic for the Inventory functionality.
+"""
 from django.contrib import admin
 from .models import InventoryLedgerEntry
 

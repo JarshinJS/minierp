@@ -1,3 +1,8 @@
+"""
+views.py for the Blockchain app.
+
+This module contains the views logic for the Blockchain functionality.
+"""
 from django.contrib.auth.mixins import LoginRequiredMixin
 from django.views.generic import ListView, TemplateView
 

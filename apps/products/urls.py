@@ -1,3 +1,8 @@
+"""
+urls.py for the Products app.
+
+This module contains the urls logic for the Products functionality.
+"""
 from django.urls import path, include
 from rest_framework.routers import DefaultRouter
 from . import views

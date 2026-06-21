@@ -1,3 +1,8 @@
+"""
+services.py for the Inventory app.
+
+This module contains the services logic for the Inventory functionality.
+"""
 from __future__ import annotations
 
 import logging

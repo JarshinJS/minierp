@@ -1,3 +1,8 @@
+"""
+admin.py for the Manufacturing app.
+
+This module contains the admin logic for the Manufacturing functionality.
+"""
 from django.contrib import admin
 from .models import BoM, BOMComponent, BOMOperation, WorkCenter, ManufacturingOrder, MOComponent, WorkOrder
 

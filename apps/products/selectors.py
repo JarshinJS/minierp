@@ -1,3 +1,8 @@
+"""
+selectors.py for the Products app.
+
+This module contains the selectors logic for the Products functionality.
+"""
 import uuid
 from django.db.models import Q
 from .models import Product

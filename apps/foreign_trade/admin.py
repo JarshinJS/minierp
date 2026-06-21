@@ -1,3 +1,8 @@
+"""
+admin.py for the Foreign_trade app.
+
+This module contains the admin logic for the Foreign_trade functionality.
+"""
 from django.contrib import admin
 from .models import (
     Country, Currency, Incoterm,

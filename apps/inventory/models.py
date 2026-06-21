@@ -1,3 +1,8 @@
+"""
+models.py for the Inventory app.
+
+This module contains the models logic for the Inventory functionality.
+"""
 from django.db import models
 from core.models import UUIDBaseModel, TimeStampedModel
 from apps.products.models import Product

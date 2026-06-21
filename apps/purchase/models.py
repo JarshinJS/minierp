@@ -1,3 +1,8 @@
+"""
+models.py for the Purchase app.
+
+This module contains the models logic for the Purchase functionality.
+"""
 from decimal import Decimal
 
 from django.contrib.auth import get_user_model

@@ -1,3 +1,8 @@
+"""
+models.py for the Audit_logs app.
+
+This module contains the models logic for the Audit_logs functionality.
+"""
 import uuid
 
 from django.conf import settings

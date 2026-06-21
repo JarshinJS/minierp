@@ -1,3 +1,8 @@
+"""
+services.py for the Procurement app.
+
+This module contains the services logic for the Procurement functionality.
+"""
 from decimal import Decimal
 from django.db import transaction
 from django.conf import settings

@@ -1,3 +1,8 @@
+"""
+views.py for the Products app.
+
+This module contains the views logic for the Products functionality.
+"""
 from django.contrib.auth.mixins import LoginRequiredMixin
 from django.http import HttpResponse, HttpResponseBadRequest
 from django.shortcuts import render, redirect, get_object_or_404

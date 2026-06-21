@@ -1,3 +1,8 @@
+"""
+views.py for the Audit_logs app.
+
+This module contains the views logic for the Audit_logs functionality.
+"""
 from django.contrib.auth.mixins import LoginRequiredMixin
 from django.shortcuts import render
 from django.views.generic import ListView

@@ -1,3 +1,8 @@
+"""
+urls.py for the Reports app.
+
+This module contains the urls logic for the Reports functionality.
+"""
 from django.urls import path
 from . import views
 

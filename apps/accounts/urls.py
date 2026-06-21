@@ -1,3 +1,8 @@
+"""
+urls.py for the Accounts app.
+
+This module contains the urls logic for the Accounts functionality.
+"""
 from django.urls import path
 from . import views
 

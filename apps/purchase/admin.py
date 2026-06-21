@@ -1,3 +1,8 @@
+"""
+admin.py for the Purchase app.
+
+This module contains the admin logic for the Purchase functionality.
+"""
 from django.contrib import admin
 
 from .models import PurchaseOrder, PurchaseOrderLine, Vendor
