@@ -92,6 +92,16 @@ class TestInventoryServices:
         product.refresh_from_db()
         assert product.on_hand_qty == Decimal("0.0")
 
+    def test_concurrent_receipts_do_not_overwrite_each_other(self, inventory_setup):
+        product = inventory_setup["product"]
+        inventory_services.receive_stock(product, Decimal("10.00"), reference="Initial")
+        product.refresh_from_db()
+
+        inventory_services.receive_stock(product, Decimal("5.00"), reference="Concurrent")
+        product.refresh_from_db()
+
+        assert product.on_hand_qty == Decimal("15.00")
+
 
 @pytest.mark.django_db
 class TestInventorySelectors:

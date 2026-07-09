@@ -11,6 +11,7 @@ from typing import Any
 
 from django.apps import apps
 from django.db import transaction
+from django.db.models import Case, DecimalField, F, Value, When
 from core.exceptions import DomainError
 from apps.products.models import Product
 from apps.audit_logs.services import log_event
@@ -39,37 +40,50 @@ def post_ledger_entry(product, entry_type, quantity, reference=""):
     if quantity <= 0:
         raise DomainError("Quantity must be positive.")
 
-    # Select product with lock to prevent race conditions
-    product_locked = Product.objects.select_for_update().get(pk=product.id)
+    snapshot = Product.objects.filter(pk=product.pk).values("on_hand_qty", "reserved_qty").first()
+    if snapshot is None:
+        raise DomainError("Product not found.")
 
-    old_on_hand = product_locked.on_hand_qty
-    old_reserved = product_locked.reserved_qty
+    old_on_hand = snapshot["on_hand_qty"]
+    old_reserved = snapshot["reserved_qty"]
 
     if entry_type == LedgerEntryType.RECEIPT:
-        product_locked.on_hand_qty += quantity
+        updated_count = Product.objects.filter(pk=product.pk).update(
+            on_hand_qty=F("on_hand_qty") + quantity,
+        )
     elif entry_type == LedgerEntryType.ISSUE:
-        if product_locked.on_hand_qty < quantity:
-            raise DomainError(f"Cannot issue {quantity} stock; only {product_locked.on_hand_qty} on hand for {product_locked.name}.")
-        product_locked.on_hand_qty -= quantity
-        # Also adjust reserved quantity by the amount issued
-        product_locked.reserved_qty = max(Decimal("0.0"), product_locked.reserved_qty - quantity)
+        updated_count = Product.objects.filter(pk=product.pk, on_hand_qty__gte=quantity).update(
+            on_hand_qty=F("on_hand_qty") - quantity,
+            reserved_qty=Case(
+                When(reserved_qty__gte=quantity, then=F("reserved_qty") - quantity),
+                default=Value(Decimal("0.00")),
+                output_field=DecimalField(),
+            ),
+        )
     elif entry_type == LedgerEntryType.RESERVATION:
-        product_locked.reserved_qty += quantity
+        updated_count = Product.objects.filter(pk=product.pk).update(
+            reserved_qty=F("reserved_qty") + quantity,
+        )
     elif entry_type == LedgerEntryType.RELEASE:
-        if product_locked.reserved_qty < quantity:
-            raise DomainError(f"Cannot release {quantity} stock; only {product_locked.reserved_qty} reserved.")
-        product_locked.reserved_qty -= quantity
+        updated_count = Product.objects.filter(pk=product.pk, reserved_qty__gte=quantity).update(
+            reserved_qty=F("reserved_qty") - quantity,
+        )
     else:
         raise DomainError(f"Unknown ledger entry type: {entry_type}")
 
-    product_locked.save()
+    if updated_count != 1:
+        if entry_type == LedgerEntryType.ISSUE:
+            current = Product.objects.filter(pk=product.pk).values("on_hand_qty", "reserved_qty").first()
+            raise DomainError(f"Cannot issue {quantity} stock; only {current['on_hand_qty'] if current else Decimal('0.00')} on hand for {product.name}.")
+        if entry_type == LedgerEntryType.RELEASE:
+            current = Product.objects.filter(pk=product.pk).values("reserved_qty").first()
+            raise DomainError(f"Cannot release {quantity} stock; only {current['reserved_qty'] if current else Decimal('0.00')} reserved.")
+        raise DomainError("Stock update did not affect the expected product row.")
 
-    # Sync back to memory reference if they are different objects
-    product.on_hand_qty = product_locked.on_hand_qty
-    product.reserved_qty = product_locked.reserved_qty
+    product.refresh_from_db(fields=["on_hand_qty", "reserved_qty"])
 
     entry = InventoryLedgerEntry.objects.create(
-        product=product_locked,
+        product=product,
         quantity=quantity,
         entry_type=entry_type,
         reference=reference
@@ -80,21 +94,21 @@ def post_ledger_entry(product, entry_type, quantity, reference=""):
         log_event(
             user=None,
             module="inventory",
-            record=product_locked,
+            record=product,
             action=AuditLogAction.STOCK_ADJUSTED,
             field="on_hand_qty",
             old=old_on_hand,
-            new=product_locked.on_hand_qty
+            new=product.on_hand_qty
         )
     elif entry_type in [LedgerEntryType.RESERVATION, LedgerEntryType.RELEASE]:
         log_event(
             user=None,
             module="inventory",
-            record=product_locked,
+            record=product,
             action=AuditLogAction.STOCK_ADJUSTED,
             field="reserved_qty",
             old=old_reserved,
-            new=product_locked.reserved_qty
+            new=product.reserved_qty
         )
 
     return entry
