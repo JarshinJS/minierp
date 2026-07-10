@@ -201,9 +201,19 @@ function voiceAI() {
                         this.textInput = interimTranscript;
                     }
                     if (finalTranscript !== '') {
-                        // Just populate the input box, do NOT auto-submit.
-                        // This gives the user a chance to correct mistakes.
-                        this.textInput = finalTranscript;
+                        const finalText = finalTranscript.trim();
+                        if (finalText) {
+                            this.textInput = finalText;
+                            if (!this.isProcessing) {
+                                this.$nextTick(() => {
+                                    setTimeout(() => {
+                                        if (this.textInput.trim() === finalText) {
+                                            this.sendText();
+                                        }
+                                    }, 250);
+                                });
+                            }
+                        }
                     }
                 };
                 this.recognition.onerror = (e) => {

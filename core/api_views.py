@@ -1,5 +1,6 @@
 import json
 import logging
+import re
 import uuid
 import requests
 from decimal import Decimal, InvalidOperation
@@ -109,6 +110,126 @@ RULES:
 """
 
 
+def _parse_number(value):
+    if value is None:
+        return None
+    if isinstance(value, (int, float, Decimal)):
+        return value
+    text = str(value).strip().replace(",", "")
+    if not text:
+        return None
+    try:
+        if "." in text:
+            return float(text)
+        return int(text)
+    except ValueError:
+        return None
+
+
+def _looks_like_general_question(transcript):
+    text = (transcript or "").lower()
+    return any(word in text for word in ["what", "who", "when", "where", "why", "how", "tell", "explain", "help"])
+
+
+def parse_transcript_fallback(transcript):
+    """Return a fast deterministic action plan for common voice inputs without waiting for Ollama."""
+    raw = (transcript or "").strip()
+    if not raw:
+        return {"action": "general_query", "confidence": 0.0, "reply": "", "data": {}}
+
+    text = raw.lower()
+
+    if re.search(r"\b(create|add|new|make)\b", text) and re.search(r"\bproduct\b", text):
+        name_match = re.search(r"(?:create|add|new|make)\s+(?:a\s+)?product(?:\s+(?:called|named))?\s+(.+?)(?=\s+cost\b|\s+selling\b|\s+price\b|$)", raw, re.I)
+        name = name_match.group(1).strip() if name_match else ""
+        cost = _parse_number(re.search(r"\bcost\s+([0-9,.]+)", raw, re.I).group(1) if re.search(r"\bcost\s+([0-9,.]+)", raw, re.I) else None)
+        selling = _parse_number(re.search(r"(?:selling|sale)\s*price\s+([0-9,.]+)", raw, re.I).group(1) if re.search(r"(?:selling|sale)\s*price\s+([0-9,.]+)", raw, re.I) else None)
+        if name:
+            return {
+                "action": "create_product",
+                "confidence": 0.94,
+                "reply": f"Creating product {name}.",
+                "data": {
+                    "name": name,
+                    "cost_price": cost,
+                    "selling_price": selling,
+                    "category": "General",
+                    "unit_of_measure": "PCS",
+                },
+            }
+
+    if re.search(r"\b(create|add)\b", text) and re.search(r"\bsales\s+order\b", text):
+        customer = re.search(r"for\s+customer\s+(.+?)(?=\s+with\b|$)", raw, re.I)
+        product_match = re.search(r"with\s+([0-9,.]+)\s+(.+?)(?=\s+and\b|\s+for\b|$)", raw, re.I)
+        quantity = _parse_number(product_match.group(1) if product_match else None)
+        product_name = product_match.group(2).strip() if product_match else ""
+        return {
+            "action": "create_sales_order",
+            "confidence": 0.9,
+            "reply": "Creating a sales order.",
+            "data": {
+                "customer_name": customer.group(1).strip() if customer else "",
+                "lines": [{"product_name": product_name, "quantity": quantity or 1, "unit_price": 0}] if product_name else [],
+            },
+        }
+
+    if re.search(r"\b(create|add)\b", text) and re.search(r"\bpurchase\s+order\b", text):
+        vendor = re.search(r"for\s+vendor\s+(.+?)(?=\s+with\b|$)", raw, re.I)
+        return {
+            "action": "create_purchase_order",
+            "confidence": 0.9,
+            "reply": "Creating a purchase order.",
+            "data": {
+                "vendor_name": vendor.group(1).strip() if vendor else "",
+                "lines": [],
+            },
+        }
+
+    if re.search(r"\b(search|find|lookup|show)\b", text) and re.search(r"\bproduct\b", text):
+        term = re.search(r"product(?:s)?\s+(?:named|called|with)?\s*(.+)", raw, re.I)
+        return {
+            "action": "lookup_product",
+            "confidence": 0.88,
+            "reply": "Looking up products.",
+            "data": {"search_term": (term.group(1).strip() if term else raw)},
+        }
+
+    if re.search(r"\b(search|find|lookup|show)\b", text) and re.search(r"\bsales\s+order\b", text):
+        return {
+            "action": "lookup_sales_order",
+            "confidence": 0.88,
+            "reply": "Looking up sales orders.",
+            "data": {"search_term": raw},
+        }
+
+    if re.search(r"\b(search|find|lookup|show)\b", text) and re.search(r"\bpurchase\s+order\b", text):
+        return {
+            "action": "lookup_purchase_order",
+            "confidence": 0.88,
+            "reply": "Looking up purchase orders.",
+            "data": {"search_term": raw},
+        }
+
+    if re.search(r"\b(increase|decrease|add|reduce|change|update|inventory)\b", text) and (re.search(r"\bstock\b", text) or re.search(r"\binventory\b", text)):
+        product_match = re.search(r"stock\s+(?:of|for)?\s+(.+?)(?=\s+by\b|$)", raw, re.I)
+        if not product_match:
+            product_match = re.search(r"inventory\s+(?:for|of)?\s+(.+?)(?=\s+by\b|$)", raw, re.I)
+        quantity_match = re.search(r"\bby\s+([0-9,.]+)", raw, re.I)
+        direction = "increase" if any(word in text for word in ["increase", "add", "change", "update"] if word in text) else "decrease"
+        return {
+            "action": "update_stock",
+            "confidence": 0.9,
+            "reply": "Updating stock.",
+            "data": {
+                "product_name": product_match.group(1).strip() if product_match else "",
+                "quantity": _parse_number(quantity_match.group(1) if quantity_match else 0),
+                "direction": direction,
+            },
+        }
+
+    return {"action": "general_query", "confidence": 0.2, "reply": "", "data": {}}
+
+
 def call_ollama(user_message):
     """Call Ollama and return parsed JSON."""
     prompt = f"{SYSTEM_PROMPT}\n\nUSER INPUT: {user_message}"
@@ -122,11 +243,11 @@ def call_ollama(user_message):
             "stream": False,
             "options": {
                 "temperature": 0.0,
-                "num_predict": 256,
-                "num_ctx": 2048,
+                "num_predict": 192,
+                "num_ctx": 1024,
             }
         },
-        timeout=60,
+        timeout=15,
     )
     response.raise_for_status()
     raw = response.json().get("response", "").strip()
@@ -372,32 +493,40 @@ class VoiceAssistantAPIView(APIView):
         if not transcript:
             return Response({"error": "No transcript provided."}, status=status.HTTP_400_BAD_REQUEST)
 
-        # 1. Check Ollama
-        try:
-            requests.get(f"{OLLAMA_URL}/api/tags", timeout=2).raise_for_status()
-        except requests.exceptions.RequestException:
-            return Response({
-                "reply": "⚠ Ollama is not running. Please start it with `ollama serve`.",
-                "action": "error",
-                "success": False,
-            }, status=status.HTTP_503_SERVICE_UNAVAILABLE)
+        fallback_result = parse_transcript_fallback(transcript)
+        if fallback_result.get("action") != "general_query" and fallback_result.get("confidence", 0) >= 0.8:
+            llm_result = fallback_result
+        elif _looks_like_general_question(transcript):
+            try:
+                requests.get(f"{OLLAMA_URL}/api/tags", timeout=2).raise_for_status()
+            except requests.exceptions.RequestException:
+                return Response({
+                    "reply": "⚠ Ollama is not running. Please start it with `ollama serve`.",
+                    "action": "general_query",
+                    "success": False,
+                }, status=status.HTTP_503_SERVICE_UNAVAILABLE)
 
-        # 2. Call LLM
-        try:
-            llm_result = call_ollama(transcript)
-        except requests.exceptions.Timeout:
+            try:
+                llm_result = call_ollama(transcript)
+            except requests.exceptions.Timeout:
+                return Response({
+                    "reply": "⏳ The AI took too long, so I’m using a quick fallback response. I can help create products, sales orders, purchase orders, look up records, or update stock.",
+                    "action": "general_query",
+                    "success": True,
+                }, status=status.HTTP_200_OK)
+            except (requests.exceptions.RequestException, json.JSONDecodeError) as e:
+                logger.error(f"Ollama error: {e}")
+                return Response({
+                    "reply": "⚠ I couldn’t reach the AI model, but I can still help with common ERP actions like creating products, orders, or stock updates.",
+                    "action": "general_query",
+                    "success": True,
+                }, status=status.HTTP_200_OK)
+        else:
             return Response({
-                "reply": "⏳ The AI took too long. Please try a shorter sentence.",
-                "action": "error",
-                "success": False,
-            }, status=status.HTTP_504_GATEWAY_TIMEOUT)
-        except (requests.exceptions.RequestException, json.JSONDecodeError) as e:
-            logger.error(f"Ollama error: {e}")
-            return Response({
-                "reply": "❌ Could not understand the response from the AI model. Please try again.",
-                "action": "error",
-                "success": False,
-            }, status=status.HTTP_502_BAD_GATEWAY)
+                "reply": "I can help create products, sales orders, purchase orders, look up records, or update stock. Try saying what you want to do.",
+                "action": "general_query",
+                "success": True,
+            }, status=status.HTTP_200_OK)
 
         action = llm_result.get("action", "general_query")
         ai_reply = llm_result.get("reply", "")
