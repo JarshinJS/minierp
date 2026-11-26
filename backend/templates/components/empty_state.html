@@ -1,0 +1,10 @@
+{% comment %}
+Usage: {% include "components/empty_state.html" with icon="package" title="No products yet" text="..." action_url=... action_label=... %}
+{% endcomment %}
+{% load ui %}
+<div class="empty-state">
+    <div class="empty-state-icon">{% icon icon|default:"inbox" %}</div>
+    <p class="empty-state-title">{{ title|default:"Nothing here yet" }}</p>
+    {% if text %}<p class="empty-state-text">{{ text }}</p>{% endif %}
+    {% if action_url %}<a href="{{ action_url }}" class="btn btn-primary btn-sm mt-4">{% icon "plus" %}{{ action_label|default:"Create" }}</a>{% endif %}
+</div>

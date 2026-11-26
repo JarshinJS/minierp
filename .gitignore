@@ -6,6 +6,7 @@
 .env
 .env.*
 *.env
+!.env.example
 
 # --- Python ---
 __pycache__/
@@ -25,7 +26,19 @@ db.sqlite3-journal
 media/
 staticfiles/
 media_root/
-/static/css/dist/
+/backend/static/css/dist/
+
+# --- Celery ---
+celerybeat-schedule*
+celerybeat.pid
+
+# --- Next.js (frontend/) ---
+.next/
+out/
+.vercel/
+next-env.d.ts
+*.tsbuildinfo
+.env*.local
 
 # --- IDEs & Editors ---
 .vscode/

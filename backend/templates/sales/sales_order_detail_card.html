@@ -1,0 +1,136 @@
+{% load ui %}
+<div id="sales-order-card" class="space-y-6">
+    <!-- Header (inside the card so HTMX actions refresh status + actions together) -->
+    <div class="flex flex-col gap-4 sm:flex-row sm:items-end sm:justify-between">
+        <div class="min-w-0">
+            <p class="mb-1 text-xs font-medium text-slate-500">Sales order</p>
+            <div class="flex flex-wrap items-center gap-3">
+                <h1 class="font-mono text-xl font-semibold tracking-tight sm:text-2xl">{{ order.order_number }}</h1>
+                {% status_badge order.status order.get_status_display %}
+            </div>
+            <p class="mt-1 text-sm text-slate-500">{{ order.customer_name }} · Created {{ order.created_at|date:"d M Y" }} by {{ order.created_by.full_name }}</p>
+        </div>
+        <div class="flex flex-wrap items-center gap-2">
+            {% include "components/logs_link.html" with record_type="SalesOrder" record_id=order.pk %}
+            {% if order.status == "DRAFT" %}
+            <button class="btn btn-danger-outline" hx-post="{% url 'sales:sales_order_cancel' order.pk %}" hx-target="#sales-order-card" hx-swap="outerHTML"
+                    hx-confirm="Cancel order {{ order.order_number }}? This cannot be undone." data-confirm-title="Cancel order" data-confirm-action="Cancel order">{% icon "ban" %} Cancel</button>
+            <a href="{% url 'sales:sales_order_edit' order.pk %}" class="btn btn-secondary">{% icon "edit" %} Edit</a>
+            <button class="btn btn-primary" hx-post="{% url 'sales:sales_order_confirm' order.pk %}" hx-target="#sales-order-card" hx-swap="outerHTML"
+                    hx-confirm="Confirm order {{ order.order_number }}? Stock will be reserved for its lines." data-confirm-title="Confirm order" data-confirm-action="Confirm order">{% icon "check" %} Confirm order</button>
+            {% elif order.status == "CONFIRMED" or order.status == "PARTIALLY_DELIVERED" %}
+            <button class="btn btn-danger-outline" hx-post="{% url 'sales:sales_order_cancel' order.pk %}" hx-target="#sales-order-card" hx-swap="outerHTML"
+                    hx-confirm="Cancel the remaining quantities on {{ order.order_number }}? Reserved stock will be released." data-confirm-title="Cancel remaining" data-confirm-action="Cancel remaining">{% icon "ban" %} Cancel remaining</button>
+            <button class="btn btn-secondary" hx-post="{% url 'sales:sales_order_deliver' order.pk %}" hx-target="#sales-order-card" hx-swap="outerHTML"
+                    hx-confirm="Ship all pending quantities for {{ order.order_number }} now?" data-confirm-title="Ship full order" data-confirm-action="Ship all">{% icon "send" %} Ship all</button>
+            <form action="{% url 'delivery:create' order.pk %}" method="post">
+                {% csrf_token %}
+                <button type="submit" class="btn btn-primary">{% icon "truck" %} Create delivery note</button>
+            </form>
+            {% endif %}
+        </div>
+    </div>
+
+    <div class="grid grid-cols-1 gap-4 lg:grid-cols-3">
+        <div class="space-y-4 lg:col-span-2">
+            <div class="card overflow-hidden">
+                <div class="card-header">
+                    <h2 class="card-title">Order lines</h2>
+                    {% if order.status == "CONFIRMED" or order.status == "PARTIALLY_DELIVERED" %}<p class="card-subtitle">Enter quantities to ship a partial delivery.</p>{% endif %}
+                </div>
+                <form hx-post="{% url 'sales:sales_order_deliver' order.pk %}" hx-target="#sales-order-card" hx-swap="outerHTML">
+                    {% csrf_token %}
+                    <div class="table-wrap">
+                        <table class="table">
+                            <thead>
+                                <tr>
+                                    <th>Product</th>
+                                    <th class="num">Ordered</th>
+                                    <th class="num">Delivered</th>
+                                    <th class="num hidden sm:table-cell">Unit price</th>
+                                    <th class="num">Amount</th>
+                                    {% if order.status == "CONFIRMED" or order.status == "PARTIALLY_DELIVERED" %}<th class="w-32">Ship qty</th>{% endif %}
+                                </tr>
+                            </thead>
+                            <tbody>
+                                {% for line in order.lines.all %}
+                                <tr>
+                                    <td><p class="cell-primary">{{ line.product.name }}</p><p class="cell-sub font-mono">{{ line.product.sku }}</p></td>
+                                    <td class="num">{{ line.quantity|floatformat:"-2" }}</td>
+                                    <td class="num {% if line.delivered_qty >= line.quantity %}text-emerald-600{% else %}text-slate-500{% endif %}">{{ line.delivered_qty|floatformat:"-2" }}</td>
+                                    <td class="num hidden sm:table-cell text-slate-500">₹{{ line.unit_price|floatformat:"2g" }}</td>
+                                    <td class="num font-medium text-slate-900">₹{{ line.subtotal|floatformat:"2g" }}</td>
+                                    {% if order.status == "CONFIRMED" or order.status == "PARTIALLY_DELIVERED" %}
+                                    <td>
+                                        {% if line.pending_delivery_qty > 0 %}
+                                        <input type="number" step="0.01" min="0" max="{{ line.pending_delivery_qty|stringformat:'s' }}" name="deliver_qty_{{ line.id }}"
+                                               placeholder="{{ line.pending_delivery_qty|floatformat:'-2' }}" class="h-8 text-right" aria-label="Quantity to ship for {{ line.product.name }}">
+                                        {% else %}<span class="badge badge-green">Shipped</span>{% endif %}
+                                    </td>
+                                    {% endif %}
+                                </tr>
+                                {% endfor %}
+                            </tbody>
+                            <tfoot>
+                                <tr class="border-t border-slate-200">
+                                    <td colspan="3" class="px-4 py-3 text-right text-sm text-slate-500 sm:hidden">Total</td>
+                                    <td colspan="4" class="hidden px-4 py-3 text-right text-sm text-slate-500 sm:table-cell">Total</td>
+                                    <td class="num px-4 py-3 text-base font-semibold text-slate-900">₹{{ order.total_amount|floatformat:"2g" }}</td>
+                                    {% if order.status == "CONFIRMED" or order.status == "PARTIALLY_DELIVERED" %}<td></td>{% endif %}
+                                </tr>
+                            </tfoot>
+                        </table>
+                    </div>
+                    {% if order.status == "CONFIRMED" or order.status == "PARTIALLY_DELIVERED" %}
+                    <div class="card-footer">
+                        <p class="mr-auto text-xs text-slate-500">Leave blank to skip a line.</p>
+                        <button type="submit" class="btn btn-secondary btn-sm">{% icon "send" %} Ship entered quantities</button>
+                    </div>
+                    {% endif %}
+                </form>
+            </div>
+
+            {% if order.delivery_notes.exists %}
+            <div class="card overflow-hidden">
+                <div class="card-header"><h2 class="card-title">Delivery notes <span class="ml-1 text-slate-400">{{ order.delivery_notes.count }}</span></h2></div>
+                <div class="table-wrap">
+                    <table class="table table-compact">
+                        <thead><tr><th>Number</th><th class="hidden sm:table-cell">Created</th><th class="hidden sm:table-cell">Dispatched</th><th>Status</th><th class="w-px"></th></tr></thead>
+                        <tbody>
+                            {% for dn in order.delivery_notes.all %}
+                            <tr>
+                                <td><a href="{% url 'delivery:detail' dn.pk %}" class="font-mono text-[13px] font-medium hover:text-brand-600">{{ dn.delivery_number }}</a></td>
+                                <td class="hidden text-slate-500 sm:table-cell">{{ dn.created_at|date:"d M Y, H:i" }}</td>
+                                <td class="hidden text-slate-500 sm:table-cell">{{ dn.dispatch_date|date:"d M Y, H:i"|default:"—" }}</td>
+                                <td>{% status_badge dn.status dn.get_status_display %}</td>
+                                <td><a href="{% url 'delivery:detail' dn.pk %}" class="btn btn-ghost btn-icon btn-sm"><span class="sr-only">Open</span>{% icon "chevron-right" %}</a></td>
+                            </tr>
+                            {% endfor %}
+                        </tbody>
+                    </table>
+                </div>
+            </div>
+            {% endif %}
+        </div>
+
+        <div class="space-y-4">
+            <div class="card">
+                <div class="card-header"><h2 class="card-title">Summary</h2></div>
+                <dl class="card-body space-y-3 text-sm">
+                    <div class="flex justify-between gap-4"><dt class="text-slate-500">Customer</dt><dd class="text-right font-medium">{{ order.customer_name }}</dd></div>
+                    {% if order.customer_email %}<div class="flex justify-between gap-4"><dt class="text-slate-500">Email</dt><dd class="truncate text-right">{{ order.customer_email }}</dd></div>{% endif %}
+                    {% if order.customer_phone %}<div class="flex justify-between gap-4"><dt class="text-slate-500">Phone</dt><dd class="text-right">{{ order.customer_phone }}</dd></div>{% endif %}
+                    <div class="flex justify-between gap-4"><dt class="text-slate-500">Order date</dt><dd class="text-right">{{ order.created_at|date:"d M Y" }}</dd></div>
+                    <div class="flex justify-between gap-4"><dt class="text-slate-500">Created by</dt><dd class="text-right">{{ order.created_by.full_name }}</dd></div>
+                    <div class="flex justify-between gap-4 border-t border-slate-100 pt-3"><dt class="font-medium text-slate-900">Order total</dt><dd class="text-base font-semibold tabular-nums">₹{{ order.total_amount|floatformat:"2g" }}</dd></div>
+                </dl>
+            </div>
+            {% if order.notes %}
+            <div class="card">
+                <div class="card-header"><h2 class="card-title">Internal notes</h2></div>
+                <p class="card-body whitespace-pre-line text-sm text-slate-600">{{ order.notes }}</p>
+            </div>
+            {% endif %}
+        </div>
+    </div>
+</div>

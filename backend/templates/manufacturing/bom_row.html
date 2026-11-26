@@ -1,0 +1,22 @@
+{% load ui %}
+<tr id="bom-row-{{ bom.pk }}">
+    <td><a href="{% url 'manufacturing:bom_detail' bom.pk %}" class="font-mono text-[13px] font-medium text-slate-900 hover:text-brand-600">{{ bom.reference }}</a></td>
+    <td><a href="{% url 'manufacturing:bom_detail' bom.pk %}" class="cell-primary hover:text-brand-600">{{ bom.name }}</a></td>
+    <td class="hidden md:table-cell">{% if bom.product %}<p>{{ bom.product.name }}</p><p class="cell-sub font-mono">{{ bom.product.sku }}</p>{% else %}<span class="text-slate-400">Template</span>{% endif %}</td>
+    <td class="num">{{ bom.product_qty|floatformat:"-2" }}</td>
+    <td class="hidden sm:table-cell"><span class="text-slate-700">{{ bom.components.count }}</span> <span class="text-slate-400">comp.</span> · <span class="text-slate-700">{{ bom.operations.count }}</span> <span class="text-slate-400">ops</span></td>
+    <td>{% if bom.is_active %}<span class="badge badge-green">Active</span>{% else %}<span class="badge badge-gray">Inactive</span>{% endif %}</td>
+    <td>
+        <div class="flex items-center justify-end gap-1">
+            <a href="{% url 'manufacturing:bom_edit' bom.pk %}" class="btn btn-ghost btn-icon btn-sm" title="Edit {{ bom.reference }}"><span class="sr-only">Edit</span>{% icon "edit" %}</a>
+            {% if bom.is_active %}
+            <form method="post" action="{% url 'manufacturing:bom_deactivate' bom.pk %}"
+                  hx-post="{% url 'manufacturing:bom_deactivate' bom.pk %}" hx-target="#bom-row-{{ bom.pk }}" hx-swap="outerHTML"
+                  hx-confirm="Deactivate {{ bom.reference }}? It won't be offered for new manufacturing orders." data-confirm-title="Deactivate BOM" data-confirm-action="Deactivate">
+                {% csrf_token %}
+                <button type="submit" class="btn btn-ghost btn-icon btn-sm text-red-600 hover:bg-red-50 hover:text-red-700" title="Deactivate {{ bom.reference }}"><span class="sr-only">Deactivate</span>{% icon "ban" %}</button>
+            </form>
+            {% endif %}
+        </div>
+    </td>
+</tr>

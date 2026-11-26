@@ -1,0 +1,22 @@
+{% load ui %}
+<div class="card" data-chart>
+    <div class="card-header">
+        <div>
+            <h2 class="card-title">{{ title }}</h2>
+            <p class="card-subtitle">{{ subtitle }}</p>
+        </div>
+    </div>
+    <div class="relative h-64 p-4">
+        <div data-chart-loading class="absolute inset-4 flex items-end gap-3" aria-hidden="true">
+            <div class="skeleton h-1/3 flex-1"></div><div class="skeleton h-2/3 flex-1"></div><div class="skeleton h-1/2 flex-1"></div>
+            <div class="skeleton h-5/6 flex-1"></div><div class="skeleton h-2/5 flex-1"></div><div class="skeleton h-3/5 flex-1"></div>
+        </div>
+        <div data-chart-empty class="absolute inset-0 hidden">
+            {% include "components/empty_state.html" with icon="chart" title="No data yet" text="This chart fills in as transactions are recorded." %}
+        </div>
+        <div data-chart-error class="absolute inset-0 hidden">
+            {% include "components/empty_state.html" with icon="alert" title="Couldn't load chart" text="Refresh the page to try again." %}
+        </div>
+        <div class="invisible h-full"><canvas id="{{ chart_id }}" role="img" aria-label="{{ title }}"></canvas></div>
+    </div>
+</div>

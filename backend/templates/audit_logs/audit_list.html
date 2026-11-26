@@ -1,0 +1,18 @@
+{% extends "base.html" %}
+{% load ui %}
+
+{% block title %}Audit Logs{% endblock %}
+{% block page_title %}Audit Logs{% endblock %}
+{% block page_description %}Every create, update and status change across modules — who did it, when, and what changed.{% endblock %}
+
+{% block content %}
+<div class="space-y-6">
+    <div class="grid grid-cols-2 gap-4 lg:grid-cols-4">
+        <div class="kpi"><div class="kpi-label">Total events <span class="kpi-icon">{% icon "history" %}</span></div><p class="kpi-value">{{ summary.total|floatformat:"0g" }}</p></div>
+        <div class="kpi"><div class="kpi-label">Created <span class="kpi-icon bg-emerald-50 text-emerald-600">{% icon "plus" %}</span></div><p class="kpi-value">{{ summary.created|floatformat:"0g" }}</p></div>
+        <div class="kpi"><div class="kpi-label">Updated <span class="kpi-icon bg-sky-50 text-sky-600">{% icon "edit" %}</span></div><p class="kpi-value">{{ summary.updated|floatformat:"0g" }}</p></div>
+        <div class="kpi"><div class="kpi-label">Deleted <span class="kpi-icon bg-red-50 text-red-600">{% icon "trash" %}</span></div><p class="kpi-value">{{ summary.deleted|floatformat:"0g" }}</p></div>
+    </div>
+    {% include "audit_logs/partials/audit_table.html" %}
+</div>
+{% endblock %}

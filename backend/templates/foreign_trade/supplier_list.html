@@ -1,0 +1,13 @@
+{% extends "base.html" %}
+{% load ui %}
+
+{% block title %}Trade suppliers{% endblock %}
+{% block page_title %}Trade suppliers{% endblock %}
+{% block page_description %}Overseas vendors used on import orders.{% endblock %}
+{% block page_actions %}<a href="{% url 'foreign_trade:supplier_create' %}" class="btn btn-primary">{% icon "plus" %} New supplier</a>{% endblock %}
+
+{% block content %}
+{% include "foreign_trade/partials/trade_subnav.html" with active="suppliers" %}
+{% url 'foreign_trade:supplier_create' as create_url %}
+{% include "foreign_trade/partials/partner_list.html" with partners=suppliers kind="supplier" create_url=create_url %}
+{% endblock %}

@@ -1,0 +1,43 @@
+{% load ui %}
+<tr id="po-{{ order.pk }}">
+    <td>
+        <p class="font-mono text-[13px] font-medium text-slate-900">{{ order.order_number }}</p>
+        <p class="cell-sub md:hidden">{{ order.created_at|date:"d M Y" }}</p>
+    </td>
+    <td class="cell-primary">{{ order.vendor.name }}</td>
+    <td class="hidden whitespace-nowrap text-slate-500 md:table-cell">{{ order.created_at|date:"d M Y" }}</td>
+    <td class="hidden text-slate-500 lg:table-cell">{{ order.created_by.full_name }}</td>
+    <td class="num font-medium text-slate-900">₹{{ order.total_amount|floatformat:"2g" }}</td>
+    <td>{% status_badge order.status order.get_status_display %}</td>
+    <td>
+        <div class="relative flex justify-end" x-data="{ open: false }" @click.outside="open = false" @keydown.escape="open = false">
+            <button type="button" class="btn btn-ghost btn-icon btn-sm" @click="open = !open" :aria-expanded="open.toString()" aria-haspopup="true">
+                <span class="sr-only">Actions for {{ order.order_number }}</span>{% icon "more" %}
+            </button>
+            <div x-show="open" x-cloak x-transition.opacity.duration.100ms class="dropdown-menu right-0 top-8 mt-1 w-52" role="menu">
+                {% if order.status == "draft" %}
+                <a href="{% url 'purchase:purchase_order_edit' order.pk %}" class="dropdown-item" role="menuitem">{% icon "edit" %} Edit draft</a>
+                <button type="button" class="dropdown-item" role="menuitem" @click="open = false"
+                        hx-post="{% url 'purchase:purchase_order_confirm' order.pk %}" hx-target="#po-{{ order.pk }}" hx-swap="outerHTML"
+                        hx-confirm="Confirm {{ order.order_number }} and send it to {{ order.vendor.name }}?" data-confirm-title="Confirm purchase order" data-confirm-action="Confirm">{% icon "check" %} Confirm order</button>
+                {% endif %}
+                {% if order.status == "confirmed" or order.status == "partially_received" %}
+                <button type="button" class="dropdown-item" role="menuitem" @click="open = false"
+                        hx-post="{% url 'purchase:purchase_order_receive' order.pk %}" hx-target="#po-{{ order.pk }}" hx-swap="outerHTML"
+                        hx-confirm="Receive all outstanding quantities on {{ order.order_number }} into stock?" data-confirm-title="Receive goods" data-confirm-action="Receive all">{% icon "package-check" %} Receive all</button>
+                {% endif %}
+                {% if order.status == "draft" or order.status == "confirmed" %}
+                <div class="dropdown-divider"></div>
+                <button type="button" class="dropdown-item dropdown-item-danger" role="menuitem" @click="open = false"
+                        hx-post="{% url 'purchase:purchase_order_cancel' order.pk %}" hx-target="#po-{{ order.pk }}" hx-swap="outerHTML"
+                        hx-confirm="Cancel {{ order.order_number }}? This cannot be undone." data-confirm-title="Cancel purchase order" data-confirm-action="Cancel order">{% icon "ban" %} Cancel order</button>
+                {% endif %}
+                {% if order.status == "fully_received" or order.status == "cancelled" %}
+                <p class="px-2.5 py-2 text-xs text-slate-500">This order is closed.</p>
+                {% endif %}
+                <div class="dropdown-divider"></div>
+                <a href="{% url 'audit_logs:list' %}?record_type=PurchaseOrder&record_id={{ order.pk }}" class="dropdown-item" role="menuitem">{% icon "history" %} Activity log</a>
+            </div>
+        </div>
+    </td>
+</tr>

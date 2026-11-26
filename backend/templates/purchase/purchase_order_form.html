@@ -1,0 +1,162 @@
+{% extends "base.html" %}
+{% load ui %}
+
+{% block title %}{% if object %}Edit {{ object.order_number }}{% else %}New purchase order{% endif %}{% endblock %}
+{% block breadcrumb_extra %}<li class="text-slate-300" aria-hidden="true">/</li><li class="truncate font-medium text-slate-900">{% if object %}{{ object.order_number }}{% else %}New{% endif %}</li>{% endblock %}
+{% block page_title %}{% if object %}Edit {{ object.order_number }}{% else %}New purchase order{% endif %}{% endblock %}
+{% block page_description %}Choose a vendor and the products to order. Drafts can be edited until confirmed.{% endblock %}
+{% block page_actions %}
+<a href="{% url 'purchase:purchase_order_list' %}" class="btn btn-secondary">{% icon "arrow-left" %} Back</a>
+{% endblock %}
+
+{% block content %}
+<form method="post" novalidate class="max-w-5xl space-y-4">
+    {% csrf_token %}
+    {% include "components/form_errors.html" %}
+
+    <div class="card">
+        <div class="card-header"><h2 class="card-title">Vendor</h2></div>
+        <div class="card-body form-grid">
+            {% include "components/form_field.html" with field=form.vendor %}
+            <div class="hidden sm:block"></div>
+            {% include "components/form_field.html" with field=form.notes label="Internal notes" class="sm:col-span-2" %}
+        </div>
+    </div>
+
+    {% include "components/line_formset.html" with formset=lines title="Line items" subtitle="Products, quantities and agreed unit prices." %}
+
+    <div class="form-actions border-t-0 pt-0">
+        <a href="{% url 'purchase:purchase_order_list' %}" class="btn btn-secondary">Cancel</a>
+        <button type="submit" class="btn btn-primary">{% icon "check" %} {% if object %}Save changes{% else %}Create draft PO{% endif %}</button>
+    </div>
+</form>
+
+<script>
+document.addEventListener('alpine:init', () => {
+    Alpine.data('purchaseOrderVoiceHandler', () => ({
+        schema: {
+            "vendor_name": "string (name of the supplier/vendor)",
+            "notes": "string",
+            "line_items": [
+                {
+                    "product_name": "string (name of the product)",
+                    "quantity": "number",
+                    "unit_price": "number"
+                }
+            ]
+        },
+        
+        async handleVoice(e) {
+            const transcript = e.detail.transcript;
+            const callback = e.detail.callback;
+            
+            try {
+                const response = await fetch('/api/voice/extract/', {
+                    method: 'POST',
+                    headers: {
+                        'Content-Type': 'application/json',
+                        'X-CSRFToken': document.querySelector('[name=csrfmiddlewaretoken]').value
+                    },
+                    body: JSON.stringify({ transcript: transcript, schema: this.schema })
+                });
+                
+                if (!response.ok) {
+                    const errData = await response.json();
+                    throw new Error(errData.error || "Failed to extract data");
+                }
+                
+                const data = await response.json();
+                this.mapDataToForm(data);
+                callback(true);
+            } catch (err) {
+                console.error(err);
+                callback(null, err);
+            }
+        },
+        
+        highlightField(el) {
+            if (!el) return;
+            // Highlight the field by adding classes
+            el.classList.add('bg-indigo-50', 'border-indigo-400');
+            // Flash effect
+            setTimeout(() => {
+                el.classList.remove('bg-indigo-50', 'border-indigo-400');
+            }, 4000);
+        },
+
+        mapDataToForm(data) {
+            // Map vendor
+            if (data.vendor_name) {
+                const vendorSelect = document.querySelector('select[name="vendor"]');
+                if (vendorSelect) {
+                    let bestMatch = null;
+                    const options = Array.from(vendorSelect.options);
+                    const nameLower = data.vendor_name.toLowerCase();
+                    options.forEach(opt => {
+                        if (opt.text.toLowerCase().includes(nameLower) && !bestMatch) {
+                            bestMatch = opt;
+                        }
+                    });
+                    if (bestMatch) {
+                        vendorSelect.value = bestMatch.value;
+                        this.highlightField(vendorSelect);
+                    }
+                }
+            }
+            
+            // Map notes
+            if (data.notes) {
+                const notesArea = document.querySelector('textarea[name="notes"]');
+                if (notesArea) {
+                    notesArea.value = data.notes;
+                    this.highlightField(notesArea);
+                }
+            }
+            
+            // Map line items
+            if (data.line_items && Array.isArray(data.line_items)) {
+                let rowIndex = 0;
+                for (const item of data.line_items) {
+                    const productSelect = document.querySelector(`select[name="lines-${rowIndex}-product"]`);
+                    const qtyInput = document.querySelector(`input[name="lines-${rowIndex}-quantity"]`);
+                    const priceInput = document.querySelector(`input[name="lines-${rowIndex}-unit_price"]`);
+                    
+                    if (!productSelect || !qtyInput || !priceInput) {
+                        window.dispatchEvent(new CustomEvent('toast', { detail: { message: `Warning: Only ${rowIndex} rows were available to fill.` } }));
+                        break;
+                    }
+                    
+                    if (item.product_name) {
+                        let bestMatch = null;
+                        const options = Array.from(productSelect.options);
+                        const pNameLower = item.product_name.toLowerCase();
+                        options.forEach(opt => {
+                            if (opt.text.toLowerCase().includes(pNameLower) && !bestMatch) {
+                                bestMatch = opt;
+                            }
+                        });
+                        if (bestMatch) {
+                            productSelect.value = bestMatch.value;
+                            this.highlightField(productSelect);
+                        }
+                    }
+                    
+                    if (item.quantity) {
+                        qtyInput.value = item.quantity;
+                        this.highlightField(qtyInput);
+                    }
+                    
+                    if (item.unit_price) {
+                        priceInput.value = item.unit_price;
+                        this.highlightField(priceInput);
+                    }
+                    
+                    rowIndex++;
+                }
+            }
+            window.dispatchEvent(new CustomEvent('toast', { detail: { message: 'Form populated via voice. Please review before saving.' } }));
+        }
+    }));
+});
+</script>
+{% endblock %}

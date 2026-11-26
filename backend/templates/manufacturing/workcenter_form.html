@@ -1,0 +1,28 @@
+{% extends "base.html" %}
+{% load ui %}
+
+{% block title %}{{ page_title }}{% endblock %}
+{% block breadcrumb_extra %}<li class="text-slate-300" aria-hidden="true">/</li><li class="truncate font-medium text-slate-900">{% if wc %}{{ wc.code }}{% else %}New{% endif %}</li>{% endblock %}
+{% block page_title %}{{ page_title }}{% endblock %}
+{% block page_description %}Work centers are assigned to BOM operations and copied onto work orders.{% endblock %}
+{% block page_actions %}<a href="{% url 'manufacturing:workcenter_list' %}" class="btn btn-secondary">{% icon "arrow-left" %} Back</a>{% endblock %}
+
+{% block content %}
+<form method="post" novalidate class="card max-w-2xl"
+      action="{% if wc %}{% url 'manufacturing:workcenter_edit' wc.pk %}{% else %}{% url 'manufacturing:workcenter_create' %}{% endif %}">
+    {% csrf_token %}
+    <div class="card-body space-y-5">
+        {% include "components/form_errors.html" %}
+        <div class="form-grid">
+            {% include "components/form_field.html" with field=form.name %}
+            {% include "components/form_field.html" with field=form.code %}
+            {% include "components/form_field.html" with field=form.cost_per_hour label="Cost per hour (₹)" %}
+        </div>
+        <div class="form-section">{% include "components/form_field.html" with field=form.is_active label="Active" help="Inactive work centers can't be chosen for new operations." %}</div>
+    </div>
+    <div class="card-footer">
+        <a href="{% url 'manufacturing:workcenter_list' %}" class="btn btn-secondary">Cancel</a>
+        <button type="submit" class="btn btn-primary">{% icon "check" %} {{ submit_label }}</button>
+    </div>
+</form>
+{% endblock %}

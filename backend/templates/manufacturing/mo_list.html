@@ -1,0 +1,65 @@
+{% extends "base.html" %}
+{% load ui %}
+
+{% block title %}Manufacturing orders{% endblock %}
+{% block page_title %}Manufacturing orders{% endblock %}
+{% block page_description %}Production runs from draft through completion, with live progress.{% endblock %}
+{% block page_actions %}
+<a href="{% url 'manufacturing:bom_list' %}" class="btn btn-secondary">{% icon "layers" %} Bills of materials</a>
+<a href="{% url 'manufacturing:mo_create' %}" class="btn btn-primary">{% icon "plus" %} New order</a>
+{% endblock %}
+
+{% block content %}
+<div class="card">
+    <form method="get" class="filter-bar" role="search"
+          hx-get="{% url 'manufacturing:mo_list' %}" hx-target="#mo-results" hx-select="#mo-results" hx-swap="outerHTML"
+          hx-push-url="true" hx-trigger="input delay:300ms, submit" hx-indicator="#mo-results">
+        <div class="search-field w-full sm:max-w-xs">
+            {% icon "search" %}
+            <input type="search" name="search" value="{{ search_query }}" placeholder="Reference or product…" aria-label="Search manufacturing orders" autocomplete="off">
+        </div>
+        <select name="status" class="sm:w-48" aria-label="Status">
+            <option value="">All statuses</option>
+            {% for val, label in status_choices %}<option value="{{ val }}" {% if selected_status == val %}selected{% endif %}>{{ label }}</option>{% endfor %}
+        </select>
+        <noscript><button class="btn btn-secondary">Apply</button></noscript>
+        {% if search_query or selected_status %}<a href="{% url 'manufacturing:mo_list' %}" class="btn btn-ghost btn-sm">{% icon "x" %} Clear</a>{% endif %}
+    </form>
+
+    <div id="mo-results" class="transition-opacity [&.htmx-request]:opacity-60">
+        {% if mos %}
+        <div class="table-wrap">
+            <table class="table">
+                <thead><tr><th>Reference</th><th>Product</th><th class="min-w-[10rem]">Progress</th><th class="hidden md:table-cell">Scheduled</th><th>Status</th><th class="w-px"><span class="sr-only">Actions</span></th></tr></thead>
+                <tbody>
+                    {% for mo in mos %}
+                    <tr>
+                        <td><a href="{% url 'manufacturing:mo_detail' mo.pk %}" class="font-mono text-[13px] font-medium text-slate-900 hover:text-brand-600">{{ mo.reference }}</a></td>
+                        <td><p class="cell-primary">{{ mo.product.name }}</p><p class="cell-sub font-mono">{{ mo.product.sku }}</p></td>
+                        <td>
+                            <div class="flex items-center gap-2"><div class="progress flex-1"><span style="width: {{ mo.progress_pct }}%"></span></div><span class="w-9 text-right text-xs tabular-nums text-slate-600">{{ mo.progress_pct }}%</span></div>
+                            <p class="cell-sub tabular-nums">{{ mo.qty_produced|floatformat:"-2" }} / {{ mo.qty_to_produce|floatformat:"-2" }}</p>
+                        </td>
+                        <td class="hidden whitespace-nowrap text-slate-500 md:table-cell">{{ mo.scheduled_date|date:"d M Y"|default:"—" }}</td>
+                        <td>{% status_badge mo.status mo.get_status_display %}</td>
+                        <td>
+                            <div class="flex justify-end gap-1">
+                                {% if mo.status == "DRAFT" %}<a href="{% url 'manufacturing:mo_edit' mo.pk %}" class="btn btn-ghost btn-icon btn-sm" title="Edit"><span class="sr-only">Edit</span>{% icon "edit" %}</a>{% endif %}
+                                <a href="{% url 'manufacturing:mo_detail' mo.pk %}" class="btn btn-ghost btn-icon btn-sm" title="Open"><span class="sr-only">Open</span>{% icon "chevron-right" %}</a>
+                            </div>
+                        </td>
+                    </tr>
+                    {% endfor %}
+                </tbody>
+            </table>
+        </div>
+        {% include "components/pagination.html" %}
+        {% elif search_query or selected_status %}
+        {% include "components/empty_state.html" with icon="search" title="No matching orders" text="Try a different search or status." %}
+        {% else %}
+        {% url 'manufacturing:mo_create' as create_url %}
+        {% include "components/empty_state.html" with icon="factory" title="No manufacturing orders yet" text="Create an order to produce finished goods from a bill of materials." action_url=create_url action_label="New order" %}
+        {% endif %}
+    </div>
+</div>
+{% endblock %}

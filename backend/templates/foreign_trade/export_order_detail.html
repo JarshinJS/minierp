@@ -1,0 +1,21 @@
+{% extends "base.html" %}
+{% load ui %}
+
+{% block title %}{{ order.order_number }}{% endblock %}
+{% block breadcrumb_extra %}<li class="text-slate-300" aria-hidden="true">/</li><li class="truncate font-medium text-slate-900">{{ order.order_number }}</li>{% endblock %}
+{% block page_eyebrow %}<p class="mb-1 text-xs font-medium text-slate-500">Export order</p>{% endblock %}
+{% block page_title %}<span class="font-mono">{{ order.order_number }}</span>{% endblock %}
+{% block page_description %}{{ order.customer.name }} · {{ order.country.name }} · Created {{ order.created_at|date:"d M Y" }}{% endblock %}
+{% block page_actions %}
+{% if order.status == "DRAFT" and request.user|has_role:"ADMIN,BUSINESS_OWNER,TRADE_MANAGER" %}<a href="{% url 'foreign_trade:export_order_edit' order.pk %}" class="btn btn-secondary">{% icon "edit" %} Edit</a>{% endif %}
+{% if request.user|has_role:"ADMIN,BUSINESS_OWNER,TRADE_MANAGER,DOCUMENTATION_OFFICER" %}<a href="{% url 'foreign_trade:document_upload' 'export' order.pk %}" class="btn btn-secondary">{% icon "upload" %} Upload document</a>{% endif %}
+{% endblock %}
+
+{% block content %}
+<div class="space-y-4">
+    <div id="order-card" hx-target="this" hx-swap="innerHTML">
+        {% include "foreign_trade/partials/export_order_card.html" %}
+    </div>
+    {% include "foreign_trade/partials/trade_tabs.html" with order_type="export" %}
+</div>
+{% endblock %}

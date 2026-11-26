@@ -1,0 +1,46 @@
+{% load ui %}
+<div class="card">
+    <div class="flex flex-col gap-4 border-b border-slate-200 p-5 sm:flex-row sm:items-center sm:justify-between">
+        <div class="flex flex-wrap items-center gap-3">
+            {% status_badge order.status order.get_status_display %}
+            <span class="text-sm text-slate-500">Total <strong class="text-base font-semibold text-slate-900 tabular-nums">{{ order.currency.symbol }}{{ order.total_amount|floatformat:"2g" }}</strong> {{ order.currency.code }}</span>
+        </div>
+        <div class="flex flex-wrap gap-2">
+            {% if order.status == "DRAFT" or order.status == "QUOTATION" %}
+            <button class="btn btn-danger-outline" hx-post="{% url 'foreign_trade:export_order_cancel' order.pk %}"
+                    hx-confirm="Cancel export order {{ order.order_number }}?" data-confirm-title="Cancel export order" data-confirm-action="Cancel order">{% icon "ban" %} Cancel</button>
+            <button class="btn btn-primary" hx-post="{% url 'foreign_trade:export_order_confirm' order.pk %}"
+                    hx-confirm="Confirm export order {{ order.order_number }}?" data-confirm-title="Confirm export order" data-confirm-action="Confirm">{% icon "check" %} Confirm order</button>
+            {% elif order.status == "CONFIRMED" %}
+            {% url 'foreign_trade:export_order_ship' order.pk as ship_url %}
+            {% include "foreign_trade/partials/shipment_modal.html" with action_url=ship_url title="Ship export order" submit_label="Mark shipped" %}
+            {% elif order.status == "SHIPPED" %}
+            <button class="btn btn-success" hx-post="{% url 'foreign_trade:export_order_deliver' order.pk %}"
+                    hx-confirm="Mark {{ order.order_number }} as delivered to the customer?" data-confirm-title="Confirm delivery" data-confirm-action="Mark delivered">{% icon "package-check" %} Mark delivered</button>
+            {% endif %}
+        </div>
+    </div>
+    <dl class="grid grid-cols-2 gap-x-6 gap-y-4 p-5 lg:grid-cols-4">
+        <div><dt class="text-xs font-medium text-slate-500">Customer</dt><dd class="mt-1 text-sm font-medium">{{ order.customer.name }}</dd></div>
+        <div><dt class="text-xs font-medium text-slate-500">Destination</dt><dd class="mt-1 text-sm font-medium">{{ order.country.name }}</dd></div>
+        <div><dt class="text-xs font-medium text-slate-500">Shipping</dt><dd class="mt-1 text-sm font-medium">{{ order.get_shipping_method_display }}{% if order.incoterm %} · {{ order.incoterm.code }}{% endif %}</dd></div>
+        <div><dt class="text-xs font-medium text-slate-500">Route</dt><dd class="mt-1 text-sm font-medium">{{ order.port_of_loading|default:"TBD" }} → {{ order.port_of_destination|default:"TBD" }}</dd></div>
+        {% if order.container_details %}<div class="col-span-2 lg:col-span-4"><dt class="text-xs font-medium text-slate-500">Container</dt><dd class="mt-1 text-sm">{{ order.container_details }}</dd></div>{% endif %}
+    </dl>
+    <div class="table-wrap border-t border-slate-200">
+        <table class="table">
+            <thead><tr><th>Description</th><th class="hidden sm:table-cell">HS code</th><th class="num">Qty</th><th class="num hidden sm:table-cell">Unit price</th><th class="num">Amount</th></tr></thead>
+            <tbody>
+                {% for line in order.lines.all %}
+                <tr>
+                    <td class="cell-primary">{{ line.description }}</td>
+                    <td class="cell-mono hidden sm:table-cell">{{ line.hs_code|default:"—" }}</td>
+                    <td class="num">{{ line.quantity|floatformat:"-2" }}</td>
+                    <td class="num hidden text-slate-500 sm:table-cell">{{ order.currency.symbol }}{{ line.unit_price|floatformat:"2g" }}</td>
+                    <td class="num font-medium text-slate-900">{{ order.currency.symbol }}{{ line.subtotal|floatformat:"2g" }}</td>
+                </tr>
+                {% endfor %}
+            </tbody>
+        </table>
+    </div>
+</div>

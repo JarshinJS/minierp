@@ -1,0 +1,42 @@
+{% comment %}Shared list for trade customers and suppliers. Params: partners, kind ("customer"/"supplier"), create_url{% endcomment %}
+{% load ui %}
+<div class="card">
+    <form method="get" class="filter-bar" role="search"
+          hx-get="{{ request.path }}" hx-target="#partner-results" hx-select="#partner-results" hx-swap="outerHTML"
+          hx-push-url="true" hx-trigger="input delay:300ms, submit" hx-indicator="#partner-results">
+        <div class="search-field w-full sm:max-w-xs">
+            {% icon "search" %}
+            <input type="search" name="q" value="{{ request.GET.q }}" placeholder="Search by name…" aria-label="Search {{ kind }}s" autocomplete="off">
+        </div>
+        {% if request.GET.q %}<a href="{{ request.path }}" class="btn btn-ghost btn-sm">{% icon "x" %} Clear</a>{% endif %}
+    </form>
+    <div id="partner-results" class="transition-opacity [&.htmx-request]:opacity-60">
+        {% if partners %}
+        <div class="table-wrap">
+            <table class="table">
+                <thead><tr><th>Name</th><th>Country</th><th class="hidden md:table-cell">Contact</th><th class="hidden lg:table-cell">Tax ID</th></tr></thead>
+                <tbody>
+                    {% for p in partners %}
+                    <tr>
+                        <td>
+                            <div class="flex items-center gap-3">
+                                <span class="flex h-8 w-8 shrink-0 items-center justify-center rounded-lg bg-slate-100 text-2xs font-semibold text-slate-600">{{ p.name|initials }}</span>
+                                <div class="min-w-0"><p class="cell-primary truncate">{{ p.name }}</p>{% if p.address %}<p class="cell-sub max-w-xs truncate">{{ p.address }}</p>{% endif %}</div>
+                            </div>
+                        </td>
+                        <td><span class="inline-flex items-center gap-1.5">{% icon "map-pin" "h-3.5 w-3.5 text-slate-400" %}{{ p.country.name }}</span></td>
+                        <td class="hidden md:table-cell">{% if p.email %}<a class="link font-normal" href="mailto:{{ p.email }}">{{ p.email }}</a>{% endif %}{% if p.phone %}<p class="cell-sub">{{ p.phone }}</p>{% endif %}{% if not p.email and not p.phone %}—{% endif %}</td>
+                        <td class="hidden cell-mono lg:table-cell">{{ p.tax_id|default:"—" }}</td>
+                    </tr>
+                    {% endfor %}
+                </tbody>
+            </table>
+        </div>
+        {% include "components/pagination.html" %}
+        {% elif request.GET.q %}
+        {% include "components/empty_state.html" with icon="search" title="No matches" text="Try a different name." %}
+        {% else %}
+        {% include "components/empty_state.html" with icon="building" title="None yet" text="Add your first trade partner to start creating orders." action_url=create_url action_label="Add" %}
+        {% endif %}
+    </div>
+</div>

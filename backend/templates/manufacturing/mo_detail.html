@@ -1,0 +1,140 @@
+{% extends "base.html" %}
+{% load ui %}
+
+{% block title %}{{ mo.reference }}{% endblock %}
+{% block breadcrumb_extra %}<li class="text-slate-300" aria-hidden="true">/</li><li class="truncate font-medium text-slate-900">{{ mo.reference }}</li>{% endblock %}
+{% block page_eyebrow %}<div class="mb-1 flex items-center gap-2"><span class="font-mono text-xs text-slate-500">{{ mo.reference }}</span>{% status_badge mo.status mo.get_status_display %}</div>{% endblock %}
+{% block page_title %}{{ mo.product.name }}{% endblock %}
+{% block page_description %}<span class="font-mono">{{ mo.product.sku }}</span>{% if mo.scheduled_date %} · Scheduled {{ mo.scheduled_date|date:"d M Y" }}{% endif %}{% endblock %}
+{% block page_actions %}
+{% include "components/logs_link.html" with record_type="ManufacturingOrder" record_id=mo.pk %}
+{% if mo.status == "DRAFT" or mo.status == "CONFIRMED" %}
+<form method="post" action="{% url 'manufacturing:mo_cancel' mo.pk %}" data-confirm="Cancel {{ mo.reference }}? This cannot be undone." data-confirm-title="Cancel manufacturing order" data-confirm-action="Cancel order">
+    {% csrf_token %}<button type="submit" class="btn btn-danger-outline">{% icon "ban" %} Cancel</button>
+</form>
+{% endif %}
+{% if mo.status == "DRAFT" %}
+<a href="{% url 'manufacturing:mo_edit' mo.pk %}" class="btn btn-secondary">{% icon "edit" %} Edit</a>
+<form method="post" action="{% url 'manufacturing:mo_confirm' mo.pk %}" data-confirm="Confirm {{ mo.reference }}? Components and work orders will be copied from the bill of materials." data-confirm-title="Confirm manufacturing order" data-confirm-action="Confirm">
+    {% csrf_token %}<button type="submit" class="btn btn-primary">{% icon "check" %} Confirm</button>
+</form>
+{% elif mo.status == "CONFIRMED" %}
+<form method="post" action="{% url 'manufacturing:mo_start' mo.pk %}">
+    {% csrf_token %}<button type="submit" class="btn btn-primary">{% icon "play" %} Start production</button>
+</form>
+{% elif mo.status == "IN_PROGRESS" %}
+<button type="button" class="btn btn-primary" @click="$dispatch('open-produce')">{% icon "package-check" %} Record production</button>
+{% endif %}
+{% endblock %}
+
+{% block content %}
+<div class="space-y-4" x-data="{ produceOpen: {% if produce_error %}true{% else %}false{% endif %} }" @open-produce.window="produceOpen = true" @keydown.escape.window="produceOpen = false">
+    {% if error %}<div class="alert alert-danger" role="alert">{% icon "x-circle" %}<p>{{ error }}</p></div>{% endif %}
+
+    <div class="card">
+        <div class="grid grid-cols-2 gap-6 p-5 sm:grid-cols-4">
+            <div><p class="text-xs font-medium text-slate-500">To produce</p><p class="mt-1 text-lg font-semibold tabular-nums">{{ mo.qty_to_produce|floatformat:"-2" }}</p></div>
+            <div><p class="text-xs font-medium text-slate-500">Produced</p><p class="mt-1 text-lg font-semibold tabular-nums text-brand-600">{{ mo.qty_produced|floatformat:"-2" }}</p></div>
+            <div><p class="text-xs font-medium text-slate-500">Bill of materials</p><p class="mt-1 text-sm font-medium">{% if mo.bom %}<a href="{% url 'manufacturing:bom_detail' mo.bom.pk %}" class="link">{{ mo.bom.reference }}</a>{% else %}<span class="text-slate-400">Manual (no BOM)</span>{% endif %}</p></div>
+            <div><p class="text-xs font-medium text-slate-500">Scheduled</p><p class="mt-1 text-sm font-medium">{{ mo.scheduled_date|date:"d M Y"|default:"—" }}</p></div>
+        </div>
+        <div class="flex items-center gap-3 border-t border-slate-100 px-5 py-4">
+            <div class="progress flex-1 h-2"><span style="width: {{ mo.progress_pct }}%"></span></div>
+            <span class="text-sm font-semibold tabular-nums">{{ mo.progress_pct }}%</span>
+        </div>
+        {% if mo.notes %}<div class="border-t border-slate-100 px-5 py-4"><p class="section-title mb-1">Notes</p><p class="whitespace-pre-line text-sm text-slate-600">{{ mo.notes }}</p></div>{% endif %}
+    </div>
+
+    <div class="card overflow-hidden">
+        <div class="card-header">
+            <h2 class="card-title">Components <span class="ml-1 text-slate-400">{{ mo.components.count }}</span></h2>
+            {% if mo.status == "DRAFT" %}<p class="card-subtitle">Copied from the bill of materials on confirmation.</p>{% endif %}
+        </div>
+        {% if mo.components.all %}
+        <div class="table-wrap">
+            <table class="table">
+                <thead><tr><th>Component</th><th class="num">Required</th><th class="num">Consumed</th><th class="hidden sm:table-cell">Unit</th><th class="num">On hand</th></tr></thead>
+                <tbody>
+                    {% for comp in mo.components.all %}
+                    <tr>
+                        <td><p class="cell-primary">{{ comp.product.name }}</p><p class="cell-sub font-mono">{{ comp.product.sku }}</p></td>
+                        <td class="num">{{ comp.qty_required|floatformat:"-4" }}</td>
+                        <td class="num {% if comp.qty_consumed >= comp.qty_required %}text-emerald-600{% else %}text-slate-500{% endif %}">{{ comp.qty_consumed|floatformat:"-4" }}</td>
+                        <td class="hidden text-slate-500 sm:table-cell">{{ comp.uom }}</td>
+                        <td class="num">
+                            <span class="font-medium {% if comp.product.on_hand_qty < comp.qty_required %}text-red-600{% else %}text-slate-900{% endif %}">{{ comp.product.on_hand_qty|floatformat:"-2" }}</span>
+                            {% if comp.product.on_hand_qty < comp.qty_required %}<p class="cell-sub text-red-500">Short</p>{% endif %}
+                        </td>
+                    </tr>
+                    {% endfor %}
+                </tbody>
+            </table>
+        </div>
+        {% else %}
+        {% if mo.status == "DRAFT" %}{% include "components/empty_state.html" with icon="layers" title="No components yet" text="Components appear after the order is confirmed." %}{% else %}{% include "components/empty_state.html" with icon="layers" title="No components" text="This order has no component lines." %}{% endif %}
+        {% endif %}
+    </div>
+
+    <div class="card overflow-hidden">
+        <div class="card-header"><h2 class="card-title">Work orders <span class="ml-1 text-slate-400">{{ work_orders|length }}</span></h2></div>
+        {% if work_orders %}
+        <div class="table-wrap">
+            <table class="table">
+                <thead><tr><th class="w-12">Seq</th><th>Operation</th><th class="hidden md:table-cell">Work center</th><th class="num hidden sm:table-cell">Expected</th><th class="num hidden sm:table-cell">Actual</th><th>Status</th><th class="text-right">Action</th></tr></thead>
+                <tbody>
+                    {% for wo in work_orders %}
+                    <tr>
+                        <td class="text-xs text-slate-400 tabular-nums">{{ wo.sequence }}</td>
+                        <td><p class="cell-primary">{{ wo.name }}</p><p class="cell-sub md:hidden">{{ wo.work_center.name }}</p></td>
+                        <td class="hidden md:table-cell">{{ wo.work_center.name }}</td>
+                        <td class="num hidden sm:table-cell">{{ wo.duration_expected|floatformat:"-2" }} min</td>
+                        <td class="num hidden sm:table-cell {% if not wo.duration_actual %}text-slate-300{% endif %}">{% if wo.duration_actual %}{{ wo.duration_actual|floatformat:"-2" }} min{% else %}—{% endif %}</td>
+                        <td>{% status_badge wo.status wo.get_status_display %}</td>
+                        <td class="text-right">
+                            {% if wo.status == "PENDING" and mo.status == "IN_PROGRESS" %}
+                            <form method="post" action="{% url 'manufacturing:wo_start' wo.pk %}">{% csrf_token %}<button type="submit" class="btn btn-secondary btn-xs">{% icon "play" %} Start</button></form>
+                            {% elif wo.status == "IN_PROGRESS" %}
+                            <form method="post" action="{% url 'manufacturing:wo_complete' wo.pk %}" class="inline-flex items-center justify-end gap-2">
+                                {% csrf_token %}
+                                <label class="sr-only" for="dur-{{ wo.pk }}">Actual minutes</label>
+                                <input id="dur-{{ wo.pk }}" type="number" name="duration_actual" placeholder="Minutes" min="0" step="0.5" class="!h-7 w-24 text-xs">
+                                <button type="submit" class="btn btn-success btn-xs">{% icon "check" %} Complete</button>
+                            </form>
+                            {% else %}<span class="text-xs text-slate-400">—</span>{% endif %}
+                        </td>
+                    </tr>
+                    {% endfor %}
+                </tbody>
+            </table>
+        </div>
+        {% else %}
+        {% if mo.status == "DRAFT" %}{% include "components/empty_state.html" with icon="cpu" title="No work orders yet" text="Work orders are created from the BOM's operations on confirmation." %}{% else %}{% include "components/empty_state.html" with icon="cpu" title="No work orders" text="This order has no routing operations." %}{% endif %}
+        {% endif %}
+    </div>
+
+    {% if mo.status == "IN_PROGRESS" %}
+    <div x-show="produceOpen" x-cloak>
+        <div class="modal-backdrop" x-show="produceOpen" x-transition.opacity @click="produceOpen = false"></div>
+        <div class="modal-wrap pointer-events-none">
+            <div class="modal-panel pointer-events-auto" role="dialog" aria-modal="true" aria-labelledby="produce-title" x-show="produceOpen" x-transition.scale.95.duration.150ms>
+                <form method="post" action="{% url 'manufacturing:mo_produce' mo.pk %}">
+                    {% csrf_token %}
+                    <div class="border-b border-slate-200 px-5 py-4">
+                        <h2 id="produce-title" class="text-base font-semibold">Record production</h2>
+                        <p class="text-xs text-slate-500">Produced so far: {{ mo.qty_produced|floatformat:"-2" }} of {{ mo.qty_to_produce|floatformat:"-2" }}</p>
+                    </div>
+                    <div class="p-5">
+                        {% if produce_error %}<div class="alert alert-danger mb-4">{% icon "x-circle" %}<p>{{ produce_error }}</p></div>{% endif %}
+                        {% include "components/form_field.html" with field=produce_form.qty_produced label="Quantity produced in this batch" %}
+                    </div>
+                    <div class="card-footer">
+                        <button type="button" class="btn btn-secondary" @click="produceOpen = false">Cancel</button>
+                        <button type="submit" class="btn btn-primary">{% icon "check" %} Record</button>
+                    </div>
+                </form>
+            </div>
+        </div>
+    </div>
+    {% endif %}
+</div>
+{% endblock %}

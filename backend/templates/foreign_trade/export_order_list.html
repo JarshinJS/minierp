@@ -1,0 +1,55 @@
+{% extends "base.html" %}
+{% load ui %}
+
+{% block title %}Export orders{% endblock %}
+{% block page_title %}Export orders{% endblock %}
+{% block page_description %}Orders shipped to overseas customers, with documents and invoices.{% endblock %}
+{% block page_actions %}
+{% if request.user|has_role:"ADMIN,BUSINESS_OWNER,TRADE_MANAGER" %}<a href="{% url 'foreign_trade:export_order_create' %}" class="btn btn-primary">{% icon "plus" %} New export order</a>{% endif %}
+{% endblock %}
+
+{% block content %}
+{% include "foreign_trade/partials/trade_subnav.html" with active="export" %}
+<div class="card">
+    <form method="get" class="filter-bar" role="search"
+          hx-get="{% url 'foreign_trade:export_order_list' %}" hx-target="#ft-results" hx-select="#ft-results" hx-swap="outerHTML"
+          hx-push-url="true" hx-trigger="input delay:300ms, submit" hx-indicator="#ft-results">
+        <div class="search-field w-full sm:max-w-xs">
+            {% icon "search" %}
+            <input type="search" name="q" value="{{ search_query }}" placeholder="Order number or customer…" aria-label="Search export orders" autocomplete="off">
+        </div>
+        <select name="status" class="sm:w-48" aria-label="Status">
+            <option value="">All statuses</option>
+            {% for val, label in status_choices %}<option value="{{ val }}" {% if current_status == val %}selected{% endif %}>{{ label }}</option>{% endfor %}
+        </select>
+        <noscript><button class="btn btn-secondary">Apply</button></noscript>
+        {% if search_query or current_status %}<a href="{% url 'foreign_trade:export_order_list' %}" class="btn btn-ghost btn-sm">{% icon "x" %} Clear</a>{% endif %}
+    </form>
+    <div id="ft-results" class="transition-opacity [&.htmx-request]:opacity-60">
+        {% if orders %}
+        <div class="table-wrap">
+            <table class="table">
+                <thead><tr><th>Order</th><th>Customer</th><th class="hidden md:table-cell">Destination</th><th class="hidden lg:table-cell">Created</th><th class="num">Total</th><th>Status</th><th class="w-px"></th></tr></thead>
+                <tbody>
+                    {% for order in orders %}
+                    <tr>
+                        <td><a href="{% url 'foreign_trade:export_order_detail' order.pk %}" class="font-mono text-[13px] font-medium text-slate-900 hover:text-brand-600">{{ order.order_number }}</a></td>
+                        <td class="cell-primary">{{ order.customer.name }}</td>
+                        <td class="hidden md:table-cell">{{ order.country.name }}</td><td class="hidden whitespace-nowrap text-slate-500 lg:table-cell">{{ order.created_at|date:"d M Y" }}</td>
+                        <td class="num font-medium text-slate-900">{{ order.currency.symbol }}{{ order.total_amount|floatformat:"2g" }}</td>
+                        <td>{% status_badge order.status order.get_status_display %}</td>
+                        <td><a href="{% url 'foreign_trade:export_order_detail' order.pk %}" class="btn btn-ghost btn-icon btn-sm"><span class="sr-only">Open</span>{% icon "chevron-right" %}</a></td>
+                    </tr>
+                    {% endfor %}
+                </tbody>
+            </table>
+        </div>
+        {% include "components/pagination.html" %}
+        {% elif search_query or current_status %}
+        {% include "components/empty_state.html" with icon="search" title="No matching orders" text="Try another search term or status." %}
+        {% else %}
+        {% include "components/empty_state.html" with icon="globe" title="No export orders yet" text="Create an export order to start the shipping and documentation workflow." %}
+        {% endif %}
+    </div>
+</div>
+{% endblock %}

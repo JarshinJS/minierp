@@ -1,0 +1,11 @@
+{% load ui %}
+{% comment %}Secondary navigation between Foreign Trade sections. Param: active{% endcomment %}
+<nav class="tabs mb-4 max-w-full overflow-x-auto" aria-label="Foreign trade sections">
+    <a href="{% url 'foreign_trade:export_order_list' %}" class="tab {% if active == 'export' %}tab-active{% endif %}">Exports</a>
+    <a href="{% url 'foreign_trade:import_order_list' %}" class="tab {% if active == 'import' %}tab-active{% endif %}">Imports</a>
+    {% if request.user|has_role:"ADMIN,BUSINESS_OWNER,TRADE_MANAGER,DOCUMENTATION_OFFICER,AUDITOR" %}<a href="{% url 'foreign_trade:shipment_list' %}" class="tab {% if active == 'shipments' %}tab-active{% endif %}">Shipments</a>{% endif %}
+    {% if request.user|has_role:"ADMIN,BUSINESS_OWNER,TRADE_MANAGER" %}
+    <a href="{% url 'foreign_trade:customer_list' %}" class="tab {% if active == 'customers' %}tab-active{% endif %}">Customers</a>
+    <a href="{% url 'foreign_trade:supplier_list' %}" class="tab {% if active == 'suppliers' %}tab-active{% endif %}">Suppliers</a>
+    {% endif %}
+</nav>

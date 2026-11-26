@@ -1,0 +1,30 @@
+{% extends "base.html" %}
+{% load ui %}
+
+{% block title %}New trade customer{% endblock %}
+{% block breadcrumb_extra %}<li class="text-slate-300" aria-hidden="true">/</li><li class="truncate font-medium text-slate-900">New</li>{% endblock %}
+{% block page_title %}New trade customer{% endblock %}
+{% block page_description %}Contact and tax details used on trade documents.{% endblock %}
+{% block page_actions %}<a href="{% url 'foreign_trade:customer_list' %}" class="btn btn-secondary">{% icon "arrow-left" %} Back</a>{% endblock %}
+
+{% block content %}
+<form method="post" novalidate class="card max-w-3xl">
+    {% csrf_token %}
+    <div class="card-body space-y-5">
+        {% include "components/form_errors.html" %}
+        <div class="form-grid">
+            {% include "components/form_field.html" with field=form.name %}
+            {% include "components/form_field.html" with field=form.country %}
+            {% include "components/form_field.html" with field=form.email %}
+            {% include "components/form_field.html" with field=form.phone %}
+            {% include "components/form_field.html" with field=form.tax_id label="Tax / VAT ID" %}
+            <div class="hidden sm:block"></div>
+            {% include "components/form_field.html" with field=form.address class="sm:col-span-2" %}
+        </div>
+    </div>
+    <div class="card-footer">
+        <a href="{% url 'foreign_trade:customer_list' %}" class="btn btn-secondary">Cancel</a>
+        <button type="submit" class="btn btn-primary">{% icon "check" %} Save customer</button>
+    </div>
+</form>
+{% endblock %}

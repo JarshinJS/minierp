@@ -1,0 +1,45 @@
+{% extends "base.html" %}
+{% load ui %}
+
+{% block title %}Vendors{% endblock %}
+{% block page_title %}Vendors{% endblock %}
+{% block page_description %}Suppliers available for purchase orders and default product sourcing.{% endblock %}
+{% block page_actions %}
+<a href="{% url 'purchase:purchase_order_create' %}" class="btn btn-primary">{% icon "plus" %} New purchase order</a>
+{% endblock %}
+
+{% block content %}
+<div class="card overflow-hidden" x-data="{ q: '' }">
+    <div class="filter-bar">
+        <div class="search-field w-full sm:max-w-xs">
+            {% icon "search" %}
+            <input type="search" x-model="q" placeholder="Filter vendors…" aria-label="Filter vendors">
+        </div>
+        <p class="text-xs text-slate-500 sm:ml-auto">{{ vendors|length }} vendor{{ vendors|length|pluralize }}</p>
+    </div>
+    {% if vendors %}
+    <div class="table-wrap">
+        <table class="table">
+            <thead><tr><th>Vendor</th><th>Code</th><th class="hidden sm:table-cell">Contact</th><th class="hidden md:table-cell">Email</th></tr></thead>
+            <tbody>
+                {% for vendor in vendors %}
+                <tr x-show="!q || $el.textContent.toLowerCase().includes(q.toLowerCase())">
+                    <td>
+                        <div class="flex items-center gap-3">
+                            <span class="flex h-8 w-8 shrink-0 items-center justify-center rounded-lg bg-slate-100 text-2xs font-semibold text-slate-600">{{ vendor.name|initials }}</span>
+                            <span class="cell-primary">{{ vendor.name }}</span>
+                        </div>
+                    </td>
+                    <td class="cell-mono">{{ vendor.code }}</td>
+                    <td class="hidden sm:table-cell">{{ vendor.contact_name|default:"—" }}</td>
+                    <td class="hidden md:table-cell">{% if vendor.email %}<a href="mailto:{{ vendor.email }}" class="link font-normal">{{ vendor.email }}</a>{% else %}—{% endif %}</td>
+                </tr>
+                {% endfor %}
+            </tbody>
+        </table>
+    </div>
+    {% else %}
+    {% include "components/empty_state.html" with icon="building" title="No vendors yet" text="Vendors are managed in the Django admin or via the purchase API." %}
+    {% endif %}
+</div>
+{% endblock %}

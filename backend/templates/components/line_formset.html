@@ -1,0 +1,83 @@
+{% comment %}
+Dynamic inline formset table.
+Usage: {% include "components/line_formset.html" with formset=lines title="Line items" %}
+- "Add line" clones formset.empty_form and bumps TOTAL_FORMS (no extra JS dependency).
+- New rows can be removed outright; saved rows toggle their DELETE checkbox.
+- If the form has `quantity` and `unit_price` fields a live line/grand total is shown.
+{% endcomment %}
+{% load ui %}
+<div class="card overflow-hidden" x-data="lineFormset('{{ formset.prefix }}')" x-init="recalc()">
+    {{ formset.management_form }}
+    <div class="card-header">
+        <div>
+            <h2 class="card-title">{{ title|default:"Line items" }}</h2>
+            {% if subtitle %}<p class="card-subtitle">{{ subtitle }}</p>{% endif %}
+        </div>
+        <button type="button" class="btn btn-secondary btn-sm" @click="addRow()">{% icon "plus" %} Add line</button>
+    </div>
+    {% if formset.non_form_errors %}
+    <div class="border-b border-slate-200 p-4"><div class="alert alert-danger">{% icon "x-circle" %}<div>{% for e in formset.non_form_errors %}<p>{{ e }}</p>{% endfor %}</div></div></div>
+    {% endif %}
+    <div class="table-wrap">
+        <table class="table">
+            <thead>
+                <tr>
+                    {% for field in formset.empty_form.visible_fields %}{% if field.name != "DELETE" %}
+                    <th class="{% if field.name == 'product' or field.name == 'component' or forloop.first %}min-w-[14rem]{% else %}min-w-[7rem]{% endif %}">{{ field.label }}{% if field.field.required %}<span class="text-red-500">*</span>{% endif %}</th>
+                    {% endif %}{% endfor %}
+                    <th class="num" x-show="hasTotals">Amount</th>
+                    <th class="w-px"><span class="sr-only">Remove</span></th>
+                </tr>
+            </thead>
+            <tbody x-ref="rows">
+                {% for line_form in formset %}
+                <tr data-row :class="{ 'opacity-50 line-through': deleted[{{ forloop.counter0 }}] }">
+                    {% for hidden in line_form.hidden_fields %}{{ hidden }}{% endfor %}
+                    {% for field in line_form.visible_fields %}{% if field.name != "DELETE" %}
+                    <td class="align-top {% if field.errors %}has-error{% endif %}">
+                        {{ field }}
+                        {% for e in field.errors %}<p class="form-error">{{ e }}</p>{% endfor %}
+                    </td>
+                    {% endif %}{% endfor %}
+                    <td class="num align-top pt-5 font-medium text-slate-900" x-show="hasTotals" data-amount>—</td>
+                    <td class="align-top">
+                        {% if line_form.instance.pk %}
+                        <label class="btn btn-ghost btn-icon btn-sm cursor-pointer text-slate-400 hover:text-red-600" title="Remove line">
+                            <span class="sr-only">Remove line</span>
+                            <span class="hidden">{{ line_form.DELETE }}</span>
+                            <input type="checkbox" class="hidden" @change="toggleDelete({{ forloop.counter0 }}, $event)">
+                            {% icon "trash" %}
+                        </label>
+                        {% else %}
+                        <button type="button" class="btn btn-ghost btn-icon btn-sm text-slate-400 hover:text-red-600" title="Remove line" @click="removeRow($event)">
+                            <span class="sr-only">Remove line</span>{% icon "trash" %}
+                        </button>
+                        {% endif %}
+                    </td>
+                </tr>
+                {% endfor %}
+            </tbody>
+            <tfoot x-show="hasTotals">
+                <tr>
+                    <td colspan="{{ formset.empty_form.visible_fields|length|add:'-1' }}" class="px-4 py-3 text-right text-sm font-medium text-slate-500">
+                        Total
+                    </td>
+                    <td class="num px-4 py-3 text-base font-semibold text-slate-900" x-text="formatMoney(total)"></td>
+                    <td></td>
+                </tr>
+            </tfoot>
+        </table>
+    </div>
+    <template x-ref="tpl">
+        <tr data-row>
+            {% for hidden in formset.empty_form.hidden_fields %}{{ hidden }}{% endfor %}
+            {% for field in formset.empty_form.visible_fields %}{% if field.name != "DELETE" %}<td class="align-top">{{ field }}</td>{% endif %}{% endfor %}
+            <td class="num align-top pt-5 font-medium text-slate-900" x-show="hasTotals" data-amount>—</td>
+            <td class="align-top">
+                <button type="button" class="btn btn-ghost btn-icon btn-sm text-slate-400 hover:text-red-600" title="Remove line" @click="removeRow($event)">
+                    <span class="sr-only">Remove line</span>{% icon "trash" %}
+                </button>
+            </td>
+        </tr>
+    </template>
+</div>

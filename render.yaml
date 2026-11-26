@@ -1,0 +1,98 @@
+# Render Blueprint: https://render.com/docs/blueprint-spec
+# Django backend (backend/) + Celery worker + Postgres + Redis (Key Value).
+# The Next.js frontend (frontend/) deploys separately to Vercel.
+
+envVarGroups:
+  - name: minierp-backend
+    envVars:
+      - key: DJANGO_SETTINGS_MODULE
+        value: config.settings.prod
+      - key: SECRET_KEY
+        generateValue: true
+      - key: BLOCKCHAIN_MOCK_MODE
+        value: "True"
+      # Email for signup OTPs; fill these in on the Render dashboard.
+      - key: EMAIL_HOST
+        sync: false
+      - key: EMAIL_HOST_USER
+        sync: false
+      - key: EMAIL_HOST_PASSWORD
+        sync: false
+      - key: DEFAULT_FROM_EMAIL
+        sync: false
+      # Origin(s) of the Next.js frontend, e.g. https://minierp.vercel.app
+      # (comma-separated). Required: without it every API login fails CSRF.
+      - key: CSRF_TRUSTED_ORIGINS
+        sync: false
+      # Proxies in front of Django, for per-IP rate limiting of login/signup.
+      # 1 = clients hit Render directly. Set 2 once traffic comes via Vercel rewrites.
+      - key: NUM_PROXIES
+        value: "1"
+      # Optional: a reachable Ollama server for the voice assistant.
+      - key: OLLAMA_URL
+        sync: false
+
+services:
+  - type: web
+    name: minierp-api
+    runtime: python
+    plan: starter
+    rootDir: backend
+    buildFilter:
+      paths:
+        - backend/**
+    buildCommand: ./build.sh
+    # preDeployCommand needs a paid plan. On the free plan, prepend
+    # "python manage.py migrate --no-input &&" to startCommand instead.
+    preDeployCommand: python manage.py migrate --no-input
+    startCommand: gunicorn config.wsgi:application --bind 0.0.0.0:$PORT --timeout 60 --access-logfile -
+    healthCheckPath: /healthz/
+    envVars:
+      - fromGroup: minierp-backend
+      - key: WEB_CONCURRENCY
+        value: "3"
+      - key: DATABASE_URL
+        fromDatabase:
+          name: minierp-db
+          property: connectionString
+      - key: CELERY_BROKER_URL
+        fromService:
+          type: keyvalue
+          name: minierp-redis
+          property: connectionString
+
+  # Runs procurement tasks queued with .delay(). To skip this paid service, delete
+  # it (and minierp-redis) and set CELERY_TASK_ALWAYS_EAGER=True on minierp-api.
+  - type: worker
+    name: minierp-worker
+    runtime: python
+    plan: starter
+    rootDir: backend
+    buildFilter:
+      paths:
+        - backend/**
+    buildCommand: pip install -r requirements.txt
+    startCommand: celery -A config worker --loglevel=info --concurrency=2
+    envVars:
+      - fromGroup: minierp-backend
+      - key: DATABASE_URL
+        fromDatabase:
+          name: minierp-db
+          property: connectionString
+      - key: CELERY_BROKER_URL
+        fromService:
+          type: keyvalue
+          name: minierp-redis
+          property: connectionString
+
+  - type: keyvalue
+    name: minierp-redis
+    plan: free
+    maxmemoryPolicy: noeviction   # never drop queued tasks
+    ipAllowList: []               # internal connections only
+
+databases:
+  - name: minierp-db
+    plan: basic-256mb
+    databaseName: minierp
+    user: minierp

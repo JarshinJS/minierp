@@ -1,0 +1,45 @@
+{% extends "base.html" %}
+{% load ui %}
+
+{% block title %}Deliveries{% endblock %}
+{% block page_title %}Delivery notes{% endblock %}
+{% block page_description %}Outgoing shipments for confirmed sales orders — dispatch and confirm delivery.{% endblock %}
+
+{% block content %}
+<div class="card overflow-hidden">
+    <div class="border-b border-slate-200 px-4 py-3">
+        <nav class="tabs max-w-full overflow-x-auto" aria-label="Filter by status">
+            {% for value, label, count in status_tabs %}
+            <a href="{% if value %}?status={{ value }}{% else %}{% url 'delivery:list' %}{% endif %}" class="tab {% if selected_status == value %}tab-active{% endif %}">
+                {{ label }} <span class="tabular-nums text-slate-400">{{ count }}</span>
+            </a>
+            {% endfor %}
+        </nav>
+    </div>
+    {% if deliveries %}
+    <div class="table-wrap">
+        <table class="table">
+            <thead><tr><th>Delivery</th><th>Sales order</th><th class="hidden sm:table-cell">Customer</th><th class="hidden lg:table-cell">Created</th><th class="hidden md:table-cell">Dispatched</th><th>Status</th><th class="w-px"></th></tr></thead>
+            <tbody>
+                {% for delivery in deliveries %}
+                <tr>
+                    <td><a href="{% url 'delivery:detail' delivery.pk %}" class="font-mono text-[13px] font-medium text-slate-900 hover:text-brand-600">{{ delivery.delivery_number }}</a></td>
+                    <td><a href="{% url 'sales:sales_order_detail' delivery.sales_order.pk %}" class="font-mono text-[13px] text-slate-600 hover:text-brand-600">{{ delivery.sales_order.order_number }}</a></td>
+                    <td class="hidden cell-primary sm:table-cell">{{ delivery.sales_order.customer_name }}</td>
+                    <td class="hidden whitespace-nowrap text-slate-500 lg:table-cell">{{ delivery.created_at|date:"d M Y, H:i" }}</td>
+                    <td class="hidden whitespace-nowrap text-slate-500 md:table-cell">{{ delivery.dispatch_date|date:"d M Y, H:i"|default:"—" }}</td>
+                    <td>{% status_badge delivery.status delivery.get_status_display %}</td>
+                    <td><a href="{% url 'delivery:detail' delivery.pk %}" class="btn btn-ghost btn-icon btn-sm"><span class="sr-only">Open</span>{% icon "chevron-right" %}</a></td>
+                </tr>
+                {% endfor %}
+            </tbody>
+        </table>
+    </div>
+    {% include "components/pagination.html" %}
+    {% elif selected_status %}
+    {% include "components/empty_state.html" with icon="truck" title="No delivery notes with this status" %}
+    {% else %}
+    {% include "components/empty_state.html" with icon="truck" title="No delivery notes yet" text="Create a delivery note from a confirmed sales order." %}
+    {% endif %}
+</div>
+{% endblock %}

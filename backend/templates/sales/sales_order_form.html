@@ -1,0 +1,32 @@
+{% extends "base.html" %}
+{% load ui %}
+
+{% block title %}{% if object %}Edit {{ object.order_number }}{% else %}New sales order{% endif %}{% endblock %}
+{% block breadcrumb_extra %}<li class="text-slate-300" aria-hidden="true">/</li><li class="truncate font-medium text-slate-900">{% if object %}{{ object.order_number }}{% else %}New{% endif %}</li>{% endblock %}
+{% block page_title %}{% if object %}Edit {{ object.order_number }}{% else %}New sales order{% endif %}{% endblock %}
+{% block page_description %}Draft orders can be edited freely. Stock is reserved when the order is confirmed.{% endblock %}
+{% block page_actions %}
+<a href="{% if object %}{% url 'sales:sales_order_detail' object.pk %}{% else %}{% url 'sales:sales_order_list' %}{% endif %}" class="btn btn-secondary">{% icon "arrow-left" %} Back</a>
+{% endblock %}
+
+{% block content %}
+<form method="post" novalidate class="max-w-5xl space-y-4">
+    {% csrf_token %}
+    {% include "components/form_errors.html" %}
+
+    <div class="card">
+        <div class="card-header"><h2 class="card-title">Customer</h2></div>
+        <div class="card-body form-grid">
+            {% include "components/form_field.html" with field=form.customer_name label="Customer name" %}
+            {% include "components/form_field.html" with field=form.notes label="Internal notes" class="sm:col-span-2" %}
+        </div>
+    </div>
+
+    {% include "components/line_formset.html" with formset=lines title="Line items" subtitle="Add at least one product." %}
+
+    <div class="form-actions border-t-0 pt-0">
+        <a href="{% if object %}{% url 'sales:sales_order_detail' object.pk %}{% else %}{% url 'sales:sales_order_list' %}{% endif %}" class="btn btn-secondary">Cancel</a>
+        <button type="submit" class="btn btn-primary">{% icon "check" %} {% if object %}Save changes{% else %}Create draft order{% endif %}</button>
+    </div>
+</form>
+{% endblock %}

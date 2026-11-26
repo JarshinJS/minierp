@@ -1,0 +1,52 @@
+{% load ui %}
+<div class="space-y-4">
+    <div class="grid grid-cols-1 gap-4 sm:grid-cols-2 xl:grid-cols-5">
+        <div class="kpi"><p class="kpi-label">Sales Orders</p><p class="kpi-value">{{ summary.sales.order_count }}</p><p class="kpi-meta">Value ₹{{ summary.sales.total_value }}</p></div>
+        <div class="kpi"><p class="kpi-label">Purchase Orders</p><p class="kpi-value">{{ summary.purchase.order_count }}</p><p class="kpi-meta">Value ₹{{ summary.purchase.total_value }}</p></div>
+        <div class="kpi"><p class="kpi-label">Manufacturing Orders</p><p class="kpi-value">{{ summary.manufacturing.order_count }}</p><p class="kpi-meta">Qty to produce {{ summary.manufacturing.total_quantity }}</p></div>
+        <div class="kpi"><p class="kpi-label">Inventory</p><p class="kpi-value">{{ summary.inventory.total_products }}</p><p class="kpi-meta">Available {{ summary.inventory.available_qty }}</p></div>
+        <div class="kpi"><p class="kpi-label">Procurement Requests</p><p class="kpi-value">{{ summary.procurement.request_count }}</p><p class="kpi-meta">Pending {{ summary.procurement.pending }}</p></div>
+    </div>
+
+    <div class="grid grid-cols-1 gap-4 xl:grid-cols-3">
+        {% with sales=summary.sales.status_chart purchase=summary.purchase.status_chart mfg=summary.manufacturing.status_chart %}
+        <div class="card card-body">
+            <h2 class="card-title mb-4">Sales Status</h2>
+            <div class="space-y-3">{% for item in sales %}<div><div class="flex justify-between text-xs text-slate-600"><span>{{ item.label }}</span><span class="tabular-nums">{{ item.count }}</span></div><div class="progress mt-1.5"><span style="width: {{ item.ratio }}%"></span></div></div>{% endfor %}</div>
+        </div>
+        <div class="card card-body">
+            <h2 class="card-title mb-4">Purchase Status</h2>
+            <div class="space-y-3">{% for item in purchase %}<div><div class="flex justify-between text-xs text-slate-600"><span>{{ item.label }}</span><span class="tabular-nums">{{ item.count }}</span></div><div class="progress mt-1.5"><span style="width: {{ item.ratio }}%"></span></div></div>{% endfor %}</div>
+        </div>
+        <div class="card card-body">
+            <h2 class="card-title mb-4">Manufacturing Status</h2>
+            <div class="space-y-3">{% for item in mfg %}<div><div class="flex justify-between text-xs text-slate-600"><span>{{ item.label }}</span><span class="tabular-nums">{{ item.count }}</span></div><div class="progress mt-1.5"><span style="width: {{ item.ratio }}%"></span></div></div>{% endfor %}</div>
+        </div>
+        {% endwith %}
+    </div>
+
+    <div class="grid grid-cols-1 gap-4 xl:grid-cols-2">
+        <div class="card overflow-hidden">
+            <div class="card-header"><h2 class="card-title">Recent Activity</h2></div>
+            <div class="table-wrap"><table class="table table-compact">
+                <thead><tr><th>When</th><th>User</th><th>Module</th><th>Action</th></tr></thead>
+                <tbody>
+                {% for activity in summary.recent_activities %}
+                <tr><td class="whitespace-nowrap text-xs text-slate-500">{{ activity.timestamp|parse_iso|date:"M d, H:i" }}</td><td>{{ activity.user }}</td><td>{{ activity.module|title }}</td><td>{{ activity.action }}</td></tr>
+                {% empty %}<tr><td colspan="4" class="py-6 text-center text-slate-500">No recent activity found.</td></tr>{% endfor %}
+                </tbody>
+            </table></div>
+        </div>
+        <div class="card overflow-hidden">
+            <div class="card-header"><h2 class="card-title">Low Stock Products</h2></div>
+            <div class="table-wrap"><table class="table table-compact">
+                <thead><tr><th>SKU</th><th>Product</th><th class="num">On hand</th><th class="num">Reserved</th><th class="num">Available</th></tr></thead>
+                <tbody>
+                {% for product in summary.low_stock_products %}
+                <tr><td class="cell-mono">{{ product.sku }}</td><td class="cell-primary">{{ product.name }}</td><td class="num">{{ product.on_hand_qty }}</td><td class="num">{{ product.reserved_qty }}</td><td class="num font-semibold text-amber-600">{{ product.available_qty }}</td></tr>
+                {% empty %}<tr><td colspan="5" class="py-6 text-center text-slate-500">No low stock products found.</td></tr>{% endfor %}
+                </tbody>
+            </table></div>
+        </div>
+    </div>
+</div>

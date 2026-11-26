@@ -1,0 +1,41 @@
+{% extends "base.html" %}
+{% load ui %}
+
+{% block title %}Bills of materials{% endblock %}
+{% block page_title %}Bills of materials{% endblock %}
+{% block page_description %}Recipes that define the components and operations needed to build each product.{% endblock %}
+{% block page_actions %}
+<a href="{% url 'manufacturing:workcenter_list' %}" class="btn btn-secondary">{% icon "cpu" %} Work centers</a>
+<a href="{% url 'manufacturing:bom_create' %}" class="btn btn-primary">{% icon "plus" %} New BOM</a>
+{% endblock %}
+
+{% block content %}
+<div class="card">
+    <form method="get" class="filter-bar" role="search"
+          hx-get="{% url 'manufacturing:bom_list' %}" hx-target="#bom-results" hx-select="#bom-results" hx-swap="outerHTML"
+          hx-push-url="true" hx-trigger="input delay:300ms, change, submit" hx-indicator="#bom-results">
+        <div class="search-field w-full sm:max-w-xs">
+            {% icon "search" %}
+            <input type="search" name="search" value="{{ search_query }}" placeholder="Reference, name or product…" aria-label="Search BOMs" autocomplete="off">
+        </div>
+        <label class="form-check items-center text-sm text-slate-600"><input type="checkbox" name="show_inactive" value="1" {% if show_inactive %}checked{% endif %}> Show inactive</label>
+        <noscript><button class="btn btn-secondary">Apply</button></noscript>
+        {% if search_query or show_inactive %}<a href="{% url 'manufacturing:bom_list' %}" class="btn btn-ghost btn-sm">{% icon "x" %} Clear</a>{% endif %}
+    </form>
+    <div id="bom-results" class="transition-opacity [&.htmx-request]:opacity-60">
+        {% if boms %}
+        <div class="table-wrap">
+            <table class="table">
+                <thead><tr><th>Reference</th><th>Name</th><th class="hidden md:table-cell">Finished product</th><th class="num">Output qty</th><th class="hidden sm:table-cell">Structure</th><th>Status</th><th class="w-px"><span class="sr-only">Actions</span></th></tr></thead>
+                <tbody>{% for bom in boms %}{% include "manufacturing/bom_row.html" %}{% endfor %}</tbody>
+            </table>
+        </div>
+        {% elif search_query or show_inactive %}
+        {% include "components/empty_state.html" with icon="search" title="No matching BOMs" text="Try another search term." %}
+        {% else %}
+        {% url 'manufacturing:bom_create' as create_url %}
+        {% include "components/empty_state.html" with icon="layers" title="No bills of materials yet" text="Define a BOM to describe how a product is built." action_url=create_url action_label="New BOM" %}
+        {% endif %}
+    </div>
+</div>
+{% endblock %}

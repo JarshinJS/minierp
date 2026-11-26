@@ -1,0 +1,39 @@
+{% extends "base.html" %}
+{% load ui %}
+
+{% block title %}Work centers{% endblock %}
+{% block page_title %}Work centers{% endblock %}
+{% block page_description %}Machines, stations and teams that perform BOM operations, with their hourly cost.{% endblock %}
+{% block page_actions %}
+<a href="{% url 'manufacturing:bom_list' %}" class="btn btn-secondary">{% icon "layers" %} Bills of materials</a>
+<a href="{% url 'manufacturing:workcenter_create' %}" class="btn btn-primary">{% icon "plus" %} New work center</a>
+{% endblock %}
+
+{% block content %}
+<div class="card overflow-hidden">
+    <form method="get" class="filter-bar">
+        <label class="form-check items-center text-sm text-slate-600"><input type="checkbox" name="show_inactive" value="1" {% if show_inactive %}checked{% endif %} onchange="this.form.submit()"> Show inactive work centers</label>
+    </form>
+    {% if work_centers %}
+    <div class="table-wrap">
+        <table class="table">
+            <thead><tr><th>Name</th><th>Code</th><th class="num">Cost / hour</th><th>Status</th><th class="w-px"></th></tr></thead>
+            <tbody>
+                {% for wc in work_centers %}
+                <tr>
+                    <td><div class="flex items-center gap-3"><span class="flex h-8 w-8 items-center justify-center rounded-lg bg-slate-100 text-slate-500">{% icon "cpu" %}</span><span class="cell-primary">{{ wc.name }}</span></div></td>
+                    <td class="cell-mono">{{ wc.code }}</td>
+                    <td class="num">₹{{ wc.cost_per_hour|floatformat:"2g" }}</td>
+                    <td>{% if wc.is_active %}<span class="badge badge-green">Active</span>{% else %}<span class="badge badge-gray">Inactive</span>{% endif %}</td>
+                    <td><a href="{% url 'manufacturing:workcenter_edit' wc.pk %}" class="btn btn-ghost btn-icon btn-sm" title="Edit {{ wc.name }}"><span class="sr-only">Edit</span>{% icon "edit" %}</a></td>
+                </tr>
+                {% endfor %}
+            </tbody>
+        </table>
+    </div>
+    {% else %}
+    {% url 'manufacturing:workcenter_create' as create_url %}
+    {% include "components/empty_state.html" with icon="cpu" title="No work centers" text="Add work centers so BOM operations can be routed to them." action_url=create_url action_label="New work center" %}
+    {% endif %}
+</div>
+{% endblock %}

@@ -1,0 +1,80 @@
+{% extends "base.html" %}
+{% load ui %}
+
+{% block title %}{{ bom.reference }}{% endblock %}
+{% block breadcrumb_extra %}<li class="text-slate-300" aria-hidden="true">/</li><li class="truncate font-medium text-slate-900">{{ bom.reference }}</li>{% endblock %}
+{% block page_eyebrow %}<div class="mb-1 flex items-center gap-2"><span class="font-mono text-xs text-slate-500">{{ bom.reference }}</span>{% if bom.is_active %}<span class="badge badge-green">Active</span>{% else %}<span class="badge badge-gray">Inactive</span>{% endif %}</div>{% endblock %}
+{% block page_title %}{{ bom.name }}{% endblock %}
+{% block page_description %}{% if bom.product %}Produces {{ bom.product_qty|floatformat:"-2" }} × {{ bom.product.name }}{% else %}Template BOM (no finished product){% endif %}{% endblock %}
+{% block page_actions %}
+{% if bom.is_active %}
+<form method="post" action="{% url 'manufacturing:bom_deactivate' bom.pk %}" data-confirm="Deactivate {{ bom.reference }}? It won't be offered for new manufacturing orders." data-confirm-title="Deactivate BOM" data-confirm-action="Deactivate">
+    {% csrf_token %}<button type="submit" class="btn btn-danger-outline">{% icon "ban" %} Deactivate</button>
+</form>
+{% endif %}
+<a href="{% url 'manufacturing:bom_edit' bom.pk %}" class="btn btn-primary">{% icon "edit" %} Edit BOM</a>
+{% endblock %}
+
+{% block content %}
+<div class="space-y-4">
+    <div class="grid grid-cols-2 gap-4 lg:grid-cols-4">
+        <div class="kpi"><p class="kpi-label">Finished product</p><p class="truncate text-sm font-semibold">{% if bom.product %}<a class="link" href="{% url 'products:product_detail' bom.product.pk %}">{{ bom.product.name }}</a>{% else %}—{% endif %}</p></div>
+        <div class="kpi"><p class="kpi-label">Output quantity</p><p class="kpi-value text-xl">{{ bom.product_qty|floatformat:"-2" }}</p></div>
+        <div class="kpi"><p class="kpi-label">Material cost</p><p class="kpi-value text-xl">₹{{ total_cost|floatformat:"2g" }}</p></div>
+        <div class="kpi"><p class="kpi-label">Operation time</p><p class="kpi-value text-xl">{{ total_time|floatformat:"-2" }} <span class="text-sm font-medium text-slate-500">min</span></p></div>
+    </div>
+
+    {% if bom.notes %}<div class="card card-body"><p class="section-title mb-1">Notes</p><p class="whitespace-pre-line text-sm text-slate-600">{{ bom.notes }}</p></div>{% endif %}
+
+    <div class="card overflow-hidden">
+        <div class="card-header"><h2 class="card-title">Components <span class="ml-1 text-slate-400">{{ bom.components.count }}</span></h2></div>
+        {% if bom.components.all %}
+        <div class="table-wrap">
+            <table class="table">
+                <thead><tr><th class="w-12">Seq</th><th>Component</th><th class="num">Quantity</th><th class="hidden sm:table-cell">Unit</th><th class="num hidden sm:table-cell">Unit cost</th><th class="num">Line cost</th></tr></thead>
+                <tbody>
+                    {% for line in bom.components.all %}
+                    <tr>
+                        <td class="text-xs tabular-nums text-slate-400">{{ line.sequence }}</td>
+                        <td><p class="cell-primary">{{ line.component.name }}</p><p class="cell-sub font-mono">{{ line.component.sku }}</p></td>
+                        <td class="num">{{ line.quantity|floatformat:"-4" }}</td>
+                        <td class="hidden text-slate-500 sm:table-cell">{{ line.uom }}</td>
+                        <td class="num hidden text-slate-500 sm:table-cell">₹{{ line.component.cost_price|floatformat:"2g" }}</td>
+                        <td class="num font-medium text-slate-900">₹{{ line.quantity|mul:line.component.cost_price|floatformat:"2g" }}</td>
+                    </tr>
+                    {% endfor %}
+                </tbody>
+                <tfoot><tr class="border-t border-slate-200"><td colspan="5" class="hidden px-4 py-3 text-right text-sm text-slate-500 sm:table-cell">Total material cost</td><td colspan="3" class="px-4 py-3 text-right text-sm text-slate-500 sm:hidden">Total</td><td class="num px-4 py-3 text-base font-semibold">₹{{ total_cost|floatformat:"2g" }}</td></tr></tfoot>
+            </table>
+        </div>
+        {% else %}
+        {% url 'manufacturing:bom_edit' bom.pk as edit_url %}
+        {% include "components/empty_state.html" with icon="layers" title="No components" text="Edit the BOM to add the materials it consumes." action_url=edit_url action_label="Edit BOM" %}
+        {% endif %}
+    </div>
+
+    <div class="card overflow-hidden">
+        <div class="card-header"><h2 class="card-title">Operations <span class="ml-1 text-slate-400">{{ bom.operations.count }}</span></h2></div>
+        {% if bom.operations.all %}
+        <div class="table-wrap">
+            <table class="table">
+                <thead><tr><th class="w-12">Seq</th><th>Operation</th><th>Work center</th><th class="num">Duration</th></tr></thead>
+                <tbody>
+                    {% for op in bom.operations.all %}
+                    <tr>
+                        <td class="text-xs tabular-nums text-slate-400">{{ op.sequence }}</td>
+                        <td class="cell-primary">{{ op.name }}</td>
+                        <td><span class="inline-flex items-center gap-1.5 text-slate-600">{% icon "cpu" "h-3.5 w-3.5 text-slate-400" %}{{ op.work_center.name }}</span></td>
+                        <td class="num">{{ op.duration_minutes|floatformat:"-2" }} min</td>
+                    </tr>
+                    {% endfor %}
+                </tbody>
+                <tfoot><tr class="border-t border-slate-200"><td colspan="3" class="px-4 py-3 text-right text-sm text-slate-500">Total time</td><td class="num px-4 py-3 text-base font-semibold">{{ total_time|floatformat:"-2" }} min</td></tr></tfoot>
+            </table>
+        </div>
+        {% else %}
+        {% include "components/empty_state.html" with icon="cpu" title="No operations" text="Edit the BOM to add routing steps and work centers." %}
+        {% endif %}
+    </div>
+</div>
+{% endblock %}

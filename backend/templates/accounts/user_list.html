@@ -1,0 +1,31 @@
+{% extends "base.html" %}
+{% load ui %}
+
+{% block title %}Users & roles{% endblock %}
+{% block page_title %}Users &amp; roles{% endblock %}
+{% block page_description %}Control who can sign in and which modules each person can access.{% endblock %}
+{% block page_actions %}<a href="{% url 'accounts:signup' %}" class="btn btn-primary">{% icon "plus" %} Register user</a>{% endblock %}
+
+{% block content %}
+<div class="card overflow-hidden" x-data="{ q: '' }">
+    <div class="filter-bar">
+        <div class="search-field w-full sm:max-w-xs">
+            {% icon "search" %}
+            <input type="search" x-model="q" placeholder="Filter by name or email…" aria-label="Filter users">
+        </div>
+        <p class="text-xs text-slate-500 sm:ml-auto">{{ users|length }} user{{ users|length|pluralize }}</p>
+    </div>
+    {% if users %}
+    <div class="table-wrap">
+        <table class="table">
+            <thead><tr><th>User</th><th>Role</th><th class="hidden sm:table-cell">Status</th><th class="hidden md:table-cell">Last sign-in</th><th class="w-px"><span class="sr-only">Actions</span></th></tr></thead>
+            <tbody x-ref="body" x-effect="$refs.body.querySelectorAll('tr').forEach(r => r.hidden = q && !r.cells[0].textContent.toLowerCase().includes(q.toLowerCase()))">
+                {% for user_member in users %}{% include "accounts/user_row.html" with member=user_member %}{% endfor %}
+            </tbody>
+        </table>
+    </div>
+    {% else %}
+    {% include "components/empty_state.html" with icon="users" title="No users" %}
+    {% endif %}
+</div>
+{% endblock %}

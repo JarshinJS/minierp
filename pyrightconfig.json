@@ -1,8 +1,6 @@
 {
-  "venvPath": "d:/minierp",
+  "include": ["backend"],
+  "venvPath": ".",
   "venv": ".venv",
-  "extraPaths": [
-    "d:/minierp",
-    "d:/minierp/.venv/Lib/site-packages"
-  ]
+  "extraPaths": ["backend"]
 }

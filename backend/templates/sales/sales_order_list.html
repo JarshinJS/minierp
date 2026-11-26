@@ -1,0 +1,71 @@
+{% extends "base.html" %}
+{% load ui %}
+
+{% block title %}Sales orders{% endblock %}
+{% block page_title %}Sales orders{% endblock %}
+{% block page_description %}Customer orders from quotation through delivery.{% endblock %}
+{% block page_actions %}
+<div class="tabs">
+    <a href="{% url 'sales:sales_order_list' %}" class="tab tab-active">{% icon "list" "h-3.5 w-3.5" %} List</a>
+    <a href="{% url 'sales:sales_order_kanban' %}" class="tab">{% icon "kanban" "h-3.5 w-3.5" %} Board</a>
+</div>
+<a href="{% url 'sales:sales_order_create' %}" class="btn btn-primary">{% icon "plus" %} New order</a>
+{% endblock %}
+
+{% block content %}
+<div class="card">
+    <form method="get" class="filter-bar" role="search"
+          hx-get="{% url 'sales:sales_order_list' %}" hx-target="#so-results" hx-select="#so-results" hx-swap="outerHTML"
+          hx-push-url="true" hx-trigger="input delay:300ms, submit" hx-indicator="#so-results">
+        <div class="search-field w-full sm:max-w-xs">
+            {% icon "search" %}
+            <input type="search" name="q" value="{{ search_query }}" placeholder="Order number or customer…" aria-label="Search orders" autocomplete="off">
+        </div>
+        <select name="status" class="sm:w-52" aria-label="Status">
+            <option value="">All statuses</option>
+            {% for value, label in status_choices %}<option value="{{ value }}" {% if selected_status == value %}selected{% endif %}>{{ label }}</option>{% endfor %}
+        </select>
+        <noscript><button class="btn btn-secondary">Apply</button></noscript>
+        {% if search_query or selected_status %}<a href="{% url 'sales:sales_order_list' %}" class="btn btn-ghost btn-sm">{% icon "x" %} Clear</a>{% endif %}
+    </form>
+
+    <div id="so-results" class="transition-opacity [&.htmx-request]:opacity-60">
+        {% if orders %}
+        <div class="table-wrap">
+            <table class="table">
+                <thead>
+                    <tr>
+                        <th>Order</th>
+                        <th>Customer</th>
+                        <th class="hidden md:table-cell">Date</th>
+                        <th class="hidden lg:table-cell">Created by</th>
+                        <th class="num">Total</th>
+                        <th>Status</th>
+                        <th class="w-px"><span class="sr-only">Actions</span></th>
+                    </tr>
+                </thead>
+                <tbody>
+                    {% for order in orders %}
+                    <tr>
+                        <td><a href="{% url 'sales:sales_order_detail' order.pk %}" class="font-mono text-[13px] font-medium text-slate-900 hover:text-brand-600">{{ order.order_number }}</a></td>
+                        <td class="cell-primary">{{ order.customer_name }}</td>
+                        <td class="hidden whitespace-nowrap text-slate-500 md:table-cell">{{ order.created_at|date:"d M Y" }}</td>
+                        <td class="hidden text-slate-500 lg:table-cell">{{ order.created_by.full_name }}</td>
+                        <td class="num font-medium text-slate-900">₹{{ order.total_amount|floatformat:"2g" }}</td>
+                        <td>{% status_badge order.status order.get_status_display %}</td>
+                        <td><a href="{% url 'sales:sales_order_detail' order.pk %}" class="btn btn-ghost btn-icon btn-sm" title="Open {{ order.order_number }}"><span class="sr-only">Open</span>{% icon "chevron-right" %}</a></td>
+                    </tr>
+                    {% endfor %}
+                </tbody>
+            </table>
+        </div>
+        {% include "components/pagination.html" %}
+        {% elif search_query or selected_status %}
+        {% include "components/empty_state.html" with icon="search" title="No matching orders" text="Try another search term or status." %}
+        {% else %}
+        {% url 'sales:sales_order_create' as create_url %}
+        {% include "components/empty_state.html" with icon="cart" title="No sales orders yet" text="Create an order to reserve stock and start the delivery workflow." action_url=create_url action_label="New order" %}
+        {% endif %}
+    </div>
+</div>
+{% endblock %}

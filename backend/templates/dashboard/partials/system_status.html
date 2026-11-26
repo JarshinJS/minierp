@@ -1,0 +1,8 @@
+<div class="flex items-center gap-2 rounded-full border border-slate-200 bg-white px-2.5 py-1"
+     hx-get="{% url 'dashboard:system_status' %}" hx-trigger="every 30s" hx-swap="outerHTML" title="Database connectivity check">
+    <span class="relative flex h-2 w-2">
+        {% if is_ok %}<span class="absolute inline-flex h-full w-full animate-ping rounded-full bg-emerald-400 opacity-60"></span>{% endif %}
+        <span class="relative inline-flex h-2 w-2 rounded-full {% if is_ok %}bg-emerald-500{% else %}bg-red-500{% endif %}"></span>
+    </span>
+    <span class="text-xs font-medium {% if is_ok %}text-slate-600{% else %}text-red-600{% endif %}">{{ message }}</span>
+</div>

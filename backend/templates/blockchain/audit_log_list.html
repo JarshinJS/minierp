@@ -1,0 +1,40 @@
+{% extends "base.html" %}
+{% load ui %}
+
+{% block title %}Ledger audit{% endblock %}
+{% block page_title %}Ledger audit trail{% endblock %}
+{% block page_description %}Immutable record of trade order and document events.{% endblock %}
+
+{% block content %}
+<div class="card overflow-hidden">
+    <form method="get" class="filter-bar">
+        <select name="event_type" class="sm:w-64" aria-label="Event type" onchange="this.form.submit()">
+            <option value="">All event types</option>
+            {% for val, label in event_types %}<option value="{{ val }}" {% if current_event_type == val %}selected{% endif %}>{{ label }}</option>{% endfor %}
+        </select>
+        <noscript><button class="btn btn-secondary">Apply</button></noscript>
+        {% if current_event_type %}<a href="{% url 'blockchain:audit_log_list' %}" class="btn btn-ghost btn-sm">{% icon "x" %} Clear</a>{% endif %}
+    </form>
+    {% if audit_logs %}
+    <div class="table-wrap">
+        <table class="table">
+            <thead><tr><th>Time</th><th>Event</th><th class="hidden md:table-cell">Reference</th><th class="hidden sm:table-cell">User</th><th class="hidden lg:table-cell">Transaction</th></tr></thead>
+            <tbody>
+                {% for log in audit_logs %}
+                <tr>
+                    <td class="whitespace-nowrap text-slate-500">{{ log.created_at|date:"d M Y" }}<p class="cell-sub">{{ log.created_at|date:"H:i:s" }}</p></td>
+                    <td>{% status_badge log.event_type log.get_event_type_display %}</td>
+                    <td class="hidden md:table-cell"><p>{{ log.reference_model }}</p><p class="cell-sub max-w-[12rem] truncate font-mono">{{ log.reference_id }}</p></td>
+                    <td class="hidden sm:table-cell">{{ log.created_by.full_name|default:"System" }}</td>
+                    <td class="hidden lg:table-cell"><span class="cell-mono block max-w-[14rem] truncate" title="{{ log.blockchain_txn }}">{{ log.blockchain_txn|default:"—" }}</span><p class="cell-sub">{{ log.network }}</p></td>
+                </tr>
+                {% endfor %}
+            </tbody>
+        </table>
+    </div>
+    {% include "components/pagination.html" %}
+    {% else %}
+    {% include "components/empty_state.html" with icon="activity" title="No ledger events" text="Nothing matches this filter yet." %}
+    {% endif %}
+</div>
+{% endblock %}

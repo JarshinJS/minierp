@@ -1,0 +1,36 @@
+{% extends "base.html" %}
+{% load ui %}
+
+{% block title %}Upload document · {{ order.order_number }}{% endblock %}
+{% block breadcrumb_extra %}<li class="text-slate-300" aria-hidden="true">/</li><li class="truncate font-medium text-slate-900">{{ order.order_number }}</li>{% endblock %}
+{% block page_title %}Upload document{% endblock %}
+{% block page_description %}Attach a trade document to {{ order.order_number }}. Its SHA-256 hash is anchored for later tamper checks.{% endblock %}
+{% block page_actions %}<a href="{% if order_type == 'export' %}{% url 'foreign_trade:export_order_detail' order.pk %}{% else %}{% url 'foreign_trade:import_order_detail' order.pk %}{% endif %}" class="btn btn-secondary">{% icon "arrow-left" %} Back to order</a>{% endblock %}
+
+{% block content %}
+<form method="post" enctype="multipart/form-data" novalidate class="card max-w-2xl" x-data="{ fileName: '' }" @change="if ($event.target.type === 'file') fileName = ($event.target.files[0] || {}).name || ''">
+    {% csrf_token %}
+    <div class="card-body space-y-5">
+        {% include "components/form_errors.html" %}
+        <div class="form-grid">
+            {% include "components/form_field.html" with field=form.document_type label="Document type" %}
+            {% include "components/form_field.html" with field=form.title %}
+        </div>
+        <div class="{% if form.file.errors %}has-error{% endif %}">
+            <span class="form-label">File<span class="req">*</span></span>
+            <label for="{{ form.file.id_for_label }}" class="flex cursor-pointer flex-col items-center justify-center rounded-lg border-2 border-dashed border-slate-300 px-6 py-8 text-center transition-colors hover:border-brand-400 hover:bg-brand-50/40">
+                <span class="mb-2 flex h-10 w-10 items-center justify-center rounded-full bg-slate-100 text-slate-500">{% icon "upload" %}</span>
+                <span class="text-sm font-medium text-slate-900" x-text="fileName || 'Click to choose a file'"></span>
+                <span class="mt-1 text-xs text-slate-500">PDF, image or office document</span>
+                <span class="sr-only">{{ form.file }}</span>
+            </label>
+            {% for e in form.file.errors %}<p class="form-error">{{ e }}</p>{% endfor %}
+        </div>
+        {% include "components/form_field.html" with field=form.notes %}
+    </div>
+    <div class="card-footer">
+        <a href="{% if order_type == 'export' %}{% url 'foreign_trade:export_order_detail' order.pk %}{% else %}{% url 'foreign_trade:import_order_detail' order.pk %}{% endif %}" class="btn btn-secondary">Cancel</a>
+        <button type="submit" class="btn btn-primary">{% icon "upload" %} Upload</button>
+    </div>
+</form>
+{% endblock %}

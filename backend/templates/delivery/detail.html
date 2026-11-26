@@ -1,0 +1,9 @@
+{% extends "base.html" %}
+
+{% block title %}{{ delivery.delivery_number }}{% endblock %}
+{% block breadcrumb_extra %}<li class="text-slate-300" aria-hidden="true">/</li><li class="truncate font-medium text-slate-900">{{ delivery.delivery_number }}</li>{% endblock %}
+{% block page_header %}{% endblock %}
+
+{% block content %}
+{% include "delivery/partials/delivery_card.html" %}
+{% endblock %}

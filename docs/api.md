@@ -1,6 +1,77 @@
 # API Documentation
 
-The Mini ERP System primarily utilizes server-side rendered templates combined with HTMX. However, it exposes specific API endpoints to facilitate advanced features like the Voice Assistant.
+Every REST endpoint lives under **`/api/`**. The Next.js frontend proxies
+`/api/*` to the Django backend, so the browser treats the API as same-origin.
+
+- **OpenAPI schema:** `GET /api/schema/` (login required). Generate it offline with
+  `python manage.py spectacular --file schema.yaml` (from `backend/`), e.g. for
+  TypeScript codegen with `openapi-typescript`.
+- **Interactive docs:** `GET /api/docs/` (Swagger UI, login required).
+
+## Conventions
+
+**Authentication: session cookie + CSRF.**
+1. `GET /api/auth/csrf/` once; it sets the `csrftoken` cookie.
+2. `POST /api/auth/login/` with `{"email", "password"}` and header `X-CSRFToken: <csrftoken>`.
+3. Send `X-CSRFToken` on every `POST`/`PUT`/`PATCH` request after that.
+
+In production the frontend's origin must be listed in `CSRF_TRUSTED_ORIGINS`
+on the backend, or Django rejects the request (403).
+
+**Permissions.** Every endpoint requires login, and most also check the user's
+role (same rules as the sidebar and HTML pages). `GET /api/auth/me/` returns
+`modules`, the list of modules the user can open; use it to build navigation.
+`ADMIN` can access everything.
+
+**Errors.** `400` with `{"detail": "..."}` for business-rule violations (for example,
+"Only DRAFT orders can be edited."), or `{"<field>": ["..."]}` for validation
+errors. `403` means not logged in or role not allowed. `429` means the request was
+rate-limited (login/signup: 10 per minute per IP by default).
+
+**Lists** are paginated with `?limit=&offset=` and return
+`{"count", "next", "previous", "results"}`. Small lookup lists (roles,
+countries, currencies, incoterms, invoices) are returned as plain arrays.
+
+**No hard deletes.** Records are cancelled or deactivated through actions or
+`PATCH {"is_active": false}`; `DELETE` returns `405`.
+
+## Endpoints
+
+| Area | Endpoint | Methods | Notes |
+|---|---|---|---|
+| Auth | `auth/csrf/` | GET | Sets CSRF cookie |
+| | `auth/login/`, `auth/logout/` | POST | |
+| | `auth/me/` | GET | Current user + `modules` |
+| | `auth/signup/` → `auth/signup/verify/` | POST | Emails a 6-digit code; `resend/` for a new one |
+| Users | `users/` | GET | `?search=&role=&is_active=` (Admin/Owner) |
+| | `users/{id}/activate/`, `deactivate/`, `change-role/` | POST | Not on your own account |
+| | `users/roles/` | GET | Role choices |
+| Products | `products/`, `categories/` | GET POST PUT PATCH | `products/{id}/stock/` |
+| Purchase | `vendors/`, `purchase-orders/` | GET POST PUT PATCH | `confirm/`, `receive/`, `cancel/` actions |
+| Sales | `sales-orders/` | GET POST PUT PATCH | `confirm/`, `deliver/`, `cancel/` actions |
+| Inventory | `inventory/stock/` | GET | `?search=&category=&stock=low_stock\|out_of_stock` |
+| | `inventory/stock/summary/` | GET | Totals, stock value, low/out-of-stock counts |
+| | `inventory/ledger/` | GET | `?product=&entry_type=&reference=` |
+| | `inventory/adjustments/` | POST | `{"product", "adjustment_type": "RECEIPT"\|"ISSUE", "quantity", "reference"}` |
+| Delivery | `deliveries/` | GET POST | POST `{"sales_order", "lines"?}`; omit `lines` to deliver all pending |
+| | `deliveries/{id}/dispatch/`, `deliver/` | POST | Dispatch: Admin/Owner/Inventory Manager |
+| Procurement | `procurement/triggers/` | GET | `?status=`; `summary/` for counts |
+| Manufacturing | `work-centers/`, `boms/`, `manufacturing-orders/`, `work-orders/` | GET POST PUT PATCH | MO: `confirm/ start/ produce/ cancel/`; WO: `start/ complete/`; BOM: `cost/` |
+| Reports | `reports/` | GET | Overview + catalogue of reports |
+| | `reports/{category}/{type}/` | GET | JSON `{columns, rows}`; add `?format=csv` to download |
+| Dashboard | `dashboard/summary/`, `dashboard/analytics/`, `dashboard/alerts/` | GET | |
+| Audit | `audit-logs/` | GET | Filterable audit trail |
+| Trade | `trade/exports/` | GET POST PUT PATCH | `confirm/ ship/ deliver/ cancel/`; `invoices/` (GET, POST); edits only while DRAFT |
+| | `trade/imports/` | GET POST PUT PATCH | `confirm/ transit/ customs/ receive/ cancel/` |
+| | `trade/documents/` | GET POST | POST is multipart upload (pdf/doc/docx/jpg/png/xls/xlsx, ≤10 MB); `{id}/verify/` |
+| | `trade/shipments/` | GET | |
+| | `trade/customers/`, `trade/suppliers/` | GET POST PUT PATCH | `?search=` |
+| | `trade/countries/`, `trade/currencies/`, `trade/incoterms/` | GET | Reference data |
+| Blockchain | `blockchain/documents/`, `blockchain/audit-logs/` | GET | |
+| Voice | `voice/assistant/`, `voice/extract/` | POST | See below |
+
+Reports available: `sales/{daily,monthly,customer}`, `purchase/{summary,vendor}`,
+`manufacturing/{efficiency,consumption}`, `inventory/{ledger,valuation,low_stock}`.
 
 ## Voice Assistant API
 

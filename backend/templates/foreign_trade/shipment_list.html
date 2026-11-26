@@ -1,0 +1,43 @@
+{% extends "base.html" %}
+{% load ui %}
+
+{% block title %}Shipments{% endblock %}
+{% block page_title %}Shipments{% endblock %}
+{% block page_description %}Export and import consignments with carrier and tracking details.{% endblock %}
+
+{% block content %}
+{% include "foreign_trade/partials/trade_subnav.html" with active="shipments" %}
+<div class="card overflow-hidden">
+    <form method="get" class="filter-bar">
+        <select name="status" class="sm:w-48" aria-label="Status" onchange="this.form.submit()">
+            <option value="">All statuses</option>
+            {% for value, label in shipment_status_choices %}<option value="{{ value }}" {% if request.GET.status == value %}selected{% endif %}>{{ label }}</option>{% endfor %}
+        </select>
+        <noscript><button class="btn btn-secondary">Apply</button></noscript>
+        {% if request.GET.status %}<a href="{% url 'foreign_trade:shipment_list' %}" class="btn btn-ghost btn-sm">{% icon "x" %} Clear</a>{% endif %}
+    </form>
+    {% if shipments %}
+    <div class="table-wrap">
+        <table class="table">
+            <thead><tr><th>Shipment</th><th>Order</th><th class="hidden md:table-cell">Carrier</th><th class="hidden lg:table-cell">Route</th><th class="hidden sm:table-cell">Departure</th><th>Status</th><th class="w-px"></th></tr></thead>
+            <tbody>
+                {% for s in shipments %}
+                <tr>
+                    <td><a href="{% url 'foreign_trade:shipment_detail' s.pk %}" class="font-mono text-[13px] font-medium text-slate-900 hover:text-brand-600">{{ s.shipment_number }}</a>{% if s.tracking_number %}<p class="cell-sub">#{{ s.tracking_number }}</p>{% endif %}</td>
+                    <td>{% with o=s.related_order %}{% if o %}<span class="font-mono text-[13px]">{{ o.order_number }}</span><p class="cell-sub">{% if s.content_type.model == "exportorder" %}Export{% else %}Import{% endif %}</p>{% else %}—{% endif %}{% endwith %}</td>
+                    <td class="hidden md:table-cell">{{ s.carrier|default:"—" }}{% if s.vessel_name %}<p class="cell-sub">{{ s.vessel_name }}</p>{% endif %}</td>
+                    <td class="hidden text-slate-600 lg:table-cell">{{ s.port_of_loading|default:"—" }} → {{ s.port_of_destination|default:"—" }}</td>
+                    <td class="hidden whitespace-nowrap text-slate-500 sm:table-cell">{{ s.departure_date|date:"d M Y"|default:"—" }}</td>
+                    <td>{% status_badge s.status s.get_status_display %}</td>
+                    <td><a href="{% url 'foreign_trade:shipment_detail' s.pk %}" class="btn btn-ghost btn-icon btn-sm"><span class="sr-only">Open</span>{% icon "chevron-right" %}</a></td>
+                </tr>
+                {% endfor %}
+            </tbody>
+        </table>
+    </div>
+    {% include "components/pagination.html" %}
+    {% else %}
+    {% include "components/empty_state.html" with icon="ship" title="No shipments" text="Shipments are created when an export order is shipped." %}
+    {% endif %}
+</div>
+{% endblock %}

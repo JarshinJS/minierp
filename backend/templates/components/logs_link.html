@@ -1,0 +1,1 @@
+{% load ui %}<a href="{% url 'audit_logs:list' %}?record_type={{ record_type|urlencode }}&record_id={{ record_id|urlencode }}" class="btn btn-secondary btn-sm">{% icon "history" %}{{ label|default:"Activity log" }}</a>

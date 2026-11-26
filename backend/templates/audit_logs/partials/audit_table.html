@@ -1,0 +1,75 @@
+{% load ui %}
+<div id="audit-table-wrapper" class="card overflow-hidden">
+    <form method="get" hx-get="{% url 'audit_logs:list' %}" hx-target="#audit-table-wrapper" hx-swap="outerHTML" hx-push-url="true"
+          hx-trigger="change, submit" hx-indicator="#audit-table-wrapper"
+          class="grid grid-cols-1 gap-3 border-b border-slate-200 p-4 sm:grid-cols-2 lg:grid-cols-6">
+        <select name="module" aria-label="Module">
+            <option value="">All modules</option>
+            {% for m in module_choices %}<option value="{{ m }}" {% if request.GET.module == m %}selected{% endif %}>{{ m|title }}</option>{% endfor %}
+        </select>
+        <select name="action" aria-label="Action">
+            <option value="">All actions</option>
+            {% for value, label in action_choices %}<option value="{{ value }}" {% if request.GET.action == value %}selected{% endif %}>{{ label }}</option>{% endfor %}
+        </select>
+        <select name="record_type" aria-label="Record type">
+            <option value="">All record types</option>
+            {% for r in record_type_choices %}<option value="{{ r }}" {% if request.GET.record_type == r %}selected{% endif %}>{{ r }}</option>{% endfor %}
+        </select>
+        <select name="user" aria-label="User">
+            <option value="">All users</option>
+            {% for u in user_choices %}<option value="{{ u.pk }}" {% if request.GET.user == u.pk|stringformat:"s" %}selected{% endif %}>{{ u.full_name|default:u.email }}</option>{% endfor %}
+        </select>
+        <input type="date" name="date_from" value="{{ request.GET.date_from }}" aria-label="From date" title="From date">
+        <input type="date" name="date_to" value="{{ request.GET.date_to }}" aria-label="To date" title="To date">
+        {% if request.GET.record_id %}<input type="hidden" name="record_id" value="{{ request.GET.record_id }}">{% endif %}
+        {% if request.GET.module or request.GET.action or request.GET.record_type or request.GET.user or request.GET.date_from or request.GET.date_to or request.GET.record_id %}
+        <div class="flex flex-wrap items-center gap-2 sm:col-span-2 lg:col-span-6">
+            {% if request.GET.record_id %}<span class="badge badge-indigo badge-plain">Single record: <span class="font-mono">{{ request.GET.record_id|truncatechars:13 }}</span></span>{% endif %}
+            <a href="{% url 'audit_logs:list' %}" class="btn btn-ghost btn-sm">{% icon "x" %} Clear all filters</a>
+        </div>
+        {% endif %}
+    </form>
+
+    <div class="transition-opacity [.htmx-request_&]:opacity-60">
+    {% if audit_logs %}
+    <div class="table-wrap">
+        <table class="table">
+            <thead><tr><th>When</th><th>User</th><th>Action</th><th>Record</th><th class="hidden lg:table-cell">Change</th></tr></thead>
+            <tbody>
+                {% for log in audit_logs %}
+                <tr class="align-top">
+                    <td class="whitespace-nowrap text-slate-500">{{ log.timestamp|date:"d M Y" }}<p class="cell-sub">{{ log.timestamp|date:"H:i:s" }}</p></td>
+                    <td>
+                        <div class="flex items-center gap-2">
+                            <span class="flex h-7 w-7 shrink-0 items-center justify-center rounded-full bg-slate-100 text-2xs font-semibold text-slate-600">{{ log.user.full_name|default:"System"|initials }}</span>
+                            <span class="whitespace-nowrap">{{ log.user.full_name|default:"System" }}</span>
+                        </div>
+                    </td>
+                    <td>{% status_badge log.action log.get_action_display %}</td>
+                    <td><p class="cell-primary">{{ log.record_type }}</p><p class="cell-sub">{{ log.module|title }} · <span class="font-mono">{{ log.record_id|stringformat:"s"|truncatechars:13 }}</span></p></td>
+                    <td class="hidden max-w-md lg:table-cell">
+                        {% if log.field_changed %}
+                        <p class="text-xs font-medium text-slate-500">{{ log.field_changed }}</p>
+                        <p class="mt-0.5 break-words text-sm"><span class="text-red-600 line-through decoration-red-300">{{ log.old_value|default:"∅"|truncatechars:80 }}</span> <span class="text-slate-400">→</span> <span class="text-emerald-700">{{ log.new_value|default:"∅"|truncatechars:80 }}</span></p>
+                        {% else %}<span class="text-slate-400">—</span>{% endif %}
+                    </td>
+                </tr>
+                {% endfor %}
+            </tbody>
+        </table>
+    </div>
+    {% if is_paginated %}
+    <nav class="pagination" aria-label="Pagination">
+        <p>Showing <span class="font-medium text-slate-700">{{ page_obj.start_index }}–{{ page_obj.end_index }}</span> of <span class="font-medium text-slate-700">{{ paginator.count }}</span></p>
+        <div class="flex items-center gap-1">
+            {% if page_obj.has_previous %}<a href="{% querystring page=page_obj.previous_page_number %}" hx-get="{% querystring page=page_obj.previous_page_number %}" hx-target="#audit-table-wrapper" hx-swap="outerHTML" hx-push-url="true" class="btn btn-secondary btn-sm">{% icon "chevron-left" %} Previous</a>{% endif %}
+            <span class="px-2 text-xs">Page {{ page_obj.number }} of {{ paginator.num_pages }}</span>
+            {% if page_obj.has_next %}<a href="{% querystring page=page_obj.next_page_number %}" hx-get="{% querystring page=page_obj.next_page_number %}" hx-target="#audit-table-wrapper" hx-swap="outerHTML" hx-push-url="true" class="btn btn-secondary btn-sm">Next {% icon "chevron-right" %}</a>{% endif %}
+        </div>
+    </nav>
+    {% endif %}
+    {% else %}
+    {% include "components/empty_state.html" with icon="history" title="No audit entries" text="No activity matches these filters." %}
+    {% endif %}
+    </div>
+</div>

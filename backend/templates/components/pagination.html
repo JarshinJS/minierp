@@ -1,0 +1,20 @@
+{% comment %}Requires a paginated ListView (page_obj, paginator, is_paginated). Preserves filters via {% querystring %}.{% endcomment %}
+{% load ui %}
+{% if is_paginated %}
+<nav class="pagination" aria-label="Pagination">
+    <p>Showing <span class="font-medium text-slate-700">{{ page_obj.start_index }}–{{ page_obj.end_index }}</span> of <span class="font-medium text-slate-700">{{ paginator.count }}</span></p>
+    <div class="flex items-center gap-1">
+        {% if page_obj.has_previous %}
+        <a href="{% querystring page=page_obj.previous_page_number %}" class="btn btn-secondary btn-sm">{% icon "chevron-left" %}<span class="hidden sm:inline">Previous</span></a>
+        {% else %}
+        <span class="btn btn-secondary btn-sm pointer-events-none opacity-50">{% icon "chevron-left" %}<span class="hidden sm:inline">Previous</span></span>
+        {% endif %}
+        <span class="px-2 text-xs text-slate-500">Page {{ page_obj.number }} of {{ paginator.num_pages }}</span>
+        {% if page_obj.has_next %}
+        <a href="{% querystring page=page_obj.next_page_number %}" class="btn btn-secondary btn-sm"><span class="hidden sm:inline">Next</span>{% icon "chevron-right" %}</a>
+        {% else %}
+        <span class="btn btn-secondary btn-sm pointer-events-none opacity-50"><span class="hidden sm:inline">Next</span>{% icon "chevron-right" %}</span>
+        {% endif %}
+    </div>
+</nav>
+{% endif %}

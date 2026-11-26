@@ -1,0 +1,360 @@
+{% load static navigation ui %}<!DOCTYPE html>
+<html lang="en" class="h-full">
+
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <meta name="color-scheme" content="light">
+    <script>try { if (localStorage.getItem("erp.sidebarCollapsed") === "1") document.documentElement.classList.add("sb-collapsed"); } catch (e) {}</script>
+    <title>{% block title %}MiniERP{% endblock %} · Shiv Furniture Works</title>
+
+    <link rel="preconnect" href="https://fonts.googleapis.com">
+    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+    <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&display=swap" rel="stylesheet">
+
+    <link rel="stylesheet" href="{% static 'css/dist/styles.css' %}">
+
+    <!-- Alpine components must register before Alpine starts -->
+    <script src="{% static 'js/line_formset.js' %}"></script>
+    <!-- Alpine.js (pinned) -->
+    <script defer src="https://cdn.jsdelivr.net/npm/alpinejs@3.14.1/dist/cdn.min.js"></script>
+    <!-- HTMX -->
+    <script src="https://unpkg.com/htmx.org@1.9.12"
+        integrity="sha384-ujb1lZYygJmzgSwoxRggbCHcjc0rB2XoQrxeTUQyRjrOnlCoYta87iKBWq3EsdM2"
+        crossorigin="anonymous"></script>
+    <script src="https://unpkg.com/htmx.org@1.9.12/dist/ext/sse.js"></script>
+
+    {% block extra_head %}{% endblock %}
+</head>
+
+<body class="h-full font-sans antialiased {% block body_class %}{% if request.user.is_authenticated %}bg-slate-50 text-slate-900{% else %}bg-slate-50 text-slate-900{% endif %}{% endblock %}"
+    hx-headers='{"X-CSRFToken": "{{ csrf_token }}"}'
+    x-data="erpApp()"
+    @keydown.escape.window="mobileNav = false; confirm.open && cancelConfirm()"
+    @htmx:response-error.window="onHtmxError($event)"
+    @htmx:send-error.window="showToast('Network error — check your connection and try again.', 'error')"
+    @toast.window="showToast($event.detail.message, $event.detail.type)">
+
+    <a href="#main-content" class="sr-only focus:not-sr-only focus:fixed focus:left-4 focus:top-4 focus:z-[80] focus:rounded-lg focus:bg-white focus:px-4 focus:py-2 focus:shadow-pop">Skip to content</a>
+
+    <!-- HTMX request progress bar -->
+    <div id="page-progress" class="fixed inset-x-0 top-0 z-[70] h-0.5 bg-brand-500 transition-opacity duration-300" aria-hidden="true"></div>
+
+    <!-- Toasts -->
+    <div class="pointer-events-none fixed inset-x-0 top-3 z-[75] flex justify-center px-4 sm:justify-end sm:top-4" aria-live="polite" role="status">
+        <div class="w-full max-w-sm space-y-2">
+            <template x-for="toast in toasts" :key="toast.id">
+                <div x-show="toast.visible" x-transition.opacity.duration.200ms
+                    class="pointer-events-auto flex items-start gap-3 rounded-lg border bg-white p-3.5 pr-3 text-sm shadow-pop"
+                    :class="{ 'border-red-200': toast.type === 'error', 'border-emerald-200': toast.type === 'success', 'border-slate-200': toast.type === 'info' }">
+                    <span class="mt-0.5 shrink-0" :class="{ 'text-red-500': toast.type === 'error', 'text-emerald-500': toast.type === 'success', 'text-brand-500': toast.type === 'info' }">
+                        <template x-if="toast.type === 'error'"><span>{% icon "x-circle" %}</span></template>
+                        <template x-if="toast.type === 'success'"><span>{% icon "check-circle" %}</span></template>
+                        <template x-if="toast.type === 'info'"><span>{% icon "info" %}</span></template>
+                    </span>
+                    <p class="min-w-0 flex-1 leading-5 text-slate-700" x-text="toast.message"></p>
+                    <button type="button" @click="toast.visible = false" class="-m-1 rounded p-1 text-slate-400 hover:text-slate-600">
+                        <span class="sr-only">Dismiss</span>{% icon "x" "h-3.5 w-3.5" %}
+                    </button>
+                </div>
+            </template>
+        </div>
+    </div>
+
+    <!-- Confirmation dialog (used by hx-confirm and data-confirm forms) -->
+    <div x-show="confirm.open" x-cloak>
+            <div class="modal-backdrop" x-show="confirm.open" x-transition.opacity @click="cancelConfirm()"></div>
+            <div class="modal-wrap pointer-events-none">
+                <div class="modal-panel pointer-events-auto" role="alertdialog" aria-modal="true" aria-labelledby="confirm-title"
+                     x-show="confirm.open" x-transition.scale.95.duration.150ms>
+                    <div class="flex gap-4 p-5">
+                        <div class="flex h-10 w-10 shrink-0 items-center justify-center rounded-full"
+                             :class="confirm.danger ? 'bg-red-50 text-red-600' : 'bg-brand-50 text-brand-600'">
+                            {% icon "alert" "h-5 w-5" %}
+                        </div>
+                        <div class="min-w-0">
+                            <h2 id="confirm-title" class="text-base font-semibold" x-text="confirm.title"></h2>
+                            <p class="mt-1 text-sm text-slate-600" x-text="confirm.message"></p>
+                        </div>
+                    </div>
+                    <div class="flex flex-col-reverse gap-2 rounded-b-xl border-t border-slate-200 bg-slate-50 px-5 py-3 sm:flex-row sm:justify-end">
+                        <button type="button" class="btn btn-secondary" @click="cancelConfirm()">Cancel</button>
+                        <button type="button" class="btn" :class="confirm.danger ? 'btn-danger' : 'btn-primary'"
+                                @click="acceptConfirm()" x-text="confirm.action" x-ref="confirmBtn"></button>
+                    </div>
+                </div>
+            </div>
+    </div>
+
+    {% if request.user.is_authenticated %}
+    <!-- Mobile drawer backdrop -->
+    <div x-show="mobileNav" x-cloak x-transition.opacity @click="mobileNav = false"
+         class="fixed inset-0 z-40 bg-slate-900/60 lg:hidden" aria-hidden="true"></div>
+
+    <!-- Sidebar -->
+    <aside id="app-sidebar"
+        class="fixed inset-y-0 left-0 z-50 flex w-64 flex-col bg-navy-900 text-slate-300 -translate-x-full transition-[transform,width] duration-200 ease-out lg:translate-x-0"
+        :class="{ '!translate-x-0': mobileNav }"
+        aria-label="Sidebar">
+        <div class="flex h-14 shrink-0 items-center gap-2.5 border-b border-white/5 px-4">
+            <a href="{% url 'dashboard:home' %}" class="flex min-w-0 items-center gap-2.5">
+                <span class="flex h-8 w-8 shrink-0 items-center justify-center rounded-lg bg-brand-600 text-white shadow-sm">
+                    {% icon "layers" "h-4 w-4" %}
+                </span>
+                <span class="sb-hide min-w-0 leading-tight">
+                    <span class="block text-sm font-semibold text-white">MiniERP</span>
+                    <span class="block truncate text-2xs text-slate-400">Shiv Furniture Works</span>
+                </span>
+            </a>
+            <button type="button" class="ml-auto rounded-md p-1.5 text-slate-400 hover:bg-white/5 hover:text-white lg:hidden" @click="mobileNav = false">
+                <span class="sr-only">Close navigation</span>{% icon "x" %}
+            </button>
+        </div>
+
+        <div id="sidebar-scroll" class="scrollbar-thin flex flex-1 flex-col overflow-y-auto overflow-x-hidden pt-1">
+            {% render_sidebar %}
+        </div>
+
+        <div class="shrink-0 border-t border-white/5 p-3">
+            <div class="sb-center flex items-center gap-3 rounded-lg px-1.5 py-1.5">
+                <span class="flex h-8 w-8 shrink-0 items-center justify-center rounded-full bg-white/10 text-xs font-semibold text-white" title="{{ request.user.full_name }}">
+                    {{ request.user.full_name|initials }}
+                </span>
+                <div class="sb-hide min-w-0 flex-1">
+                    <p class="truncate text-[13px] font-medium text-white">{{ request.user.full_name }}</p>
+                    <p class="truncate text-2xs text-slate-400">{{ request.user.get_role_display }}</p>
+                </div>
+            </div>
+        </div>
+    </aside>
+
+    <div id="app-content" class="flex min-h-full flex-col transition-[padding] duration-200 ease-out lg:pl-64">
+        <!-- Top bar -->
+        <header class="sticky top-0 z-30 flex h-14 shrink-0 items-center gap-3 border-b border-slate-200 bg-white/90 px-4 backdrop-blur sm:px-6">
+            <button type="button" class="btn btn-ghost btn-icon btn-sm -ml-1.5 lg:hidden" @click="mobileNav = true" aria-controls="app-sidebar" :aria-expanded="mobileNav.toString()">
+                <span class="sr-only">Open navigation</span>{% icon "menu" "h-5 w-5" %}
+            </button>
+            <button type="button" class="btn btn-ghost btn-icon btn-sm -ml-1.5 hidden lg:inline-flex" @click="toggleCollapsed()"
+                    :title="collapsed ? 'Expand sidebar' : 'Collapse sidebar'">
+                <span class="sr-only">Toggle sidebar</span>{% icon "panel-left" %}
+            </button>
+            <div class="hidden h-5 w-px bg-slate-200 sm:block"></div>
+
+            <!-- Breadcrumbs -->
+            <nav aria-label="Breadcrumb" class="min-w-0 flex-1">
+                <ol class="flex min-w-0 items-center gap-1.5 text-sm">
+                    {% nav_breadcrumbs as crumbs %}
+                    <li class="hidden sm:block"><a href="{% url 'dashboard:home' %}" class="text-slate-500 hover:text-slate-900">Home</a></li>
+                    {% for crumb in crumbs %}
+                    {% if crumb.name != "Dashboard" %}
+                    <li class="hidden text-slate-300 sm:block" aria-hidden="true">/</li>
+                    <li class="min-w-0 {% if not forloop.last %}hidden sm:block{% endif %}">
+                        <a href="{{ crumb.url }}" class="block truncate {% if forloop.last %}font-medium text-slate-900{% else %}text-slate-500 hover:text-slate-900{% endif %}">{{ crumb.name }}</a>
+                    </li>
+                    {% endif %}
+                    {% endfor %}
+                    {% block breadcrumb_extra %}{% endblock %}
+                </ol>
+            </nav>
+
+            <div class="flex shrink-0 items-center gap-1 sm:gap-2">
+                <!-- Live system status (real DB health check) -->
+                <div class="hidden md:block" hx-get="{% url 'dashboard:system_status' %}" hx-trigger="load" hx-swap="innerHTML"></div>
+
+                <!-- Operational alerts -->
+                <div class="relative" x-data="{ open: false }" @click.outside="open = false">
+                    <button type="button" class="btn btn-ghost btn-icon btn-sm relative" @click="open = !open" :aria-expanded="open.toString()" aria-haspopup="true"
+                            hx-get="{% url 'dashboard:alerts_menu' %}" hx-trigger="load, every 60s" hx-target="#alerts-menu" hx-swap="innerHTML">
+                        <span class="sr-only">Operational alerts</span>
+                        {% icon "bell" "h-[18px] w-[18px]" %}
+                        <span id="alerts-dot"></span>
+                    </button>
+                    <div x-show="open" x-cloak x-transition.opacity.duration.100ms class="dropdown-menu right-0 w-[min(22rem,calc(100vw-2rem))] p-0">
+                        <div id="alerts-menu">
+                            <div class="space-y-2 p-4"><div class="skeleton h-3 w-1/2"></div><div class="skeleton h-3 w-3/4"></div></div>
+                        </div>
+                    </div>
+                </div>
+
+                <!-- User menu -->
+                <div class="relative" x-data="{ open: false }" @click.outside="open = false">
+                    <button type="button" class="flex items-center gap-2 rounded-lg p-1 pr-1.5 hover:bg-slate-100" @click="open = !open" :aria-expanded="open.toString()" aria-haspopup="true">
+                        <span class="flex h-7 w-7 items-center justify-center rounded-full bg-brand-600 text-2xs font-semibold text-white">{{ request.user.full_name|initials }}</span>
+                        <span class="hidden text-left leading-tight md:block">
+                            <span class="block max-w-[10rem] truncate text-[13px] font-medium text-slate-900">{{ request.user.full_name }}</span>
+                        </span>
+                        {% icon "chevron-down" "hidden h-3.5 w-3.5 text-slate-400 md:block" %}
+                    </button>
+                    <div x-show="open" x-cloak x-transition.opacity.duration.100ms class="dropdown-menu right-0 w-64" role="menu">
+                        <div class="px-2.5 pb-2 pt-1.5">
+                            <p class="truncate text-sm font-medium text-slate-900">{{ request.user.full_name }}</p>
+                            <p class="truncate text-xs text-slate-500">{{ request.user.email }}</p>
+                            <span class="badge badge-indigo badge-plain mt-2">{{ request.user.get_role_display }}</span>
+                        </div>
+                        <div class="dropdown-divider"></div>
+                        {% if request.user.role == "ADMIN" or request.user.role == "BUSINESS_OWNER" %}
+                        <a href="{% url 'accounts:user_list' %}" class="dropdown-item" role="menuitem">{% icon "users" %} Users &amp; roles</a>
+                        {% endif %}
+                        {% if request.user.is_staff %}
+                        <a href="{% url 'admin:index' %}" class="dropdown-item" role="menuitem">{% icon "settings" %} Django admin</a>
+                        {% endif %}
+                        <form action="{% url 'accounts:logout' %}" method="post">
+                            {% csrf_token %}
+                            <button type="submit" class="dropdown-item dropdown-item-danger" role="menuitem">{% icon "logout" %} Sign out</button>
+                        </form>
+                    </div>
+                </div>
+            </div>
+        </header>
+
+        <main id="main-content" class="mx-auto w-full max-w-[1440px] flex-1 px-4 py-6 sm:px-6 lg:px-8 lg:py-8">
+            {% block page_header %}
+            <div class="mb-6 flex flex-col gap-4 sm:flex-row sm:items-end sm:justify-between">
+                <div class="min-w-0">
+                    {% block page_eyebrow %}{% endblock %}
+                    <h1 class="truncate text-xl font-semibold tracking-tight sm:text-2xl">{% block page_title %}{% endblock %}</h1>
+                    <p class="mt-1 text-sm text-slate-500">{% block page_description %}{% endblock %}</p>
+                </div>
+                <div class="flex flex-wrap items-center gap-2">{% block page_actions %}{% endblock %}</div>
+            </div>
+            {% endblock %}
+
+    {% else %}
+    <main id="main-content" class="min-h-full">
+    {% endif %}
+
+            {% block content %}{% endblock %}
+
+    {% if request.user.is_authenticated %}
+        </main>
+        <footer class="border-t border-slate-200 px-4 py-4 text-center text-xs text-slate-400 sm:px-6">
+            MiniERP · Shiv Furniture Works
+        </footer>
+    </div>
+    {% else %}
+    </main>
+    {% endif %}
+
+    {% if messages %}
+    <script type="application/json" id="django-messages">[{% for m in messages %}{"message": "{{ m|escapejs }}", "type": "{% if m.level_tag == 'error' %}error{% elif m.level_tag == 'success' %}success{% else %}info{% endif %}"}{% if not forloop.last %},{% endif %}{% endfor %}]</script>
+    {% endif %}
+
+    <script>
+        function erpApp() {
+            return {
+                // Collapsed state lives on <html class="sb-collapsed"> (set before first paint) so there is no flash.
+                collapsed: document.documentElement.classList.contains("sb-collapsed"),
+                mobileNav: false,
+                toasts: [],
+                confirm: { open: false, title: "", message: "", action: "Confirm", danger: false, resolve: null },
+
+                init() {
+                    const el = document.getElementById("django-messages");
+                    if (el) { try { JSON.parse(el.textContent).forEach(m => this.showToast(m.message, m.type)); } catch (e) {} }
+                    this.wireHtmx();
+                    this.wireForms();
+                },
+                toggleCollapsed() {
+                    this.collapsed = !this.collapsed;
+                    document.documentElement.classList.toggle("sb-collapsed", this.collapsed);
+                    try { localStorage.setItem("erp.sidebarCollapsed", this.collapsed ? "1" : "0"); } catch (e) {}
+                },
+                showToast(message, type = "info") {
+                    const id = Date.now() + Math.random();
+                    this.toasts.push({ id, message: message || "An unexpected error occurred.", type: type || "info", visible: true });
+                    setTimeout(() => { const t = this.toasts.find(i => i.id === id); if (t) t.visible = false; }, type === "error" ? 7000 : 4500);
+                },
+                onHtmxError(evt) {
+                    const xhr = evt.detail.xhr;
+                    let text = (xhr && xhr.responseText) || "";
+                    // Never dump an HTML error page into a toast.
+                    if (/^\s*</.test(text)) text = "";
+                    if (text.length > 300) text = text.slice(0, 300) + "…";
+                    this.showToast(text || `Request failed (${xhr ? xhr.status : "?"}). Please try again.`, "error");
+                },
+                askConfirm({ title, message, action, danger }) {
+                    return new Promise(resolve => {
+                        this.confirm = { open: true, title: title || "Are you sure?", message: message || "", action: action || "Confirm", danger: !!danger, resolve };
+                        this.$nextTick(() => this.$refs.confirmBtn && this.$refs.confirmBtn.focus());
+                    });
+                },
+                acceptConfirm() { const r = this.confirm.resolve; this.confirm.open = false; r && r(true); },
+                cancelConfirm() { const r = this.confirm.resolve; this.confirm.open = false; r && r(false); },
+
+                confirmOptions(el, question) {
+                    const danger = el.dataset.confirmDanger !== undefined
+                        || /cancel|deactivate|delete|remove|disable/i.test(question + " " + (el.textContent || ""));
+                    return {
+                        title: el.dataset.confirmTitle || "Please confirm",
+                        message: question,
+                        action: el.dataset.confirmAction || (danger ? "Yes, continue" : "Confirm"),
+                        danger,
+                    };
+                },
+                wireHtmx() {
+                    const bar = document.getElementById("page-progress");
+                    let pending = 0;
+                    document.body.addEventListener("htmx:beforeRequest", (e) => {
+                        // Background polling should not flash the progress bar.
+                        const trig = (e.detail.elt && e.detail.elt.getAttribute("hx-trigger")) || "";
+                        if (/every|load|sse/.test(trig)) return;
+                        e.detail.requestConfig.showProgress = true;
+                        pending++; bar && bar.classList.add("is-loading");
+                    });
+                    document.body.addEventListener("htmx:afterRequest", (e) => {
+                        if (!e.detail.requestConfig || !e.detail.requestConfig.showProgress) return;
+                        pending = Math.max(0, pending - 1);
+                        if (!pending && bar) { bar.style.transform = "scaleX(1)"; setTimeout(() => { bar.classList.remove("is-loading"); bar.style.transform = ""; }, 200); }
+                    });
+                    // Replace the browser's confirm() with the design-system dialog.
+                    document.body.addEventListener("htmx:confirm", (e) => {
+                        if (!e.detail.question) return;
+                        e.preventDefault();
+                        const elt = e.detail.elt;
+                        this.askConfirm(this.confirmOptions(elt, e.detail.question)).then(ok => {
+                            if (ok) e.detail.issueRequest(true);
+                            else if (elt.tagName === "FORM") elt.reset();  // e.g. revert a changed <select>
+                        });
+                    });
+                },
+                wireForms() {
+                    // <form data-confirm="..."> or <button data-confirm="..."> on regular (non-HTMX) forms.
+                    document.addEventListener("submit", (e) => {
+                        const form = e.target;
+                        const submitter = e.submitter;
+                        const source = (submitter && submitter.dataset.confirm) ? submitter : form;
+                        const question = source.dataset ? source.dataset.confirm : null;
+                        if (!question || form.dataset.confirmed === "1") return;
+                        e.preventDefault();
+                        this.askConfirm(this.confirmOptions(source, question)).then(ok => {
+                            if (!ok) return;
+                            form.dataset.confirmed = "1";
+                            if (submitter && submitter.name) {
+                                const h = document.createElement("input");
+                                h.type = "hidden"; h.name = submitter.name; h.value = submitter.value; form.appendChild(h);
+                            }
+                            form.submit();
+                        });
+                    }, true);
+                    // Prevent double submits and show a busy state on regular form posts.
+                    document.addEventListener("submit", (e) => {
+                        if (e.defaultPrevented) return;
+                        const form = e.target;
+                        if (form.hasAttribute("hx-post") || form.hasAttribute("hx-get") || form.method.toLowerCase() === "get") return;
+                        const btn = e.submitter || form.querySelector("[type=submit]");
+                        if (btn && !btn.dataset.noBusy) {
+                            setTimeout(() => { btn.disabled = true; btn.classList.add("opacity-70"); }, 0);
+                        }
+                    });
+                },
+            };
+        }
+    </script>
+
+    {% block extra_js %}{% endblock %}
+
+    {% if request.user.is_authenticated %}
+    {% include "components/voice_mic.html" %}
+    {% endif %}
+</body>
+</html>

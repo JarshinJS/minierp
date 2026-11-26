@@ -1,0 +1,116 @@
+{% comment %}Tabs under an export/import order. Params: order, order_type ("export"/"import"), documents, shipments, invoices (export), blockchain_docs (export), audit_logs{% endcomment %}
+{% load ui %}
+<div class="card overflow-hidden" x-data="{ tab: 'documents' }">
+    <div class="flex flex-wrap items-center justify-between gap-3 border-b border-slate-200 px-4 py-3">
+        <div class="tabs max-w-full overflow-x-auto" role="tablist">
+            <button type="button" role="tab" class="tab" :class="{ 'tab-active': tab === 'documents' }" @click="tab = 'documents'">Documents <span class="text-slate-400">{{ documents|length }}</span></button>
+            <button type="button" role="tab" class="tab" :class="{ 'tab-active': tab === 'shipments' }" @click="tab = 'shipments'">Shipments <span class="text-slate-400">{{ shipments|length }}</span></button>
+            {% if order_type == "export" %}<button type="button" role="tab" class="tab" :class="{ 'tab-active': tab === 'invoices' }" @click="tab = 'invoices'">Invoices <span class="text-slate-400">{{ invoices|length }}</span></button>{% endif %}
+            <button type="button" role="tab" class="tab" :class="{ 'tab-active': tab === 'ledger' }" @click="tab = 'ledger'">Blockchain trail <span class="text-slate-400">{{ audit_logs|length }}</span></button>
+        </div>
+        {% if request.user|has_role:"ADMIN,BUSINESS_OWNER,TRADE_MANAGER,DOCUMENTATION_OFFICER,AUDITOR" %}<a href="{% url 'foreign_trade:document_history' order_type order.pk %}" class="link text-xs">Full document history</a>{% endif %}
+    </div>
+
+    <div x-show="tab === 'documents'" role="tabpanel">
+        {% if documents %}
+        <ul class="divide-y divide-slate-100">
+            {% for doc in documents %}
+            <li class="flex flex-col gap-3 px-5 py-3 sm:flex-row sm:items-center">
+                <span class="flex h-9 w-9 shrink-0 items-center justify-center rounded-lg bg-slate-100 text-slate-500">{% icon "file-text" %}</span>
+                <div class="min-w-0 flex-1">
+                    <p class="cell-primary truncate">{{ doc.title }}</p>
+                    <p class="cell-sub">{{ doc.get_document_type_display }} · v{{ doc.version }} · {{ doc.created_at|date:"d M Y" }}</p>
+                </div>
+                <div class="flex items-center gap-2">
+                    <span id="verify-result-{{ doc.pk }}">{% status_badge doc.verification_status doc.get_verification_status_display %}</span>
+                    <button type="button" class="btn btn-secondary btn-xs" hx-post="{% url 'foreign_trade:document_verify' doc.pk %}" hx-target="#verify-result-{{ doc.pk }}" hx-swap="innerHTML">{% icon "shield" %} Verify</button>
+                    {% if doc.file %}<a href="{{ doc.file.url }}" target="_blank" rel="noopener" class="btn btn-ghost btn-icon btn-sm" title="Download"><span class="sr-only">Download</span>{% icon "download" %}</a>{% endif %}
+                </div>
+            </li>
+            {% endfor %}
+        </ul>
+        {% else %}
+        {% if request.user|has_role:"ADMIN,BUSINESS_OWNER,TRADE_MANAGER,DOCUMENTATION_OFFICER" %}{% url 'foreign_trade:document_upload' order_type order.pk as upload_url %}{% endif %}
+        {% include "components/empty_state.html" with icon="file-text" title="No documents uploaded" text="Attach invoices, packing lists and certificates. Each upload is hashed for tamper checks." action_url=upload_url action_label="Upload document" %}
+        {% endif %}
+    </div>
+
+    <div x-show="tab === 'shipments'" x-cloak role="tabpanel">
+        {% if shipments %}
+        <ul class="divide-y divide-slate-100">
+            {% for shp in shipments %}
+            <li class="flex items-center gap-3 px-5 py-3">
+                <span class="flex h-9 w-9 shrink-0 items-center justify-center rounded-lg bg-slate-100 text-slate-500">{% icon "ship" %}</span>
+                <div class="min-w-0 flex-1">
+                    {% if request.user|has_role:"ADMIN,BUSINESS_OWNER,TRADE_MANAGER,DOCUMENTATION_OFFICER,AUDITOR" %}<a href="{% url 'foreign_trade:shipment_detail' shp.pk %}" class="font-mono text-[13px] font-medium hover:text-brand-600">{{ shp.shipment_number }}</a>{% else %}<span class="font-mono text-[13px] font-medium">{{ shp.shipment_number }}</span>{% endif %}
+                    <p class="cell-sub">{{ shp.carrier|default:"No carrier" }}{% if shp.vessel_name %} · {{ shp.vessel_name }}{% endif %}{% if shp.tracking_number %} · #{{ shp.tracking_number }}{% endif %}</p>
+                </div>
+                {% status_badge shp.status shp.get_status_display %}
+            </li>
+            {% endfor %}
+        </ul>
+        {% else %}
+        {% include "components/empty_state.html" with icon="ship" title="No shipments yet" text="A shipment is recorded when the order is shipped or marked in transit." %}
+        {% endif %}
+    </div>
+
+    {% if order_type == "export" %}
+    <div x-show="tab === 'invoices'" x-cloak role="tabpanel">
+        {% if invoices %}
+        <div class="table-wrap">
+            <table class="table">
+                <thead><tr><th>Invoice</th><th class="hidden sm:table-cell">Due</th><th class="num">Amount</th><th>Status</th></tr></thead>
+                <tbody>
+                    {% for inv in invoices %}
+                    <tr>
+                        <td class="font-mono text-[13px] font-medium">{{ inv.invoice_number }}</td>
+                        <td class="hidden text-slate-500 sm:table-cell">{{ inv.due_date|date:"d M Y"|default:"—" }}</td>
+                        <td class="num font-medium">{{ inv.currency.symbol }}{{ inv.amount|floatformat:"2g" }}</td>
+                        <td>{% status_badge inv.status inv.get_status_display %}</td>
+                    </tr>
+                    {% endfor %}
+                </tbody>
+            </table>
+        </div>
+        {% else %}
+        <div class="empty-state">
+            <div class="empty-state-icon">{% icon "file-text" %}</div>
+            <p class="empty-state-title">No invoices yet</p>
+            {% if order.status in "CONFIRMED,SHIPPED,DELIVERED" and request.user|has_role:"ADMIN,BUSINESS_OWNER,TRADE_MANAGER,FINANCE_MANAGER" %}
+            <a href="{% url 'foreign_trade:export_invoice_create' order.pk %}" class="btn btn-primary btn-sm mt-4">{% icon "plus" %} Generate invoice</a>
+            {% else %}<p class="empty-state-text">Invoices can be generated once the order is confirmed.</p>{% endif %}
+        </div>
+        {% endif %}
+    </div>
+    {% endif %}
+
+    <div x-show="tab === 'ledger'" x-cloak role="tabpanel">
+        {% if blockchain_docs %}
+        <div class="space-y-2 border-b border-slate-100 p-5">
+            <p class="section-title">Anchored document hashes</p>
+            {% for bc in blockchain_docs %}
+            <div class="rounded-lg border border-slate-200 bg-slate-50 p-3 font-mono text-xs">
+                <p class="font-sans text-sm font-medium text-slate-900">{{ bc.document.title }}</p>
+                <p class="mt-1 break-all text-slate-600"><span class="text-slate-400">hash</span> {{ bc.document_hash }}</p>
+                <p class="mt-0.5 break-all text-slate-600"><span class="text-slate-400">txn</span> {{ bc.blockchain_txn|default:"—" }}</p>
+                <p class="mt-0.5 text-slate-500">{{ bc.network }}{% if bc.block_number %} · block #{{ bc.block_number }}{% endif %}</p>
+            </div>
+            {% endfor %}
+        </div>
+        {% endif %}
+        {% if audit_logs %}
+        <ol class="relative space-y-4 p-5 pl-8">
+            <span class="absolute bottom-6 left-[1.6rem] top-6 w-px bg-slate-200" aria-hidden="true"></span>
+            {% for log in audit_logs %}
+            <li class="relative">
+                <span class="absolute -left-[0.6rem] top-1.5 h-2.5 w-2.5 rounded-full border-2 border-white bg-brand-500 ring-1 ring-brand-200"></span>
+                <p class="text-sm font-medium text-slate-900">{{ log.get_event_type_display }}</p>
+                <p class="text-xs text-slate-500">{{ log.created_at|date:"d M Y, H:i" }}{% if log.blockchain_txn %} · <span class="font-mono">{{ log.blockchain_txn|truncatechars:28 }}</span>{% endif %}</p>
+            </li>
+            {% endfor %}
+        </ol>
+        {% elif not blockchain_docs %}
+        {% include "components/empty_state.html" with icon="shield" title="No blockchain records yet" text="Order events and document hashes are logged here." %}
+        {% endif %}
+    </div>
+</div>

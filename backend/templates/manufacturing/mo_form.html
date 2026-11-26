@@ -1,0 +1,43 @@
+{% extends "base.html" %}
+{% load ui %}
+
+{% block title %}{{ page_title }}{% endblock %}
+{% block breadcrumb_extra %}<li class="text-slate-300" aria-hidden="true">/</li><li class="truncate font-medium text-slate-900">{% if mo %}{{ mo.reference }}{% else %}New{% endif %}</li>{% endblock %}
+{% block page_title %}{{ page_title }}{% endblock %}
+{% block page_description %}Pick the finished product and quantity. Components and operations are taken from the bill of materials when you confirm.{% endblock %}
+{% block page_actions %}
+<a href="{% if mo %}{% url 'manufacturing:mo_detail' mo.pk %}{% else %}{% url 'manufacturing:mo_list' %}{% endif %}" class="btn btn-secondary">{% icon "arrow-left" %} Back</a>
+{% endblock %}
+
+{% block content %}
+<div class="grid max-w-5xl grid-cols-1 gap-4 lg:grid-cols-3">
+<form method="post" novalidate class="card lg:col-span-2"
+      action="{% if mo %}{% url 'manufacturing:mo_edit' mo.pk %}{% else %}{% url 'manufacturing:mo_create' %}{% endif %}">
+    {% csrf_token %}
+    <div class="card-body space-y-5">
+        {% include "components/form_errors.html" %}
+        <div class="form-grid">
+            {% include "components/form_field.html" with field=form.product label="Product to manufacture" %}
+            {% include "components/form_field.html" with field=form.bom label="Bill of materials" help="Optional. Its components and operations are copied when the order is confirmed." %}
+            {% include "components/form_field.html" with field=form.qty_to_produce label="Quantity to produce" %}
+            {% include "components/form_field.html" with field=form.scheduled_date label="Scheduled date" %}
+            {% include "components/form_field.html" with field=form.notes class="sm:col-span-2" %}
+        </div>
+    </div>
+    <div class="card-footer">
+        <a href="{% if mo %}{% url 'manufacturing:mo_detail' mo.pk %}{% else %}{% url 'manufacturing:mo_list' %}{% endif %}" class="btn btn-secondary">Cancel</a>
+        <button type="submit" class="btn btn-primary">{% icon "check" %} {{ submit_label }}</button>
+    </div>
+</form>
+<aside class="card h-fit">
+    <div class="card-header"><h2 class="card-title">Order workflow</h2></div>
+    <ol class="card-body space-y-3 text-sm text-slate-600">
+        <li class="flex gap-3"><span class="badge badge-gray badge-plain">1</span><span><strong class="text-slate-900">Draft</strong> — edit freely.</span></li>
+        <li class="flex gap-3"><span class="badge badge-blue badge-plain">2</span><span><strong class="text-slate-900">Confirm</strong> — copies BOM components and work orders.</span></li>
+        <li class="flex gap-3"><span class="badge badge-indigo badge-plain">3</span><span><strong class="text-slate-900">Start</strong> — moves to In Progress.</span></li>
+        <li class="flex gap-3"><span class="badge badge-amber badge-plain">4</span><span><strong class="text-slate-900">Record production</strong> — consumes components, receives finished goods.</span></li>
+        <li class="flex gap-3"><span class="badge badge-green badge-plain">5</span><span><strong class="text-slate-900">Done</strong> — all quantities produced.</span></li>
+    </ol>
+</aside>
+</div>
+{% endblock %}

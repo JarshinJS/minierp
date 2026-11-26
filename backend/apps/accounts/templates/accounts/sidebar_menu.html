@@ -1,0 +1,37 @@
+{% load ui %}
+<nav class="flex-1 space-y-0.5 px-3 pb-4" aria-label="Main navigation">
+    {% for section in sections %}
+    <p class="nav-section">{{ section.name }}</p>
+    {% for item in section.items %}
+    {% if item.children %}
+    <div x-data="{ open: {{ item.is_active|yesno:'true,false' }} }">
+        <button type="button"
+                class="group nav-item {% if item.is_active %}nav-item-active{% endif %}"
+                :aria-expanded="open.toString()"
+                @click="collapsed && window.innerWidth >= 1024 ? window.location.href='{{ item.url }}' : open = !open">
+            {{ item.icon }}
+            <span class="sb-hide flex-1 truncate text-left">{{ item.name }}</span>
+            <span class="sb-hide transition-transform" :class="{ 'rotate-180': open }">{% icon "chevron-down" "h-3.5 w-3.5 transition-transform" %}</span>
+            <span class="nav-tooltip">{{ item.name }}</span>
+        </button>
+        <div x-show="open" x-transition.opacity.duration.150ms x-cloak class="sb-hide mt-0.5 space-y-0.5">
+            {% for child in item.children %}
+            <a href="{{ child.url }}" class="nav-sub {% if child.is_active %}nav-sub-active{% endif %}"
+               {% if child.is_active %}aria-current="page"{% endif %}>
+                <span class="mr-2.5 h-1 w-1 rounded-full {% if child.is_active %}bg-brand-400{% else %}bg-slate-600{% endif %}"></span>
+                <span class="truncate">{{ child.name }}</span>
+            </a>
+            {% endfor %}
+        </div>
+    </div>
+    {% else %}
+    <a href="{{ item.url }}" class="group nav-item {% if item.is_active %}nav-item-active{% endif %}"
+       {% if item.is_active %}aria-current="page"{% endif %}>
+        {{ item.icon }}
+        <span class="sb-hide truncate">{{ item.name }}</span>
+        <span class="nav-tooltip">{{ item.name }}</span>
+    </a>
+    {% endif %}
+    {% endfor %}
+    {% endfor %}
+</nav>

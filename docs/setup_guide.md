@@ -31,16 +31,25 @@ python -m venv .venv
 # On macOS/Linux:
 source .venv/bin/activate
 
-# Install dependencies
-pip install -r requirements.txt
+# Install dependencies (runtime + test tools)
+pip install -r backend/requirements-dev.txt
 ```
+
+> **Project layout:** the Django app lives in `backend/` (the Next.js frontend will
+> live in `frontend/`). Run every command below from inside `backend/`, and copy
+> the example environment file first:
+>
+> ```bash
+> cd backend
+> cp .env.example .env   # then set SECRET_KEY
+> ```
 
 ## 3. Frontend Assets Setup
 
 The project uses Tailwind CSS. You need to install the Node modules and compile the CSS.
 
 ```bash
-# Install Node dependencies
+# From backend/: install Node dependencies
 npm install
 
 # Build the CSS for the first time
@@ -93,3 +102,5 @@ To utilize the ERP Voice Assistant, you must have Ollama running locally.
    ```
 
 *Note: The Django application communicates with Ollama via `requests` at `http://localhost:11434`.*
+
+For deploying to Render, see [deployment.md](deployment.md).

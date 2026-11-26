@@ -1,0 +1,45 @@
+{% extends "base.html" %}
+{% load ui %}
+
+{% block title %}Documents · {{ order.order_number }}{% endblock %}
+{% block breadcrumb_extra %}<li class="text-slate-300" aria-hidden="true">/</li><li class="truncate font-medium text-slate-900">{{ order.order_number }}</li>{% endblock %}
+{% block page_title %}Document history{% endblock %}
+{% block page_description %}All versions of trade documents attached to {{ order.order_number }}, grouped by type.{% endblock %}
+{% block page_actions %}
+<a href="{% if order_type == 'export' %}{% url 'foreign_trade:export_order_detail' order.pk %}{% else %}{% url 'foreign_trade:import_order_detail' order.pk %}{% endif %}" class="btn btn-secondary">{% icon "arrow-left" %} Back to order</a>
+{% if request.user|has_role:"ADMIN,BUSINESS_OWNER,TRADE_MANAGER,DOCUMENTATION_OFFICER" %}<a href="{% url 'foreign_trade:document_upload' order_type order.pk %}" class="btn btn-primary">{% icon "upload" %} Upload document</a>{% endif %}
+{% endblock %}
+
+{% block content %}
+<div class="card overflow-hidden">
+    {% if documents %}
+    <div class="table-wrap">
+        <table class="table">
+            <thead><tr><th>Document</th><th>Type</th><th class="num">Version</th><th class="hidden md:table-cell">Uploaded</th><th>Verification</th><th class="w-px"></th></tr></thead>
+            <tbody>
+                {% regroup documents by get_document_type_display as groups %}
+                {% for group in groups %}
+                {% for doc in group.list %}
+                <tr>
+                    <td><p class="cell-primary">{{ doc.title }}</p>{% if doc.notes %}<p class="cell-sub max-w-xs truncate">{{ doc.notes }}</p>{% endif %}</td>
+                    <td>{{ group.grouper }}</td>
+                    <td class="num"><span class="badge badge-gray badge-plain">v{{ doc.version }}</span>{% if forloop.first %} <span class="badge badge-indigo badge-plain">Latest</span>{% endif %}</td>
+                    <td class="hidden whitespace-nowrap text-slate-500 md:table-cell">{{ doc.created_at|date:"d M Y, H:i" }}<p class="cell-sub">{{ doc.uploaded_by.full_name }}</p></td>
+                    <td id="verify-{{ doc.pk }}">{% status_badge doc.verification_status doc.get_verification_status_display %}</td>
+                    <td>
+                        <div class="flex justify-end gap-1">
+                            <button type="button" class="btn btn-secondary btn-xs" hx-post="{% url 'foreign_trade:document_verify' doc.pk %}" hx-target="#verify-{{ doc.pk }}" hx-swap="innerHTML">{% icon "shield" %} Verify</button>
+                            {% if doc.file %}<a href="{{ doc.file.url }}" class="btn btn-ghost btn-icon btn-sm" target="_blank" rel="noopener" title="Download"><span class="sr-only">Download</span>{% icon "download" %}</a>{% endif %}
+                        </div>
+                    </td>
+                </tr>
+                {% endfor %}
+                {% endfor %}
+            </tbody>
+        </table>
+    </div>
+    {% else %}
+    {% include "components/empty_state.html" with icon="file-text" title="No documents yet" text="Upload commercial invoices, packing lists and certificates for this order." %}
+    {% endif %}
+</div>
+{% endblock %}

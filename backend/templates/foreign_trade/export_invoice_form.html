@@ -1,0 +1,26 @@
+{% extends "base.html" %}
+{% load ui %}
+
+{% block title %}Generate invoice · {{ order.order_number }}{% endblock %}
+{% block breadcrumb_extra %}<li class="text-slate-300" aria-hidden="true">/</li><li class="truncate font-medium text-slate-900">{{ order.order_number }}</li>{% endblock %}
+{% block page_title %}Generate invoice{% endblock %}
+{% block page_description %}Commercial invoice for export order {{ order.order_number }} · {{ order.customer.name }}{% endblock %}
+{% block page_actions %}<a href="{% url 'foreign_trade:export_order_detail' order.pk %}" class="btn btn-secondary">{% icon "arrow-left" %} Back to order</a>{% endblock %}
+
+{% block content %}
+<form method="post" novalidate class="card max-w-2xl">
+    {% csrf_token %}
+    <div class="card-body space-y-5">
+        {% include "components/form_errors.html" %}
+        <div class="form-grid">
+            {% include "components/form_field.html" with field=form.amount label="Invoice amount ("|add:order.currency.code|add:")" help="Defaults to the order total." %}
+            {% include "components/form_field.html" with field=form.due_date label="Due date" %}
+            {% include "components/form_field.html" with field=form.notes class="sm:col-span-2" %}
+        </div>
+    </div>
+    <div class="card-footer">
+        <a href="{% url 'foreign_trade:export_order_detail' order.pk %}" class="btn btn-secondary">Cancel</a>
+        <button type="submit" class="btn btn-primary">{% icon "file-check" %} Generate invoice</button>
+    </div>
+</form>
+{% endblock %}

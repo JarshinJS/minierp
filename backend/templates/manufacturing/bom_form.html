@@ -1,0 +1,298 @@
+{% extends "base.html" %}
+{% load ui %}
+
+{% block title %}{{ page_title }}{% endblock %}
+
+{% block extra_head %}
+<style>
+  .dyn-row-enter { animation: fadeSlideIn 0.2s ease-out; }
+  @keyframes fadeSlideIn {
+    from { opacity: 0; transform: translateY(-6px); }
+    to   { opacity: 1; transform: translateY(0); }
+  }
+</style>
+{% endblock %}
+
+{% block breadcrumb_extra %}<li class="text-slate-300" aria-hidden="true">/</li><li class="truncate font-medium text-slate-900">{% if bom %}{{ bom.reference }}{% else %}New{% endif %}</li>{% endblock %}
+{% block page_title %}{{ page_title }}{% endblock %}
+{% block page_description %}Fill in the header, then add the materials consumed and the operations performed.{% endblock %}
+{% block page_actions %}<a href="{% url 'manufacturing:bom_list' %}" class="btn btn-secondary">{% icon "arrow-left" %} Back</a>{% endblock %}
+
+{% block content %}
+<div class="max-w-5xl space-y-4">
+  <!-- Alpine.js Root -->
+  <form id="bom-form" method="POST"
+        action="{% if bom %}{% url 'manufacturing:bom_edit' bom.pk %}{% else %}{% url 'manufacturing:bom_create' %}{% endif %}"
+        x-data="bomForm()"
+        @submit="serializeRows" class="space-y-4">
+
+    {% csrf_token %}
+    <!-- Hidden JSON fields populated on submit by Alpine -->
+    <input type="hidden" name="components_json" x-ref="componentsJson">
+    <input type="hidden" name="operations_json" x-ref="operationsJson">
+
+    <!-- ================================================================
+         SECTION 1: BOM Header
+    ================================================================ -->
+    <div class="card overflow-hidden">
+      <div class="card-header">
+        <h2 class="card-title">BOM Header</h2>
+      </div>
+      <div class="card-body space-y-5">
+
+        {% include "components/form_errors.html" %}
+
+        <!-- Name + Reference -->
+        <div class="form-grid">
+          <div>
+            <label for="{{ form.name.id_for_label }}" class="form-label">BOM Name</label>
+            <div class="mt-1">{{ form.name }}</div>
+            {% if form.name.errors %}<p class="mt-1 text-xs text-red-600">{{ form.name.errors.0 }}</p>{% endif %}
+          </div>
+          <div>
+            <label for="{{ form.reference.id_for_label }}" class="form-label">Reference Code</label>
+            <div class="mt-1">{{ form.reference }}</div>
+            {% if form.reference.errors %}<p class="mt-1 text-xs text-red-600">{{ form.reference.errors.0 }}</p>{% endif %}
+          </div>
+        </div>
+
+        <!-- Product + Qty -->
+        <div class="form-grid">
+          <div>
+            <label for="{{ form.product.id_for_label }}" class="form-label">Finished Product</label>
+            <div class="mt-1">{{ form.product }}</div>
+            {% if form.product.errors %}<p class="mt-1 text-xs text-red-600">{{ form.product.errors.0 }}</p>{% endif %}
+            <p class="mt-1 text-xs text-slate-400">Leave blank for generic templates.</p>
+          </div>
+          <div>
+            <label for="{{ form.product_qty.id_for_label }}" class="form-label">Qty Produced</label>
+            <div class="mt-1">{{ form.product_qty }}</div>
+            {% if form.product_qty.errors %}<p class="mt-1 text-xs text-red-600">{{ form.product_qty.errors.0 }}</p>{% endif %}
+          </div>
+        </div>
+
+        <!-- Notes -->
+        <div>
+          <label for="{{ form.notes.id_for_label }}" class="form-label">Notes <span class="font-normal text-slate-400">(optional)</span></label>
+          <div class="mt-1">{{ form.notes }}</div>
+        </div>
+
+      </div>
+    </div>
+
+    <!-- ================================================================
+         SECTION 2: Components (Alpine.js dynamic rows)
+    ================================================================ -->
+    <div class="card overflow-hidden">
+      <div class="card-header">
+        <div>
+          <h2 class="card-title">Components</h2>
+          <p class="card-subtitle">Raw materials and sub-assemblies consumed by this BOM.</p>
+        </div>
+        <button type="button" @click="addComponent"
+                class="btn btn-secondary btn-sm">{% icon "plus" %}
+          Add Component
+        </button>
+      </div>
+
+      <div class="divide-y divide-slate-100">
+        <template x-for="(row, idx) in components" :key="idx">
+          <div class="dyn-row-enter grid grid-cols-6 items-end gap-3 px-5 py-4 sm:grid-cols-12">
+
+            <!-- Seq -->
+            <div class="col-span-2 sm:col-span-1">
+              <label class="mb-1 block text-xs font-medium text-slate-500">Seq</label>
+              <input type="number" x-model="row.sequence" min="1"
+                     class="w-full">
+            </div>
+
+            <!-- Component Product -->
+            <div class="col-span-6 sm:col-span-5">
+              <label class="mb-1 block text-xs font-medium text-slate-500">Component *</label>
+              <select x-model="row.component_id"
+                      class="w-full"
+                      @change="onComponentChange(idx)">
+                <option value="">— Select product —</option>
+                {% for p in products %}
+                <option value="{{ p.pk }}"
+                        data-uom="{{ p.unit_of_measure }}"
+                        data-name="{{ p.name }} ({{ p.sku }})">
+                  {{ p.name }} ({{ p.sku }})
+                </option>
+                {% endfor %}
+              </select>
+            </div>
+
+            <!-- Quantity -->
+            <div class="col-span-3 sm:col-span-2">
+              <label class="mb-1 block text-xs font-medium text-slate-500">Quantity *</label>
+              <input type="number" x-model="row.quantity" min="0.0001" step="0.0001"
+                     class="w-full">
+            </div>
+
+            <!-- UoM -->
+            <div class="col-span-3 sm:col-span-2">
+              <label class="mb-1 block text-xs font-medium text-slate-500">UoM</label>
+              <select x-model="row.uom"
+                      class="w-full">
+                <option value="PCS">PCS</option>
+                <option value="KG">KG</option>
+                <option value="M">M</option>
+                <option value="BOX">BOX</option>
+              </select>
+            </div>
+
+            <!-- Remove -->
+            <div class="col-span-3 sm:col-span-2 flex justify-end">
+              <button type="button" @click="removeComponent(idx)"
+                      class="btn btn-ghost btn-icon btn-sm text-slate-400 hover:text-red-600" title="Remove"><span class="sr-only">Remove</span>{% icon "trash" %}
+              </button>
+            </div>
+
+          </div>
+        </template>
+
+        <!-- Empty state -->
+        <div x-show="components.length === 0"
+             class="px-5 py-8 text-center text-sm text-slate-500">
+          No components added yet. Click <strong>"Add Component"</strong> to begin.
+        </div>
+      </div>
+    </div>
+
+    <!-- ================================================================
+         SECTION 3: Operations (Alpine.js dynamic rows)
+    ================================================================ -->
+    <div class="card overflow-hidden">
+      <div class="card-header">
+        <div>
+          <h2 class="card-title">Manufacturing Operations</h2>
+          <p class="card-subtitle">Work steps and routing for this BOM.</p>
+        </div>
+        <button type="button" @click="addOperation"
+                class="btn btn-secondary btn-sm">{% icon "plus" %}
+          Add Operation
+        </button>
+      </div>
+
+      <div class="divide-y divide-slate-100">
+        <template x-for="(op, idx) in operations" :key="idx">
+          <div class="dyn-row-enter grid grid-cols-6 items-end gap-3 px-5 py-4 sm:grid-cols-12">
+
+            <!-- Seq -->
+            <div class="col-span-2 sm:col-span-1">
+              <label class="mb-1 block text-xs font-medium text-slate-500">Seq</label>
+              <input type="number" x-model="op.sequence" min="1"
+                     class="w-full">
+            </div>
+
+            <!-- Work Center -->
+            <div class="col-span-6 sm:col-span-3">
+              <label class="mb-1 block text-xs font-medium text-slate-500">Work Center *</label>
+              <select x-model="op.work_center_id"
+                      class="w-full">
+                <option value="">— Select —</option>
+                {% for wc in work_centers %}
+                <option value="{{ wc.pk }}">{{ wc.name }} ({{ wc.code }})</option>
+                {% endfor %}
+              </select>
+            </div>
+
+            <!-- Operation Name -->
+            <div class="col-span-6 sm:col-span-5">
+              <label class="mb-1 block text-xs font-medium text-slate-500">Operation Name *</label>
+              <input type="text" x-model="op.name"
+                     placeholder="e.g. Cut panels to size"
+                     class="w-full">
+            </div>
+
+            <!-- Duration -->
+            <div class="col-span-3 sm:col-span-2">
+              <label class="mb-1 block text-xs font-medium text-slate-500">Duration (min)</label>
+              <input type="number" x-model="op.duration_minutes" min="0" step="0.5"
+                     class="w-full">
+            </div>
+
+            <!-- Remove -->
+            <div class="col-span-2 sm:col-span-1 flex justify-end">
+              <button type="button" @click="removeOperation(idx)"
+                      class="btn btn-ghost btn-icon btn-sm text-slate-400 hover:text-red-600" title="Remove"><span class="sr-only">Remove</span>{% icon "trash" %}
+              </button>
+            </div>
+
+          </div>
+        </template>
+
+        <div x-show="operations.length === 0"
+             class="px-5 py-8 text-center text-sm text-slate-500">
+          No operations added yet. Click <strong>"Add Operation"</strong> to define the routing.
+        </div>
+      </div>
+    </div>
+
+    <div class="form-actions border-t-0 pt-0">
+      <a href="{% url 'manufacturing:bom_list' %}" class="btn btn-secondary">Cancel</a>
+      <button type="submit" class="btn btn-primary">{% icon "check" %} {{ submit_label }}</button>
+    </div>
+
+  </form>
+</div>
+
+{{ existing_components|json_script:"bom-existing-components" }}
+{{ existing_operations|json_script:"bom-existing-operations" }}
+<script>
+function bomForm() {
+  // Pre-populate from server when editing (json_script escapes </script> etc.)
+  const existingComponents = JSON.parse(document.getElementById("bom-existing-components").textContent);
+  const existingOperations = JSON.parse(document.getElementById("bom-existing-operations").textContent);
+
+  return {
+    components: existingComponents.length
+      ? existingComponents
+      : [],
+    operations: existingOperations.length
+      ? existingOperations
+      : [],
+
+    addComponent() {
+      this.components.push({
+        component_id: '',
+        quantity: 1,
+        uom: 'PCS',
+        sequence: (this.components.length + 1) * 10,
+      });
+    },
+    removeComponent(i) {
+      this.components.splice(i, 1);
+    },
+    onComponentChange(idx) {
+      // Auto-set UoM from the selected product's data-uom attribute
+      const select = document.querySelectorAll('[x-model="row.component_id"]')[idx];
+      if (!select) return;
+      const opt = select.options[select.selectedIndex];
+      if (opt && opt.dataset.uom) {
+        this.components[idx].uom = opt.dataset.uom;
+      }
+    },
+
+    addOperation() {
+      this.operations.push({
+        work_center_id: '',
+        name: '',
+        duration_minutes: 0,
+        sequence: (this.operations.length + 1) * 10,
+      });
+    },
+    removeOperation(i) {
+      this.operations.splice(i, 1);
+    },
+
+    serializeRows(e) {
+      // Serialize Alpine state into the hidden JSON fields before submission
+      this.$refs.componentsJson.value = JSON.stringify(this.components);
+      this.$refs.operationsJson.value = JSON.stringify(this.operations);
+    },
+  };
+}
+</script>
+{% endblock %}

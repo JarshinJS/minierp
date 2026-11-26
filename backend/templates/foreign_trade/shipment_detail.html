@@ -1,0 +1,41 @@
+{% extends "base.html" %}
+{% load ui %}
+
+{% block title %}{{ shipment.shipment_number }}{% endblock %}
+{% block breadcrumb_extra %}<li class="text-slate-300" aria-hidden="true">/</li><li class="truncate font-medium text-slate-900">{{ shipment.shipment_number }}</li>{% endblock %}
+{% block page_eyebrow %}<div class="mb-1 flex items-center gap-2"><span class="text-xs text-slate-500">Shipment</span>{% status_badge shipment.status shipment.get_status_display %}</div>{% endblock %}
+{% block page_title %}<span class="font-mono">{{ shipment.shipment_number }}</span>{% endblock %}
+{% block page_description %}{{ shipment.port_of_loading|default:"Origin not set" }} → {{ shipment.port_of_destination|default:"destination not set" }}{% endblock %}
+{% block page_actions %}
+{% with o=shipment.related_order %}{% if o %}
+<a href="{% if shipment.content_type.model == 'exportorder' %}{% url 'foreign_trade:export_order_detail' o.pk %}{% else %}{% url 'foreign_trade:import_order_detail' o.pk %}{% endif %}" class="btn btn-secondary">{% icon "file-text" %} {{ o.order_number }}</a>
+{% endif %}{% endwith %}
+{% endblock %}
+
+{% block content %}
+<div class="grid grid-cols-1 gap-4 lg:grid-cols-3">
+    <div class="card lg:col-span-2">
+        <div class="card-header"><h2 class="card-title">Transport</h2></div>
+        <dl class="dl-grid card-body">
+            <div><dt>Carrier</dt><dd>{{ shipment.carrier|default:"—" }}</dd></div>
+            <div><dt>Tracking number</dt><dd class="font-mono">{{ shipment.tracking_number|default:"—" }}</dd></div>
+            <div><dt>Vessel / flight</dt><dd>{{ shipment.vessel_name|default:"—" }}</dd></div>
+            <div><dt>Status</dt><dd>{% status_badge shipment.status shipment.get_status_display %}</dd></div>
+            <div><dt>Port of loading</dt><dd>{{ shipment.port_of_loading|default:"—" }}</dd></div>
+            <div><dt>Port of destination</dt><dd>{{ shipment.port_of_destination|default:"—" }}</dd></div>
+            <div><dt>Departure</dt><dd>{{ shipment.departure_date|date:"d M Y"|default:"—" }}</dd></div>
+            <div><dt>Arrival</dt><dd>{{ shipment.arrival_date|date:"d M Y"|default:"—" }}</dd></div>
+        </dl>
+    </div>
+    <div class="space-y-4">
+        <div class="card">
+            <div class="card-header"><h2 class="card-title">Record</h2></div>
+            <dl class="card-body space-y-3 text-sm">
+                <div class="flex justify-between gap-4"><dt class="text-slate-500">Created</dt><dd>{{ shipment.created_at|date:"d M Y, H:i" }}</dd></div>
+                <div class="flex justify-between gap-4"><dt class="text-slate-500">Created by</dt><dd>{{ shipment.created_by.full_name|default:"—" }}</dd></div>
+            </dl>
+        </div>
+        {% if shipment.notes %}<div class="card"><div class="card-header"><h2 class="card-title">Notes</h2></div><p class="card-body whitespace-pre-line text-sm text-slate-600">{{ shipment.notes }}</p></div>{% endif %}
+    </div>
+</div>
+{% endblock %}

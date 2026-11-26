@@ -1,0 +1,43 @@
+{% extends "base.html" %}
+{% load ui %}
+
+{% block title %}Procurement{% endblock %}
+{% block page_title %}Procurement triggers{% endblock %}
+{% block page_description %}Stock shortages detected by the system and the purchase or manufacturing documents raised for them.{% endblock %}
+
+{% block content %}
+<div class="space-y-6">
+    <div class="grid grid-cols-2 gap-4 lg:grid-cols-4">
+        <div class="kpi"><div class="kpi-label">Queued <span class="kpi-icon bg-slate-100 text-slate-500">{% icon "clock" %}</span></div><p class="kpi-value">{{ queued_count }}</p></div>
+        <div class="kpi"><div class="kpi-label">Processing <span class="kpi-icon">{% icon "refresh" %}</span></div><p class="kpi-value">{{ processing_count }}</p></div>
+        <div class="kpi"><div class="kpi-label">Completed <span class="kpi-icon bg-emerald-50 text-emerald-600">{% icon "check-circle" %}</span></div><p class="kpi-value">{{ completed_count }}</p></div>
+        <div class="kpi"><div class="kpi-label">Failed <span class="kpi-icon {% if failed_count %}bg-red-50 text-red-600{% else %}bg-slate-100 text-slate-500{% endif %}">{% icon "x-circle" %}</span></div><p class="kpi-value {% if failed_count %}text-red-600{% endif %}">{{ failed_count }}</p></div>
+    </div>
+
+    <div class="card overflow-hidden">
+        <div class="card-header"><h2 class="card-title">Trigger history</h2></div>
+        {% if triggers %}
+        <div class="table-wrap">
+            <table class="table">
+                <thead><tr><th>Product</th><th class="num">Qty needed</th><th class="hidden md:table-cell">Reference</th><th>Document raised</th><th>Status</th><th class="hidden lg:table-cell">Created</th></tr></thead>
+                <tbody>
+                    {% for trigger in triggers %}
+                    <tr>
+                        <td><p class="cell-primary">{{ trigger.product.name }}</p><p class="cell-sub font-mono">{{ trigger.product.sku }}</p></td>
+                        <td class="num font-medium">{{ trigger.quantity_needed|floatformat:"-2" }}</td>
+                        <td class="hidden max-w-[14rem] truncate text-slate-600 md:table-cell" title="{{ trigger.reference }}">{{ trigger.reference|default:"—" }}</td>
+                        <td>{% if trigger.document_number %}<p class="font-mono text-[13px]">{{ trigger.document_number }}</p><p class="cell-sub">{{ trigger.get_document_type_display }}</p>{% else %}<span class="text-slate-400">—</span>{% endif %}</td>
+                        <td>{% status_badge trigger.status trigger.get_status_display %}</td>
+                        <td class="hidden whitespace-nowrap text-slate-500 lg:table-cell">{{ trigger.created_at|date:"d M Y, H:i" }}</td>
+                    </tr>
+                    {% endfor %}
+                </tbody>
+            </table>
+        </div>
+        {% include "components/pagination.html" %}
+        {% else %}
+        {% include "components/empty_state.html" with icon="clipboard" title="No procurement triggers yet" text="When an order needs more stock than is available for a product set to procure on demand, a trigger appears here." %}
+        {% endif %}
+    </div>
+</div>
+{% endblock %}

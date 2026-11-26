@@ -1,0 +1,76 @@
+{% load ui %}
+<div id="delivery-card" class="space-y-6">
+    <div class="flex flex-col gap-4 sm:flex-row sm:items-end sm:justify-between">
+        <div class="min-w-0">
+            <p class="mb-1 text-xs font-medium text-slate-500">Delivery note</p>
+            <div class="flex flex-wrap items-center gap-3">
+                <h1 class="font-mono text-xl font-semibold tracking-tight sm:text-2xl">{{ delivery.delivery_number }}</h1>
+                {% status_badge delivery.status delivery.get_status_display %}
+            </div>
+            <p class="mt-1 text-sm text-slate-500">For <a href="{% url 'sales:sales_order_detail' delivery.sales_order.pk %}" class="link font-mono">{{ delivery.sales_order.order_number }}</a> · {{ delivery.sales_order.customer_name }}</p>
+        </div>
+        <div class="flex flex-wrap gap-2">
+            {% if delivery.status == "PENDING" %}
+            <button class="btn btn-primary" hx-post="{% url 'delivery:dispatch' delivery.pk %}" hx-target="#delivery-card" hx-swap="outerHTML"
+                    hx-confirm="Dispatch {{ delivery.delivery_number }}? Stock will be issued from inventory." data-confirm-title="Dispatch shipment" data-confirm-action="Dispatch">{% icon "send" %} Dispatch shipment</button>
+            {% elif delivery.status == "DISPATCHED" %}
+            <button class="btn btn-success" hx-post="{% url 'delivery:deliver' delivery.pk %}" hx-target="#delivery-card" hx-swap="outerHTML"
+                    hx-confirm="Mark {{ delivery.delivery_number }} as delivered to the customer?" data-confirm-title="Confirm delivery" data-confirm-action="Mark delivered">{% icon "package-check" %} Mark as delivered</button>
+            {% endif %}
+        </div>
+    </div>
+
+    <!-- Status stepper -->
+    <ol class="card grid grid-cols-3 divide-x divide-slate-100 overflow-hidden text-sm" aria-label="Delivery progress">
+        {% with s=delivery.status %}
+        <li class="flex items-center gap-3 px-4 py-3">
+            <span class="flex h-7 w-7 shrink-0 items-center justify-center rounded-full bg-emerald-500 text-white">{% icon "check" "h-3.5 w-3.5" %}</span>
+            <div class="min-w-0"><p class="font-medium">Created</p><p class="truncate text-xs text-slate-500">{{ delivery.created_at|date:"d M, H:i" }}</p></div>
+        </li>
+        <li class="flex items-center gap-3 px-4 py-3">
+            <span class="flex h-7 w-7 shrink-0 items-center justify-center rounded-full {% if s == 'DISPATCHED' or s == 'DELIVERED' %}bg-emerald-500 text-white{% else %}border-2 border-brand-500 text-brand-600{% endif %}">{% if s == 'DISPATCHED' or s == 'DELIVERED' %}{% icon "check" "h-3.5 w-3.5" %}{% else %}<span class="text-xs font-semibold">2</span>{% endif %}</span>
+            <div class="min-w-0"><p class="font-medium">Dispatched</p><p class="truncate text-xs text-slate-500">{{ delivery.dispatch_date|date:"d M, H:i"|default:"Awaiting dispatch" }}</p></div>
+        </li>
+        <li class="flex items-center gap-3 px-4 py-3">
+            <span class="flex h-7 w-7 shrink-0 items-center justify-center rounded-full {% if s == 'DELIVERED' %}bg-emerald-500 text-white{% elif s == 'DISPATCHED' %}border-2 border-brand-500 text-brand-600{% else %}border-2 border-slate-200 text-slate-400{% endif %}">{% if s == 'DELIVERED' %}{% icon "check" "h-3.5 w-3.5" %}{% else %}<span class="text-xs font-semibold">3</span>{% endif %}</span>
+            <div class="min-w-0"><p class="font-medium">Delivered</p><p class="truncate text-xs text-slate-500">{% if s == 'DELIVERED' %}Completed{% else %}Pending{% endif %}</p></div>
+        </li>
+        {% endwith %}
+    </ol>
+
+    <div class="grid grid-cols-1 gap-4 lg:grid-cols-3">
+        <div class="card overflow-hidden lg:col-span-2">
+            <div class="card-header"><h2 class="card-title">Items in this shipment</h2></div>
+            <div class="table-wrap">
+                <table class="table">
+                    <thead><tr><th>Product</th><th class="num">Quantity</th><th>Unit</th></tr></thead>
+                    <tbody>
+                        {% for line in delivery.lines.all %}
+                        <tr>
+                            <td><p class="cell-primary">{{ line.sales_order_line.product.name }}</p><p class="cell-sub font-mono">{{ line.sales_order_line.product.sku }}</p></td>
+                            <td class="num font-medium text-slate-900">{{ line.quantity|floatformat:"-2" }}</td>
+                            <td class="text-slate-500">{{ line.sales_order_line.product.get_unit_of_measure_display }}</td>
+                        </tr>
+                        {% empty %}
+                        <tr><td colspan="3" class="py-8 text-center text-slate-500">No lines on this delivery note.</td></tr>
+                        {% endfor %}
+                    </tbody>
+                </table>
+            </div>
+        </div>
+        <div class="space-y-4">
+            <div class="card">
+                <div class="card-header"><h2 class="card-title">Details</h2></div>
+                <dl class="card-body space-y-3 text-sm">
+                    <div class="flex justify-between gap-4"><dt class="text-slate-500">Customer</dt><dd class="text-right font-medium">{{ delivery.sales_order.customer_name }}</dd></div>
+                    <div class="flex justify-between gap-4"><dt class="text-slate-500">Created</dt><dd class="text-right">{{ delivery.created_at|date:"d M Y, H:i" }}</dd></div>
+                    <div class="flex justify-between gap-4"><dt class="text-slate-500">Created by</dt><dd class="text-right">{{ delivery.created_by.full_name|default:"—" }}</dd></div>
+                    <div class="flex justify-between gap-4"><dt class="text-slate-500">Dispatched</dt><dd class="text-right">{{ delivery.dispatch_date|date:"d M Y, H:i"|default:"—" }}</dd></div>
+                </dl>
+            </div>
+            {% if delivery.notes %}
+            <div class="card"><div class="card-header"><h2 class="card-title">Notes</h2></div><p class="card-body whitespace-pre-line text-sm text-slate-600">{{ delivery.notes }}</p></div>
+            {% endif %}
+        </div>
+    </div>
+</div>

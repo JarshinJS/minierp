@@ -1,0 +1,301 @@
+{% extends "base.html" %}
+{% load ui %}
+
+{% block title %}Inventory{% endblock %}
+{% block page_title %}Inventory{% endblock %}
+{% block page_description %}Stock on hand, reservations and every stock movement recorded in the ledger.{% endblock %}
+{% block page_actions %}
+<button type="button" class="btn btn-primary" @click="$dispatch('open-adjust', { id: '', name: '' })">{% icon "sliders" %} Adjust stock</button>
+{% endblock %}
+
+{% block content %}
+<div class="space-y-6"
+     x-data="{
+        activeTab: '{{ current_tab|escapejs }}',
+        showAdjustModal: false,
+        selectedProductId: '',
+        selectedProductName: '',
+        adjustmentType: 'RECEIPT',
+        openAdjust(prodId, prodName) {
+            this.selectedProductId = prodId;
+            this.selectedProductName = prodName;
+            this.adjustmentType = 'RECEIPT';
+            this.showAdjustModal = true;
+            const errDiv = document.getElementById('error-message');
+            if (errDiv) errDiv.innerHTML = '';
+            this.$nextTick(() => this.$refs.qty && this.$refs.qty.focus());
+        },
+        setTab(tab) {
+            this.activeTab = tab;
+            const url = new URL(window.location);
+            url.searchParams.set('tab', tab);
+            url.searchParams.delete('page');
+            window.history.replaceState({}, '', url);
+        }
+     }"
+     @open-adjust.window="openAdjust($event.detail.id, $event.detail.name)"
+     @keydown.escape.window="showAdjustModal = false">
+
+    <!-- Stock KPIs -->
+    <div class="grid grid-cols-2 gap-4 lg:grid-cols-5">
+        <div class="kpi">
+            <div class="kpi-label">Active SKUs <span class="kpi-icon">{% icon "package" %}</span></div>
+            <p class="kpi-value">{{ stats.total_skus }}</p>
+        </div>
+        <div class="kpi">
+            <div class="kpi-label">Units on hand <span class="kpi-icon">{% icon "warehouse" %}</span></div>
+            <p class="kpi-value">{{ stats.total_items|floatformat:"0g" }}</p>
+        </div>
+        <div class="kpi col-span-2 lg:col-span-1">
+            <div class="kpi-label">Stock value <span class="kpi-icon">{% icon "wallet" %}</span></div>
+            <p class="kpi-value">₹{{ stats.total_value|floatformat:"0g" }}</p>
+            <p class="kpi-meta">At standard cost</p>
+        </div>
+        <a href="?tab=stock&filter=low_stock" class="kpi hover:border-amber-300 {% if stock_filter == 'low_stock' %}ring-2 ring-amber-400/40 border-amber-300{% endif %}">
+            <div class="kpi-label">Low stock <span class="kpi-icon {% if stats.low_stock %}bg-amber-50 text-amber-600{% endif %}">{% icon "alert" %}</span></div>
+            <p class="kpi-value {% if stats.low_stock %}text-amber-600{% endif %}">{{ stats.low_stock }}</p>
+            <p class="kpi-meta">1–5 units available</p>
+        </a>
+        <a href="?tab=stock&filter=out_of_stock" class="kpi hover:border-red-300 {% if stock_filter == 'out_of_stock' %}ring-2 ring-red-400/40 border-red-300{% endif %}">
+            <div class="kpi-label">Out of stock <span class="kpi-icon {% if stats.out_of_stock %}bg-red-50 text-red-600{% endif %}">{% icon "x-circle" %}</span></div>
+            <p class="kpi-value {% if stats.out_of_stock %}text-red-600{% endif %}">{{ stats.out_of_stock }}</p>
+            <p class="kpi-meta">0 or fewer available</p>
+        </a>
+    </div>
+
+    <div class="card">
+        <!-- Tabs -->
+        <div class="flex flex-wrap items-center justify-between gap-3 border-b border-slate-200 px-4 py-3">
+            <div class="tabs" role="tablist">
+                <button type="button" role="tab" class="tab" :class="{ 'tab-active': activeTab === 'stock' }" :aria-selected="(activeTab === 'stock').toString()" @click="setTab('stock')">{% icon "warehouse" "h-3.5 w-3.5" %} Stock levels</button>
+                <button type="button" role="tab" class="tab" :class="{ 'tab-active': activeTab === 'ledger' }" :aria-selected="(activeTab === 'ledger').toString()" @click="setTab('ledger')">{% icon "history" "h-3.5 w-3.5" %} Movement ledger</button>
+            </div>
+            {% if stock_filter %}
+            <span x-show="activeTab === 'stock'" class="inline-flex items-center gap-2 text-xs text-slate-500">
+                Showing <span class="badge {% if stock_filter == 'out_of_stock' %}badge-red{% else %}badge-amber{% endif %}">{% if stock_filter == 'out_of_stock' %}Out of stock{% else %}Low stock{% endif %}</span>
+                <a href="?tab=stock{% if search_query %}&q={{ search_query|urlencode }}{% endif %}{% if category_id %}&category={{ category_id }}{% endif %}" class="link">Clear</a>
+            </span>
+            {% endif %}
+        </div>
+
+        <!-- TAB: Stock levels -->
+        <div x-show="activeTab === 'stock'" {% if current_tab != "stock" %}x-cloak{% endif %} role="tabpanel">
+            <form method="get" class="filter-bar" role="search">
+                <input type="hidden" name="tab" value="stock">
+                {% if stock_filter %}<input type="hidden" name="filter" value="{{ stock_filter }}">{% endif %}
+                <div class="search-field w-full sm:max-w-xs">
+                    {% icon "search" %}
+                    <input type="search" name="q" value="{{ search_query }}" placeholder="Search name or SKU…" aria-label="Search stock">
+                </div>
+                <select name="category" class="sm:w-48" aria-label="Category" onchange="this.form.requestSubmit()">
+                    <option value="">All categories</option>
+                    {% for cat in categories %}
+                    <option value="{{ cat.id }}" {% if cat.id|stringformat:"s" == category_id %}selected{% endif %}>{{ cat.name }}</option>
+                    {% endfor %}
+                </select>
+                <button type="submit" class="btn btn-secondary">{% icon "filter" %} Apply</button>
+                {% if search_query or category_id %}
+                <a href="?tab=stock" class="btn btn-ghost btn-sm">{% icon "x" %} Clear</a>
+                {% endif %}
+            </form>
+
+            {% if paginated_products %}
+            <div class="table-wrap">
+                <table class="table">
+                    <thead>
+                        <tr>
+                            <th>Product</th>
+                            <th class="hidden md:table-cell">Category</th>
+                            <th class="num hidden lg:table-cell">Unit cost</th>
+                            <th class="num">On hand</th>
+                            <th class="num hidden sm:table-cell">Reserved</th>
+                            <th class="min-w-[9rem]">Available</th>
+                            <th class="num hidden lg:table-cell">Valuation</th>
+                            <th class="w-px"><span class="sr-only">Actions</span></th>
+                        </tr>
+                    </thead>
+                    <tbody>
+                        {% for prod in paginated_products %}
+                        <tr>
+                            <td>
+                                <a href="{% url 'products:product_detail' prod.pk %}" class="cell-primary hover:text-brand-600">{{ prod.name }}</a>
+                                <p class="cell-sub"><span class="font-mono">{{ prod.sku }}</span> · {{ prod.get_unit_of_measure_display }}</p>
+                            </td>
+                            <td class="hidden md:table-cell">{{ prod.category.name }}</td>
+                            <td class="num hidden lg:table-cell text-slate-500">₹{{ prod.cost_price|floatformat:"2g" }}</td>
+                            <td class="num font-medium text-slate-900">{{ prod.on_hand_qty|floatformat:"-2" }}</td>
+                            <td class="num hidden sm:table-cell text-slate-500">{{ prod.reserved_qty|floatformat:"-2" }}</td>
+                            <td>
+                                <div class="flex items-center justify-between gap-2 text-xs">
+                                    <span class="font-semibold tabular-nums text-slate-900">{{ prod.available_qty|floatformat:"-2" }}</span>
+                                    {% if prod.available_qty <= 0 %}<span class="badge badge-red badge-plain">Out</span>{% elif prod.available_qty <= 5 %}<span class="badge badge-amber badge-plain">Low</span>{% else %}<span class="badge badge-green badge-plain">OK</span>{% endif %}
+                                </div>
+                                <div class="progress mt-1.5">
+                                    {% if prod.available_qty <= 0 %}<span class="!bg-red-500" style="width: 100%"></span>
+                                    {% elif prod.available_qty <= 5 %}<span class="!bg-amber-500" style="width: 20%"></span>
+                                    {% else %}<span class="!bg-emerald-500" style="width: {% widthratio prod.available_qty 50 100 %}%; max-width: 100%"></span>{% endif %}
+                                </div>
+                            </td>
+                            <td class="num hidden lg:table-cell font-medium text-slate-900">₹{{ prod.cost_value|floatformat:"2g" }}</td>
+                            <td>
+                                <button type="button" class="btn btn-secondary btn-xs" @click="openAdjust('{{ prod.id }}', '{{ prod.name|escapejs }}')">Adjust</button>
+                            </td>
+                        </tr>
+                        {% endfor %}
+                    </tbody>
+                </table>
+            </div>
+            {% if paginated_products.has_other_pages %}
+            <nav class="pagination" aria-label="Stock pagination">
+                <p>Showing <span class="font-medium text-slate-700">{{ paginated_products.start_index }}–{{ paginated_products.end_index }}</span> of <span class="font-medium text-slate-700">{{ paginated_products.paginator.count }}</span></p>
+                <div class="flex items-center gap-1">
+                    {% if paginated_products.has_previous %}<a href="{% querystring tab='stock' page=paginated_products.previous_page_number %}" class="btn btn-secondary btn-sm">{% icon "chevron-left" %} Previous</a>{% endif %}
+                    <span class="px-2 text-xs">Page {{ paginated_products.number }} of {{ paginated_products.paginator.num_pages }}</span>
+                    {% if paginated_products.has_next %}<a href="{% querystring tab='stock' page=paginated_products.next_page_number %}" class="btn btn-secondary btn-sm">Next {% icon "chevron-right" %}</a>{% endif %}
+                </div>
+            </nav>
+            {% endif %}
+            {% else %}
+            {% include "components/empty_state.html" with icon="search" title="No products match" text="Adjust your search, category or stock filter." %}
+            {% endif %}
+        </div>
+
+        <!-- TAB: Movement ledger -->
+        <div x-show="activeTab === 'ledger'" {% if current_tab != "ledger" %}x-cloak{% endif %} role="tabpanel">
+            <form method="get" class="filter-bar" role="search">
+                <input type="hidden" name="tab" value="ledger">
+                <select name="ledger_product" class="sm:w-64" aria-label="Product">
+                    <option value="">All products</option>
+                    {% for p in products %}
+                    <option value="{{ p.id }}" {% if p.id|stringformat:"s" == ledger_product_id %}selected{% endif %}>{{ p.sku }} — {{ p.name }}</option>
+                    {% endfor %}
+                </select>
+                <select name="ledger_type" class="sm:w-48" aria-label="Entry type">
+                    <option value="">All entry types</option>
+                    {% for val, label in ledger_types %}
+                    <option value="{{ val }}" {% if val == ledger_entry_type %}selected{% endif %}>{{ label }}</option>
+                    {% endfor %}
+                </select>
+                <div class="search-field w-full sm:max-w-[14rem]">
+                    {% icon "search" %}
+                    <input type="search" name="ledger_ref" value="{{ ledger_ref }}" placeholder="Reference…" aria-label="Reference">
+                </div>
+                <button type="submit" class="btn btn-secondary">{% icon "filter" %} Apply</button>
+                {% if ledger_product_id or ledger_entry_type or ledger_ref %}
+                <a href="?tab=ledger" class="btn btn-ghost btn-sm">{% icon "x" %} Clear</a>
+                {% endif %}
+            </form>
+
+            {% if paginated_ledger %}
+            <div class="table-wrap">
+                <table class="table">
+                    <thead>
+                        <tr><th>Date</th><th>Product</th><th>Movement</th><th class="num">Quantity</th><th class="hidden md:table-cell">Reference</th></tr>
+                    </thead>
+                    <tbody>
+                        {% for entry in paginated_ledger %}
+                        <tr>
+                            <td class="whitespace-nowrap text-slate-500">{{ entry.created_at|date:"d M Y" }}<p class="cell-sub">{{ entry.created_at|date:"H:i" }}</p></td>
+                            <td><p class="cell-primary">{{ entry.product.name }}</p><p class="cell-sub font-mono">{{ entry.product.sku }}</p></td>
+                            <td>
+                                {% if entry.entry_type == "RECEIPT" %}<span class="badge badge-green">Receipt</span>
+                                {% elif entry.entry_type == "ISSUE" %}<span class="badge badge-red">Issue</span>
+                                {% elif entry.entry_type == "RESERVATION" %}<span class="badge badge-blue">Reservation</span>
+                                {% else %}<span class="badge badge-purple">Release</span>{% endif %}
+                            </td>
+                            <td class="num font-semibold">
+                                {% if entry.entry_type == "RECEIPT" or entry.entry_type == "RELEASE" %}<span class="text-emerald-600">+{{ entry.quantity|floatformat:"-2" }}</span>
+                                {% else %}<span class="text-red-600">−{{ entry.quantity|floatformat:"-2" }}</span>{% endif %}
+                            </td>
+                            <td class="hidden max-w-xs truncate text-slate-600 md:table-cell" title="{{ entry.reference }}">{{ entry.reference|default:"—" }}</td>
+                        </tr>
+                        {% endfor %}
+                    </tbody>
+                </table>
+            </div>
+            {% if paginated_ledger.has_other_pages %}
+            <nav class="pagination" aria-label="Ledger pagination">
+                <p>Showing <span class="font-medium text-slate-700">{{ paginated_ledger.start_index }}–{{ paginated_ledger.end_index }}</span> of <span class="font-medium text-slate-700">{{ paginated_ledger.paginator.count }}</span></p>
+                <div class="flex items-center gap-1">
+                    {% if paginated_ledger.has_previous %}<a href="{% querystring tab='ledger' page=paginated_ledger.previous_page_number %}" class="btn btn-secondary btn-sm">{% icon "chevron-left" %} Previous</a>{% endif %}
+                    <span class="px-2 text-xs">Page {{ paginated_ledger.number }} of {{ paginated_ledger.paginator.num_pages }}</span>
+                    {% if paginated_ledger.has_next %}<a href="{% querystring tab='ledger' page=paginated_ledger.next_page_number %}" class="btn btn-secondary btn-sm">Next {% icon "chevron-right" %}</a>{% endif %}
+                </div>
+            </nav>
+            {% endif %}
+            {% else %}
+            {% include "components/empty_state.html" with icon="history" title="No stock movements" text="Receipts, issues and reservations will be listed here." %}
+            {% endif %}
+        </div>
+    </div>
+
+    <!-- Stock adjustment modal -->
+    <div x-show="showAdjustModal" x-cloak>
+        <div class="modal-backdrop" x-show="showAdjustModal" x-transition.opacity @click="showAdjustModal = false"></div>
+        <div class="modal-wrap pointer-events-none">
+            <div class="modal-panel pointer-events-auto max-w-lg" role="dialog" aria-modal="true" aria-labelledby="adjust-title"
+                 x-show="showAdjustModal" x-transition.scale.95.duration.150ms>
+                <form hx-post="{% url 'inventory:adjust' %}" hx-target="#error-message" hx-swap="innerHTML" hx-indicator="#adjust-submit">
+                    {% csrf_token %}
+                    <div class="flex items-center justify-between border-b border-slate-200 px-5 py-4">
+                        <div>
+                            <h2 id="adjust-title" class="text-base font-semibold">Adjust stock</h2>
+                            <p class="text-xs text-slate-500">Creates a receipt or issue entry in the stock ledger.</p>
+                        </div>
+                        <button type="button" class="btn btn-ghost btn-icon btn-sm" @click="showAdjustModal = false"><span class="sr-only">Close</span>{% icon "x" %}</button>
+                    </div>
+                    <div class="space-y-4 p-5">
+                        <div id="error-message"></div>
+                        <div>
+                            <label class="form-label" for="adjust-product">Product<span class="req">*</span></label>
+                            <template x-if="selectedProductId !== ''">
+                                <div class="flex h-9 items-center justify-between rounded-lg border border-slate-200 bg-slate-50 px-3 text-sm">
+                                    <input type="hidden" name="product_id" :value="selectedProductId">
+                                    <span class="truncate font-medium" x-text="selectedProductName"></span>
+                                    <button type="button" class="link text-xs" @click="selectedProductId = ''; selectedProductName = ''">Change</button>
+                                </div>
+                            </template>
+                            <template x-if="selectedProductId === ''">
+                                <select name="product_id" id="adjust-product" required>
+                                    <option value="">Select a product…</option>
+                                    {% for p in products %}
+                                    <option value="{{ p.id }}">{{ p.sku }} — {{ p.name }} (on hand {{ p.on_hand_qty|floatformat:"-2" }})</option>
+                                    {% endfor %}
+                                </select>
+                            </template>
+                        </div>
+                        <fieldset>
+                            <legend class="form-label">Adjustment type<span class="req">*</span></legend>
+                            <div class="grid grid-cols-2 gap-2">
+                                <label class="flex cursor-pointer items-center gap-2 rounded-lg border px-3 py-2.5 text-sm font-medium transition-colors"
+                                       :class="adjustmentType === 'RECEIPT' ? 'border-brand-500 bg-brand-50 text-brand-700' : 'border-slate-200 text-slate-600 hover:bg-slate-50'">
+                                    <input type="radio" name="adjustment_type" value="RECEIPT" x-model="adjustmentType" class="sr-only">
+                                    {% icon "arrow-down-left" %} Stock in
+                                </label>
+                                <label class="flex cursor-pointer items-center gap-2 rounded-lg border px-3 py-2.5 text-sm font-medium transition-colors"
+                                       :class="adjustmentType === 'ISSUE' ? 'border-brand-500 bg-brand-50 text-brand-700' : 'border-slate-200 text-slate-600 hover:bg-slate-50'">
+                                    <input type="radio" name="adjustment_type" value="ISSUE" x-model="adjustmentType" class="sr-only">
+                                    {% icon "arrow-up-right" %} Stock out
+                                </label>
+                            </div>
+                        </fieldset>
+                        <div>
+                            <label class="form-label" for="adjust-qty">Quantity<span class="req">*</span></label>
+                            <input type="number" id="adjust-qty" step="0.01" min="0.01" name="quantity" placeholder="e.g. 10" required x-ref="qty">
+                        </div>
+                        <div>
+                            <label class="form-label" for="adjust-ref">Reference</label>
+                            <input type="text" id="adjust-ref" name="reference" placeholder="e.g. Cycle count correction">
+                            <p class="form-help">Optional. Shown in the movement ledger.</p>
+                        </div>
+                    </div>
+                    <div class="card-footer">
+                        <button type="button" class="btn btn-secondary" @click="showAdjustModal = false">Cancel</button>
+                        <button type="submit" id="adjust-submit" class="btn btn-primary"><span class="show-on-request spinner"></span> Save adjustment</button>
+                    </div>
+                </form>
+            </div>
+        </div>
+    </div>
+</div>
+{% endblock %}

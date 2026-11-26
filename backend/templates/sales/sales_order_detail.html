@@ -1,0 +1,10 @@
+{% extends "base.html" %}
+{% load ui %}
+
+{% block title %}{{ order.order_number }}{% endblock %}
+{% block breadcrumb_extra %}<li class="text-slate-300" aria-hidden="true">/</li><li class="truncate font-medium text-slate-900">{{ order.order_number }}</li>{% endblock %}
+{% block page_header %}{% endblock %}
+
+{% block content %}
+{% include "sales/sales_order_detail_card.html" %}
+{% endblock %}

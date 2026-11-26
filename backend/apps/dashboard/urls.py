@@ -1,0 +1,21 @@
+"""
+urls.py for the Dashboard app.
+
+This module contains the urls logic for the Dashboard functionality.
+"""
+# pyrefly: ignore [missing-import]
+from django.urls import path
+
+from . import views
+from .api import DashboardAnalyticsAPIView
+
+app_name = "dashboard"
+
+urlpatterns = [
+    path("", views.DashboardHomeView.as_view(), name="home"),
+    path("refresh/", views.DashboardRefreshView.as_view(), name="refresh"),
+    path("analytics/", DashboardAnalyticsAPIView.as_view(), name="analytics"),
+    path("summary-partial/", views.DashboardSummaryPartialView.as_view(), name="summary_partial"),
+    path("system-status/", views.SystemStatusView.as_view(), name="system_status"),
+    path("alerts-menu/", views.DashboardAlertsMenuView.as_view(), name="alerts_menu"),
+]

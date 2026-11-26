@@ -1,0 +1,39 @@
+{% extends "base.html" %}
+{% load ui %}
+
+{% block content %}
+<div class="grid min-h-screen lg:grid-cols-[minmax(0,1fr)_minmax(0,1.1fr)]">
+    <!-- Brand panel -->
+    <aside class="relative hidden flex-col justify-between overflow-hidden bg-navy-900 p-10 text-slate-300 lg:flex">
+        <div class="flex items-center gap-3">
+            <span class="flex h-9 w-9 items-center justify-center rounded-lg bg-brand-600 text-white">{% icon "layers" "h-5 w-5" %}</span>
+            <div class="leading-tight">
+                <p class="text-base font-semibold text-white">MiniERP</p>
+                <p class="text-xs text-slate-400">Shiv Furniture Works</p>
+            </div>
+        </div>
+        <div class="max-w-md">
+            <h2 class="text-3xl font-semibold leading-tight tracking-tight text-white">Run sales, stock, production and trade from one place.</h2>
+            <ul class="mt-8 space-y-4 text-sm">
+                <li class="flex gap-3"><span class="mt-0.5 text-brand-400">{% icon "check-circle" %}</span>Live stock levels with reservations and a full movement ledger</li>
+                <li class="flex gap-3"><span class="mt-0.5 text-brand-400">{% icon "check-circle" %}</span>Order-to-delivery and procure-to-receive workflows</li>
+                <li class="flex gap-3"><span class="mt-0.5 text-brand-400">{% icon "check-circle" %}</span>Manufacturing orders driven by bills of materials</li>
+                <li class="flex gap-3"><span class="mt-0.5 text-brand-400">{% icon "check-circle" %}</span>Role-based access and a complete audit trail</li>
+            </ul>
+        </div>
+        <p class="text-xs text-slate-500">MiniERP · Inventory &amp; enterprise resource planning</p>
+        <div class="pointer-events-none absolute -right-24 -top-24 h-72 w-72 rounded-full bg-brand-600/10 blur-3xl" aria-hidden="true"></div>
+    </aside>
+
+    <!-- Form panel -->
+    <div class="flex items-center justify-center px-4 py-10 sm:px-8">
+        <div class="w-full max-w-sm">
+            <div class="mb-8 flex items-center gap-2.5 lg:hidden">
+                <span class="flex h-8 w-8 items-center justify-center rounded-lg bg-brand-600 text-white">{% icon "layers" %}</span>
+                <span class="text-sm font-semibold">MiniERP <span class="font-normal text-slate-500">· Shiv Furniture Works</span></span>
+            </div>
+            {% block auth_form %}{% endblock %}
+        </div>
+    </div>
+</div>
+{% endblock %}

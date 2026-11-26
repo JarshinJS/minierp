@@ -1,0 +1,39 @@
+{% extends "base.html" %}
+{% load ui %}
+
+{% block title %}Anchored documents{% endblock %}
+{% block page_title %}Anchored documents{% endblock %}
+{% block page_description %}Every trade document hash recorded on the ledger, with its transaction reference.{% endblock %}
+
+{% block content %}
+<div class="card overflow-hidden">
+    <div class="border-b border-slate-200 px-4 py-3">
+        <nav class="tabs" aria-label="Filter by verification">
+            <a href="{% url 'blockchain:document_list' %}" class="tab {% if not request.GET.verified %}tab-active{% endif %}">All</a>
+            <a href="?verified=true" class="tab {% if request.GET.verified == 'true' %}tab-active{% endif %}">Verified</a>
+            <a href="?verified=false" class="tab {% if request.GET.verified == 'false' %}tab-active{% endif %}">Unverified</a>
+        </nav>
+    </div>
+    {% if blockchain_docs %}
+    <div class="table-wrap">
+        <table class="table">
+            <thead><tr><th>Document</th><th class="hidden lg:table-cell">Hash</th><th class="hidden md:table-cell">Transaction</th><th class="hidden sm:table-cell">Anchored</th><th>Status</th></tr></thead>
+            <tbody>
+                {% for bc in blockchain_docs %}
+                <tr>
+                    <td><p class="cell-primary">{{ bc.document.title }}</p><p class="cell-sub">{{ bc.document.get_document_type_display }} · v{{ bc.document.version }}</p></td>
+                    <td class="hidden lg:table-cell"><span class="cell-mono block max-w-[16rem] truncate" title="{{ bc.document_hash }}">{{ bc.document_hash }}</span></td>
+                    <td class="hidden md:table-cell"><span class="cell-mono block max-w-[12rem] truncate" title="{{ bc.blockchain_txn }}">{{ bc.blockchain_txn|default:"—" }}</span><p class="cell-sub">{{ bc.network }}</p></td>
+                    <td class="hidden whitespace-nowrap text-slate-500 sm:table-cell">{{ bc.created_at|date:"d M Y, H:i" }}</td>
+                    <td>{% if bc.verified %}<span class="badge badge-green">Verified</span>{% else %}<span class="badge badge-gray">Unverified</span>{% endif %}</td>
+                </tr>
+                {% endfor %}
+            </tbody>
+        </table>
+    </div>
+    {% include "components/pagination.html" %}
+    {% else %}
+    {% include "components/empty_state.html" with icon="file-check" title="No documents" text="Nothing matches this filter yet." %}
+    {% endif %}
+</div>
+{% endblock %}

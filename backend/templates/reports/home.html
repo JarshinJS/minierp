@@ -1,0 +1,51 @@
+{% extends "base.html" %}
+{% load ui %}
+
+{% block title %}Reports & Analytics{% endblock %}
+{% block page_title %}Reports &amp; Analytics{% endblock %}
+{% block page_description %}Download CSV reports across sales, purchasing, production and stock.{% endblock %}
+
+{% block content %}
+<div class="space-y-6">
+    <div class="grid grid-cols-2 gap-4 lg:grid-cols-4">
+        <div class="kpi"><div class="kpi-label">Sales orders <span class="kpi-icon">{% icon "cart" %}</span></div><p class="kpi-value">{{ sales_total }}</p><p class="kpi-meta">Excluding cancelled</p></div>
+        <div class="kpi"><div class="kpi-label">Purchase orders <span class="kpi-icon">{% icon "bag" %}</span></div><p class="kpi-value">{{ purchase_total }}</p><p class="kpi-meta">Excluding cancelled</p></div>
+        <div class="kpi"><div class="kpi-label">Manufacturing orders <span class="kpi-icon">{% icon "factory" %}</span></div><p class="kpi-value">{{ mo_total }}</p><p class="kpi-meta">Excluding cancelled</p></div>
+        <div class="kpi"><div class="kpi-label">Stock value <span class="kpi-icon">{% icon "wallet" %}</span></div><p class="kpi-value">₹{{ inventory_value|floatformat:"0g" }}</p><p class="kpi-meta">Active products at cost</p></div>
+    </div>
+
+    <div class="grid grid-cols-1 gap-4 md:grid-cols-2">
+        {% url 'reports:sales' as sales_url %}{% url 'reports:purchase' as purchase_url %}{% url 'reports:manufacturing' as mfg_url %}{% url 'reports:inventory' as inv_url %}
+        <section class="card">
+            <div class="card-header"><div class="flex items-center gap-3"><span class="kpi-icon">{% icon "cart" %}</span><div><h2 class="card-title">Sales</h2><p class="card-subtitle">Order volume, revenue and customer breakdown.</p></div></div></div>
+            <ul class="divide-y divide-slate-100">
+                <li class="flex items-center justify-between gap-3 px-5 py-3"><div><p class="text-sm font-medium">Daily sales</p><p class="cell-sub">Orders and revenue per day</p></div><a href="{{ sales_url }}?type=daily" class="btn btn-secondary btn-sm" download>{% icon "download" %} CSV</a></li>
+                <li class="flex items-center justify-between gap-3 px-5 py-3"><div><p class="text-sm font-medium">Monthly sales</p><p class="cell-sub">Orders and revenue per month</p></div><a href="{{ sales_url }}?type=monthly" class="btn btn-secondary btn-sm" download>{% icon "download" %} CSV</a></li>
+                <li class="flex items-center justify-between gap-3 px-5 py-3"><div><p class="text-sm font-medium">Sales by customer</p><p class="cell-sub">Revenue per customer</p></div><a href="{{ sales_url }}?type=customer" class="btn btn-secondary btn-sm" download>{% icon "download" %} CSV</a></li>
+            </ul>
+        </section>
+        <section class="card">
+            <div class="card-header"><div class="flex items-center gap-3"><span class="kpi-icon">{% icon "bag" %}</span><div><h2 class="card-title">Purchasing</h2><p class="card-subtitle">Spend and supplier order volumes.</p></div></div></div>
+            <ul class="divide-y divide-slate-100">
+                <li class="flex items-center justify-between gap-3 px-5 py-3"><div><p class="text-sm font-medium">Purchase summary</p><p class="cell-sub">PO count and value per month</p></div><a href="{{ purchase_url }}?type=summary" class="btn btn-secondary btn-sm" download>{% icon "download" %} CSV</a></li>
+                <li class="flex items-center justify-between gap-3 px-5 py-3"><div><p class="text-sm font-medium">Purchases by vendor</p><p class="cell-sub">Spend per supplier</p></div><a href="{{ purchase_url }}?type=vendor" class="btn btn-secondary btn-sm" download>{% icon "download" %} CSV</a></li>
+            </ul>
+        </section>
+        <section class="card">
+            <div class="card-header"><div class="flex items-center gap-3"><span class="kpi-icon">{% icon "factory" %}</span><div><h2 class="card-title">Manufacturing</h2><p class="card-subtitle">Production orders and material usage.</p></div></div></div>
+            <ul class="divide-y divide-slate-100">
+                <li class="flex items-center justify-between gap-3 px-5 py-3"><div><p class="text-sm font-medium">Production efficiency</p><p class="cell-sub">Manufacturing orders and quantities produced</p></div><a href="{{ mfg_url }}?type=efficiency" class="btn btn-secondary btn-sm" download>{% icon "download" %} CSV</a></li>
+                <li class="flex items-center justify-between gap-3 px-5 py-3"><div><p class="text-sm font-medium">Material consumption</p><p class="cell-sub">Components consumed by production</p></div><a href="{{ mfg_url }}?type=consumption" class="btn btn-secondary btn-sm" download>{% icon "download" %} CSV</a></li>
+            </ul>
+        </section>
+        <section class="card">
+            <div class="card-header"><div class="flex items-center gap-3"><span class="kpi-icon">{% icon "warehouse" %}</span><div><h2 class="card-title">Inventory</h2><p class="card-subtitle">Stock movements, valuation and shortages.</p></div></div></div>
+            <ul class="divide-y divide-slate-100">
+                <li class="flex items-center justify-between gap-3 px-5 py-3"><div><p class="text-sm font-medium">Stock ledger</p><p class="cell-sub">Every receipt, issue and reservation</p></div><a href="{{ inv_url }}?type=ledger" class="btn btn-secondary btn-sm" download>{% icon "download" %} CSV</a></li>
+                <li class="flex items-center justify-between gap-3 px-5 py-3"><div><p class="text-sm font-medium">Stock valuation</p><p class="cell-sub">On-hand quantity × cost per product</p></div><a href="{{ inv_url }}?type=valuation" class="btn btn-secondary btn-sm" download>{% icon "download" %} CSV</a></li>
+                <li class="flex items-center justify-between gap-3 px-5 py-3"><div><p class="text-sm font-medium">Low stock</p><p class="cell-sub">Products at or below reorder level</p></div><a href="{{ inv_url }}?type=low_stock" class="btn btn-secondary btn-sm" download>{% icon "download" %} CSV</a></li>
+            </ul>
+        </section>
+    </div>
+</div>
+{% endblock %}

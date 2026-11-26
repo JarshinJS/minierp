@@ -1,0 +1,59 @@
+{% extends "base.html" %}
+{% load ui %}
+
+{% block title %}{% if object %}Edit {{ object.name }}{% else %}New product{% endif %}{% endblock %}
+{% block breadcrumb_extra %}<li class="text-slate-300" aria-hidden="true">/</li><li class="truncate font-medium text-slate-900">{% if object %}Edit{% else %}New{% endif %}</li>{% endblock %}
+{% block page_title %}{% if object %}Edit {{ object.name }}{% else %}New product{% endif %}{% endblock %}
+{% block page_description %}Define pricing, units and the default procurement route used when stock runs short.{% endblock %}
+{% block page_actions %}
+<a href="{% if object %}{% url 'products:product_detail' object.pk %}{% else %}{% url 'products:product_list' %}{% endif %}" class="btn btn-secondary">{% icon "arrow-left" %} Back</a>
+{% endblock %}
+
+{% block content %}
+<form method="post" novalidate class="card max-w-4xl"
+      action="{% if object %}{% url 'products:product_edit' object.pk %}{% else %}{% url 'products:product_create' %}{% endif %}">
+    {% csrf_token %}
+    <div class="card-body space-y-6">
+        {% include "components/form_errors.html" %}
+
+        <div>
+            <h2 class="form-section-title">General</h2>
+            <p class="form-section-desc">How the product is identified and counted.</p>
+            <div class="form-grid mt-4">
+                {% include "components/form_field.html" with field=form.name label="Product name" %}
+                {% include "components/form_field.html" with field=form.sku label="SKU" help="Unique stock-keeping code, e.g. WCH-001." %}
+                {% include "components/form_field.html" with field=form.category %}
+                {% include "components/form_field.html" with field=form.unit_of_measure label="Unit of measure" %}
+            </div>
+        </div>
+
+        <div class="form-section">
+            <h2 class="form-section-title">Pricing</h2>
+            <p class="form-section-desc">Prices in Indian Rupees (₹).</p>
+            <div class="form-grid mt-4">
+                {% include "components/form_field.html" with field=form.cost_price label="Cost price (₹)" %}
+                {% include "components/form_field.html" with field=form.selling_price label="Selling price (₹)" %}
+            </div>
+        </div>
+
+        <div class="form-section">
+            <h2 class="form-section-title">Procurement &amp; sourcing</h2>
+            <p class="form-section-desc">Controls automatic replenishment when orders exceed available stock.</p>
+            <div class="form-grid mt-4">
+                {% include "components/form_field.html" with field=form.procurement_type label="Procurement route" %}
+                <div class="sm:pt-7">{% include "components/form_field.html" with field=form.procure_on_demand label="Procure on demand" help="Automatically create a procurement request when stock is insufficient." %}</div>
+                {% include "components/form_field.html" with field=form.default_vendor label="Default vendor" help="Used when the route is Purchase." %}
+                {% include "components/form_field.html" with field=form.default_bom label="Default bill of materials" help="Used when the route is Manufacture." %}
+            </div>
+        </div>
+
+        <div class="form-section">
+            {% include "components/form_field.html" with field=form.is_active label="Active" help="Inactive products are hidden from new sales and purchase orders." %}
+        </div>
+    </div>
+    <div class="card-footer">
+        <a href="{% if object %}{% url 'products:product_detail' object.pk %}{% else %}{% url 'products:product_list' %}{% endif %}" class="btn btn-secondary">Cancel</a>
+        <button type="submit" class="btn btn-primary">{% icon "check" %} {% if object %}Save changes{% else %}Create product{% endif %}</button>
+    </div>
+</form>
+{% endblock %}

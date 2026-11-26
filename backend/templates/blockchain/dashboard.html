@@ -1,0 +1,62 @@
+{% extends "base.html" %}
+{% load ui %}
+
+{% block title %}Blockchain{% endblock %}
+{% block page_title %}Blockchain verification{% endblock %}
+{% block page_description %}Trade document hashes and order events anchored to {{ network_info.network_name }}.{% endblock %}
+{% block page_actions %}
+<span class="inline-flex items-center gap-2 rounded-full border border-slate-200 bg-white px-3 py-1 text-xs font-medium">
+    <span class="h-2 w-2 rounded-full {% if is_connected %}bg-emerald-500{% else %}bg-red-500{% endif %}"></span>
+    {% if is_connected %}Connected{% else %}Disconnected{% endif %} · {{ network_info.network_name }}{% if network_info.is_mock %} (simulated){% endif %}
+</span>
+{% endblock %}
+
+{% block content %}
+<div class="space-y-6">
+    {% if network_info.is_mock %}
+    <div class="alert alert-info">{% icon "info" %}<p>Running against a simulated ledger. Configure a Web3 RPC endpoint to anchor hashes on a live network.</p></div>
+    {% endif %}
+
+    <div class="grid grid-cols-1 gap-4 sm:grid-cols-3">
+        <a href="{% url 'blockchain:document_list' %}" class="kpi hover:border-brand-300"><div class="kpi-label">Anchored documents <span class="kpi-icon">{% icon "file-check" %}</span></div><p class="kpi-value">{{ total_documents }}</p></a>
+        <a href="{% url 'blockchain:document_list' %}?verified=true" class="kpi hover:border-brand-300"><div class="kpi-label">Verified <span class="kpi-icon bg-emerald-50 text-emerald-600">{% icon "check-circle" %}</span></div><p class="kpi-value">{{ verified_documents }}</p></a>
+        <div class="kpi"><div class="kpi-label">Ledger events <span class="kpi-icon">{% icon "activity" %}</span></div><p class="kpi-value">{{ total_audit_logs }}</p></div>
+    </div>
+
+    <div class="grid grid-cols-1 gap-4 lg:grid-cols-2">
+        <div class="card overflow-hidden">
+            <div class="card-header"><h2 class="card-title">Recent documents</h2><a href="{% url 'blockchain:document_list' %}" class="link text-xs">View all</a></div>
+            <ul class="divide-y divide-slate-100">
+                {% for doc in recent_documents %}
+                <li class="flex items-center gap-3 px-5 py-3">
+                    <span class="flex h-9 w-9 shrink-0 items-center justify-center rounded-lg bg-slate-100 text-slate-500">{% icon "file-text" %}</span>
+                    <div class="min-w-0 flex-1">
+                        <p class="cell-primary truncate">{{ doc.document.title }}</p>
+                        <p class="cell-sub truncate font-mono">{{ doc.blockchain_txn|default:"pending"|truncatechars:30 }} · {{ doc.created_at|timesince }} ago</p>
+                    </div>
+                    {% if doc.verified %}<span class="badge badge-green">Verified</span>{% else %}<span class="badge badge-gray">Unverified</span>{% endif %}
+                </li>
+                {% empty %}
+                <li>{% include "components/empty_state.html" with icon="file-check" title="No documents anchored" text="Uploading a trade document anchors its hash here." %}</li>
+                {% endfor %}
+            </ul>
+        </div>
+        <div class="card overflow-hidden">
+            <div class="card-header"><h2 class="card-title">Recent ledger events</h2>{% if request.user|has_role:"ADMIN,BUSINESS_OWNER,TRADE_MANAGER,AUDITOR" %}<a href="{% url 'blockchain:audit_log_list' %}" class="link text-xs">View all</a>{% endif %}</div>
+            <ul class="divide-y divide-slate-100">
+                {% for log in recent_audit_logs %}
+                <li class="px-5 py-3">
+                    <div class="flex items-center justify-between gap-3">
+                        <p class="text-sm font-medium text-slate-900">{{ log.get_event_type_display }}</p>
+                        <span class="whitespace-nowrap text-xs text-slate-500">{{ log.created_at|date:"d M, H:i" }}</span>
+                    </div>
+                    <p class="cell-sub">{{ log.reference_model }} · {{ log.created_by.full_name|default:"System" }}{% if log.blockchain_txn %} · <span class="font-mono">{{ log.blockchain_txn|truncatechars:20 }}</span>{% endif %}</p>
+                </li>
+                {% empty %}
+                <li>{% include "components/empty_state.html" with icon="activity" title="No events yet" text="Order and document events are logged as they happen." %}</li>
+                {% endfor %}
+            </ul>
+        </div>
+    </div>
+</div>
+{% endblock %}

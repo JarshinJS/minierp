@@ -1,0 +1,54 @@
+{% extends "base.html" %}
+{% load ui %}
+
+{% block title %}Purchase orders{% endblock %}
+{% block page_title %}Purchase orders{% endblock %}
+{% block page_description %}Orders placed with vendors — confirm, receive into stock or cancel.{% endblock %}
+{% block page_actions %}
+<a href="{% url 'purchase:vendor_list' %}" class="btn btn-secondary">{% icon "building" %} Vendors</a>
+<a href="{% url 'purchase:purchase_order_create' %}" class="btn btn-primary">{% icon "plus" %} New purchase order</a>
+{% endblock %}
+
+{% block content %}
+<div class="card">
+    <form method="get" class="filter-bar" role="search"
+          hx-get="{% url 'purchase:purchase_order_list' %}" hx-target="#po-results" hx-select="#po-results" hx-swap="outerHTML"
+          hx-push-url="true" hx-trigger="input delay:300ms, submit" hx-indicator="#po-results">
+        <div class="search-field w-full sm:max-w-xs">
+            {% icon "search" %}
+            <input type="search" name="q" value="{{ search_query }}" placeholder="PO number or vendor…" aria-label="Search purchase orders" autocomplete="off">
+        </div>
+        <select name="status" class="sm:w-52" aria-label="Status">
+            <option value="">All statuses</option>
+            {% for value, label in status_choices %}<option value="{{ value }}" {% if selected_status == value %}selected{% endif %}>{{ label }}</option>{% endfor %}
+        </select>
+        <noscript><button class="btn btn-secondary">Apply</button></noscript>
+        {% if search_query or selected_status %}<a href="{% url 'purchase:purchase_order_list' %}" class="btn btn-ghost btn-sm">{% icon "x" %} Clear</a>{% endif %}
+    </form>
+
+    <div id="po-results" class="transition-opacity [&.htmx-request]:opacity-60">
+        {% if orders %}
+        <div class="table-wrap min-h-[16rem]">
+            <table class="table">
+                <thead>
+                    <tr>
+                        <th>PO number</th><th>Vendor</th><th class="hidden md:table-cell">Date</th>
+                        <th class="hidden lg:table-cell">Created by</th><th class="num">Total</th><th>Status</th>
+                        <th class="w-px"><span class="sr-only">Actions</span></th>
+                    </tr>
+                </thead>
+                <tbody>
+                    {% for order in orders %}{% include "purchase/purchase_order_row.html" %}{% endfor %}
+                </tbody>
+            </table>
+        </div>
+        {% include "components/pagination.html" %}
+        {% elif search_query or selected_status %}
+        {% include "components/empty_state.html" with icon="search" title="No matching purchase orders" text="Try another search term or status." %}
+        {% else %}
+        {% url 'purchase:purchase_order_create' as create_url %}
+        {% include "components/empty_state.html" with icon="bag" title="No purchase orders yet" text="Raise a purchase order to replenish stock from a vendor." action_url=create_url action_label="New purchase order" %}
+        {% endif %}
+    </div>
+</div>
+{% endblock %}

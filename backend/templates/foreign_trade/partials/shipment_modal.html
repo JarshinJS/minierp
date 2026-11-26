@@ -1,0 +1,26 @@
+{% comment %}Collects carrier/tracking/vessel for ship (export) or in-transit (import). Params: action_url, title, submit_label{% endcomment %}
+{% load ui %}
+<div x-data="{ open: false }" class="contents">
+    <button type="button" class="btn btn-primary" @click="open = true">{% icon "ship" %} {{ submit_label }}</button>
+    <div x-show="open" x-cloak @keydown.escape.window="open = false">
+        <div class="modal-backdrop" x-show="open" x-transition.opacity @click="open = false"></div>
+        <div class="modal-wrap pointer-events-none">
+            <form class="modal-panel pointer-events-auto" role="dialog" aria-modal="true" x-show="open" x-transition.scale.95.duration.150ms
+                  hx-post="{{ action_url }}" @htmx:after-request="open = false">
+                <div class="border-b border-slate-200 px-5 py-4">
+                    <h2 class="text-base font-semibold">{{ title }}</h2>
+                    <p class="text-xs text-slate-500">A shipment record is created with these details. All fields are optional.</p>
+                </div>
+                <div class="space-y-4 p-5">
+                    <div><label class="form-label" for="carrier-{{ order.pk }}">Carrier</label><input type="text" id="carrier-{{ order.pk }}" name="carrier" placeholder="e.g. Maersk"></div>
+                    <div><label class="form-label" for="tracking-{{ order.pk }}">Tracking number</label><input type="text" id="tracking-{{ order.pk }}" name="tracking_number" placeholder="e.g. MSKU1234567"></div>
+                    <div><label class="form-label" for="vessel-{{ order.pk }}">Vessel / flight</label><input type="text" id="vessel-{{ order.pk }}" name="vessel_name" placeholder="e.g. Maersk Elba"></div>
+                </div>
+                <div class="card-footer">
+                    <button type="button" class="btn btn-secondary" @click="open = false">Cancel</button>
+                    <button type="submit" class="btn btn-primary"><span class="show-on-request spinner"></span>{{ submit_label }}</button>
+                </div>
+            </form>
+        </div>
+    </div>
+</div>

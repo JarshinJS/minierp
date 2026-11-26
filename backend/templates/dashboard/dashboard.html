@@ -1,0 +1,131 @@
+{% extends "base.html" %}
+{% load ui %}
+
+{% block title %}Dashboard{% endblock %}
+
+{% block extra_head %}
+<script defer src="https://cdn.jsdelivr.net/npm/chart.js@4.4.1/dist/chart.umd.min.js"></script>
+{% endblock %}
+
+{% block page_title %}Welcome back, {{ request.user.full_name|default:"there" }}{% endblock %}
+{% block page_description %}Business overview for Shiv Furniture Works · {% now "l, j F Y" %}{% endblock %}
+{% block page_actions %}
+<span class="hidden items-center gap-1.5 text-xs text-slate-500 sm:inline-flex">
+    {% icon "clock" "h-3.5 w-3.5" %} Auto-refreshes every 30s
+</span>
+<button type="button" class="btn btn-secondary"
+        hx-get="{% url 'dashboard:refresh' %}"
+        hx-target="#dashboard-live-container"
+        hx-swap="outerHTML"
+        hx-indicator="this">
+    <span class="show-on-request spinner"></span><span class="hide-on-request">{% icon "refresh" %}</span> Refresh
+</button>
+{% if "reports" in allowed_modules %}
+<a href="{% url 'reports:home' %}" class="btn btn-primary">{% icon "download" %} Reports</a>
+{% endif %}
+{% endblock %}
+
+{% block content %}
+<p id="dashboard-loading" class="sr-only" aria-live="polite">Loading dashboard data…</p>
+
+{% include "dashboard/partials/dashboard_live.html" %}
+{% endblock %}
+
+{% block extra_js %}
+<script>
+(function () {
+    const ANALYTICS_URL = "{% url 'dashboard:analytics' %}";
+    const palette = {
+        brand: "#4f46e5", brandSoft: "rgba(79,70,229,0.08)", emerald: "#10b981", amber: "#f59e0b",
+        red: "#ef4444", sky: "#0ea5e9", slate: "#94a3b8", grid: "#eef2f6", text: "#64748b",
+    };
+    const inr = (v) => "₹" + Number(v || 0).toLocaleString("en-IN", { maximumFractionDigits: 0 });
+    const charts = {};
+
+    function baseOptions(money) {
+        return {
+            responsive: true, maintainAspectRatio: false, animation: { duration: 300 },
+            plugins: {
+                legend: { display: false },
+                tooltip: {
+                    backgroundColor: "#0f172a", padding: 10, cornerRadius: 6, displayColors: false,
+                    titleFont: { family: "Inter", weight: "600" }, bodyFont: { family: "Inter" },
+                    callbacks: money ? { label: (ctx) => inr(ctx.parsed.y) } : {},
+                },
+            },
+            scales: {
+                y: { beginAtZero: true, border: { display: false }, grid: { color: palette.grid },
+                     ticks: { color: palette.text, font: { family: "Inter", size: 11 }, maxTicksLimit: 5,
+                              callback: money ? (v) => inr(v) : undefined } },
+                x: { border: { display: false }, grid: { display: false },
+                     ticks: { color: palette.text, font: { family: "Inter", size: 11 } } },
+            },
+        };
+    }
+
+    function render(id, config, values) {
+        const canvas = document.getElementById(id);
+        if (!canvas) return;
+        const card = canvas.closest("[data-chart]");
+        const hasData = (values || []).some((v) => Number(v) > 0);
+        card.querySelector("[data-chart-loading]")?.classList.add("hidden");
+        card.querySelector("[data-chart-empty]")?.classList.toggle("hidden", hasData);
+        canvas.parentElement.classList.toggle("invisible", !hasData);
+        if (charts[id]) { charts[id].destroy(); delete charts[id]; }
+        if (hasData) charts[id] = new Chart(canvas, config);
+    }
+
+    function showError() {
+        document.querySelectorAll("[data-chart]").forEach((card) => {
+            card.querySelector("[data-chart-loading]")?.classList.add("hidden");
+            card.querySelector("[data-chart-error]")?.classList.remove("hidden");
+        });
+    }
+
+    function loadCharts() {
+        if (!document.querySelector("[data-chart]")) return;
+        if (typeof Chart === "undefined") { setTimeout(loadCharts, 100); return; }
+        fetch(ANALYTICS_URL, { credentials: "same-origin", headers: { Accept: "application/json" } })
+            .then((r) => { if (!r.ok) throw new Error(r.status); return r.json(); })
+            .then((data) => {
+                document.getElementById("dashboard-loading").textContent = "Dashboard data loaded.";
+                const s = data.sales_trend, p = data.purchase_trend, m = data.manufacturing_progress, i = data.inventory_movement;
+                if (s) render("salesChart", {
+                    type: "line",
+                    data: { labels: s.labels, datasets: [{ data: s.data, borderColor: palette.brand, backgroundColor: palette.brandSoft,
+                            borderWidth: 2, fill: true, tension: 0.35, pointRadius: 3, pointHoverRadius: 5, pointBackgroundColor: palette.brand }] },
+                    options: baseOptions(true),
+                }, s.data);
+                if (p) render("purchaseChart", {
+                    type: "bar",
+                    data: { labels: p.labels, datasets: [{ data: p.data, backgroundColor: palette.sky, borderRadius: 4, maxBarThickness: 36 }] },
+                    options: baseOptions(true),
+                }, p.data);
+                if (m) render("manufacturingChart", {
+                    type: "doughnut",
+                    data: { labels: m.labels, datasets: [{ data: m.data, borderWidth: 2, borderColor: "#fff",
+                            backgroundColor: [palette.slate, palette.sky, palette.brand, palette.emerald, palette.red] }] },
+                    options: { responsive: true, maintainAspectRatio: false, cutout: "68%",
+                               plugins: { legend: { position: "right", labels: { boxWidth: 8, boxHeight: 8, usePointStyle: true,
+                                          color: palette.text, font: { family: "Inter", size: 11 } } } } },
+                }, m.data);
+                if (i) render("inventoryChart", {
+                    type: "bar",
+                    data: { labels: i.labels, datasets: [{ data: i.data, borderRadius: 4, maxBarThickness: 36,
+                            backgroundColor: [palette.emerald, palette.red, palette.amber, palette.sky] }] },
+                    options: baseOptions(false),
+                }, i.data);
+            })
+            .catch(showError);
+    }
+
+    document.addEventListener("DOMContentLoaded", loadCharts);
+    // The live container is replaced (outerHTML) on refresh; redraw charts once it settles.
+    const REFRESH_URL = "{% url 'dashboard:refresh' %}";
+    document.body.addEventListener("htmx:afterRequest", (e) => {
+        const path = (e.detail.pathInfo && e.detail.pathInfo.requestPath) || "";
+        if (e.detail.successful && path.startsWith(REFRESH_URL)) setTimeout(loadCharts, 60);
+    });
+})();
+</script>
+{% endblock %}
