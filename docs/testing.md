@@ -34,7 +34,8 @@ npm run e2e:screenshots                # regenerate docs/images/*.png
 ```
 
 `npm run e2e` uses `../.venv/bin/python` if it exists; set `E2E_PYTHON` to use another
-interpreter.
+interpreter. The Django pages' CSS must be built first (`npm ci && npm run build:css`
+in `backend/`); the setup step checks this and stops with that instruction if not.
 
 ## End-to-end suite
 

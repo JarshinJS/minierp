@@ -7,6 +7,11 @@ import { authFile, DEMO_PASSWORD, ROLES, USERS } from "./support/users";
  * cookies, so specs start authenticated (`test.use({ storageState: authFile(role) })`).
  * The login UI itself is covered by auth.spec.ts.
  */
+setup("Django pages' CSS is built", async ({ request: http }) => {
+  const css = await http.get("/static/css/dist/styles.css");
+  expect(css.status(), "Django's Tailwind CSS is missing: run `npm ci && npm run build:css` in backend/").toBe(200);
+});
+
 setup("sign in every demo role", async () => {
   mkdirSync("e2e/.auth", { recursive: true });
   for (const role of ROLES) {

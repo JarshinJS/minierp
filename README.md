@@ -138,6 +138,7 @@ cp backend/.env.example backend/.env           # then set SECRET_KEY
 cd backend
 python manage.py migrate
 python manage.py seed_demo                      # demo users, catalogue, stock, orders
+npm ci && npm run build:css                     # Tailwind CSS for the remaining Django pages
 python manage.py runserver                      # http://localhost:8000
 
 # Frontend (second terminal)
