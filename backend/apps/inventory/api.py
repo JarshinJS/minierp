@@ -5,7 +5,7 @@ from rest_framework.permissions import IsAuthenticated
 from rest_framework.response import Response
 from rest_framework.views import APIView
 
-from apps.accounts.permissions import DRFRolePermission, roles_for_module
+from apps.accounts.permissions import DRFRolePermission, roles_for_capability, roles_for_module
 from . import services
 from .models import LedgerEntryType
 from .selectors import get_inventory_stats, get_ledger_entries, get_stock_levels
@@ -64,6 +64,9 @@ class LedgerEntryListAPIView(_InventoryAccess, generics.ListAPIView):
 
 
 class StockAdjustmentAPIView(_InventoryAccess, APIView):
+    # Viewing stock is module-wide; manual adjustments are inventory managers only.
+    allowed_roles = roles_for_capability("inventory.adjust")
+
     @extend_schema(request=StockAdjustmentSerializer, responses={201: StockLevelSerializer})
     def post(self, request):
         """Manually receive or issue stock; returns the product's updated stock level."""

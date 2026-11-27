@@ -3,7 +3,10 @@ Email-OTP signup flow, shared by the HTML views and the REST API.
 
 State lives in the user's session under ``SESSION_KEY`` until the OTP is
 verified. Only the password *hash* is stored, never the raw password.
-Self-registered users always get the default role; admins assign others.
+Self-registered accounts are created PENDING: they cannot use the ERP until an
+administrator approves them and picks their role (services.approve_user). Only
+email, full name and password are read from the request, so a signup payload
+can't set its own role, status or staff flags.
 """
 import hmac
 import logging
@@ -17,6 +20,7 @@ from django.core.mail import send_mail
 
 from core.exceptions import DomainError
 from . import services
+from .models import AccountStatus
 
 logger = logging.getLogger(__name__)
 User = get_user_model()
@@ -107,6 +111,7 @@ def verify_signup(session, otp):
         password=None,
         password_hash=data["password_hash"],
         full_name=data["full_name"],
+        account_status=AccountStatus.PENDING,
     )
     del session[SESSION_KEY]
     return user

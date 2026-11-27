@@ -1,5 +1,5 @@
 {% extends "base.html" %}
-{% load ui %}
+{% load ui trade_documents %}
 
 {% block title %}Documents · {{ order.order_number }}{% endblock %}
 {% block breadcrumb_extra %}<li class="text-slate-300" aria-hidden="true">/</li><li class="truncate font-medium text-slate-900">{{ order.order_number }}</li>{% endblock %}
@@ -29,7 +29,7 @@
                     <td>
                         <div class="flex justify-end gap-1">
                             <button type="button" class="btn btn-secondary btn-xs" hx-post="{% url 'foreign_trade:document_verify' doc.pk %}" hx-target="#verify-{{ doc.pk }}" hx-swap="innerHTML">{% icon "shield" %} Verify</button>
-                            {% if doc.file %}<a href="{{ doc.file.url }}" class="btn btn-ghost btn-icon btn-sm" target="_blank" rel="noopener" title="Download"><span class="sr-only">Download</span>{% icon "download" %}</a>{% endif %}
+                            {% if doc.file %}<a href="{% document_download_url doc %}" class="btn btn-ghost btn-icon btn-sm" target="_blank" rel="noopener" title="Download"><span class="sr-only">Download</span>{% icon "download" %}</a>{% endif %}
                         </div>
                     </td>
                 </tr>

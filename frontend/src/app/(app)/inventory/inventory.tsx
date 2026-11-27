@@ -8,6 +8,7 @@ import {
   Badge, EmptyState, ErrorAlert, Field, Modal, PAGE_SIZE, PageHeader, Pagination, SearchInput, Spinner, TableSkeleton,
 } from "@/components/ui";
 import { api, ApiError, unwrap } from "@/lib/api/client";
+import { can, useMe } from "@/lib/auth";
 import type { Schema } from "@/lib/api/types";
 import { date, money, moneyWhole, qty } from "@/lib/format";
 import { AlertTriangle, History, Package, Search, SlidersHorizontal, Warehouse, X, XCircle } from "@/lib/icons";
@@ -29,6 +30,9 @@ export function InventoryPage() {
   const [f, setF] = useUrlState(KEYS);
   const tab = f.tab === "ledger" ? "ledger" : "stock";
   const [adjusting, setAdjusting] = useState<{ id: string; name: string } | null>(null);
+  // UI hint only: the API refuses manual adjustments without inventory.adjust.
+  const { data: me } = useMe();
+  const canAdjust = can(me, "inventory.adjust");
 
   const stats = useQuery({ queryKey: ["inventory", "stats"], queryFn: () => unwrap(api.GET("/api/inventory/stock/summary/")) });
   const s = stats.data;
@@ -39,11 +43,11 @@ export function InventoryPage() {
         f.stock === key && (tone === "amber" ? "border-amber-300 ring-2 ring-amber-400/40" : "border-red-300 ring-2 ring-red-400/40"))}
       aria-pressed={f.stock === key}>
       <div className="kpi-label">{label}
-        <span className={clsx("kpi-icon", count ? (tone === "amber" ? "bg-amber-50 text-amber-600" : "bg-red-50 text-red-600") : "")}>
+        <span className={clsx("kpi-icon", count ? (tone === "amber" ? "bg-amber-50 text-amber-700" : "bg-red-50 text-red-700") : "")}>
           {tone === "amber" ? <AlertTriangle /> : <XCircle />}
         </span>
       </div>
-      <p className={clsx("kpi-value", count ? (tone === "amber" ? "text-amber-600" : "text-red-600") : "")}>{count ?? "—"}</p>
+      <p className={clsx("kpi-value", count ? (tone === "amber" ? "text-amber-700" : "text-red-700") : "")}>{count ?? "—"}</p>
       <p className="kpi-meta">{sub}</p>
     </button>
   );
@@ -51,7 +55,7 @@ export function InventoryPage() {
   return (
     <>
       <PageHeader title="Inventory" description="Stock on hand, reservations and every stock movement recorded in the ledger."
-        actions={<button className="btn btn-primary" onClick={() => setAdjusting({ id: "", name: "" })}><SlidersHorizontal /> Adjust stock</button>} />
+        actions={canAdjust && <button className="btn btn-primary" onClick={() => setAdjusting({ id: "", name: "" })}><SlidersHorizontal /> Adjust stock</button>} />
 
       <div className="space-y-6">
         <div className="grid grid-cols-2 gap-4 lg:grid-cols-5">
@@ -78,7 +82,7 @@ export function InventoryPage() {
             )}
           </div>
           {tab === "stock"
-            ? <StockTab f={f} setF={setF} onAdjust={(p) => setAdjusting({ id: p.id, name: p.name })} />
+            ? <StockTab f={f} setF={setF} onAdjust={canAdjust ? (p) => setAdjusting({ id: p.id, name: p.name }) : undefined} />
             : <LedgerTab f={f} setF={setF} />}
         </div>
       </div>
@@ -101,7 +105,7 @@ function useCategories() {
   });
 }
 
-function StockTab({ f, setF, onAdjust }: TabProps & { onAdjust: (p: StockLevel) => void }) {
+function StockTab({ f, setF, onAdjust }: TabProps & { onAdjust?: (p: StockLevel) => void }) {
   const offset = Number(f.offset) || 0;
   const categories = useCategories();
   const stock = useQuery({
@@ -164,7 +168,7 @@ function StockTab({ f, setF, onAdjust }: TabProps & { onAdjust: (p: StockLevel) 
                         </div>
                       </td>
                       <td className="num hidden font-medium text-slate-900 lg:table-cell">{money(p.cost_value)}</td>
-                      <td><button className="btn btn-secondary btn-xs" onClick={() => onAdjust(p)}>Adjust</button></td>
+                      <td>{onAdjust && <button className="btn btn-secondary btn-xs" onClick={() => onAdjust(p)}>Adjust</button>}</td>
                     </tr>
                   );
                 })}

@@ -18,15 +18,23 @@ Every REST endpoint lives under **`/api/`**. The Next.js frontend proxies
 In production the frontend's origin must be listed in `CSRF_TRUSTED_ORIGINS`
 on the backend, or Django rejects the request (403).
 
-**Permissions.** Every endpoint requires login, and most also check the user's
-role (same rules as the sidebar and HTML pages). `GET /api/auth/me/` returns
-`modules`, the list of modules the user can open; use it to build navigation.
-`ADMIN` can access everything.
+**Permissions.** Every endpoint requires login with an **approved** account, and
+checks the user's role (see the matrix in [architecture.md](architecture.md#role-and-permission-matrix)).
+`GET /api/auth/me/` returns `modules` (what the user can open) and `capabilities`
+(write actions such as `products.write`, `inventory.adjust`, `accounts.manage`); use
+them to build the UI. The API enforces the same rules. `ADMIN` can access everything.
+
+**Account status.** New signups are `PENDING` until an Admin/Business Owner approves
+them. For a correct password on a blocked account, `auth/login/` answers `403` with
+`{"detail", "code"}` where `code` is `account_pending`, `account_rejected`,
+`account_suspended` or `account_disabled`. The same body is returned (and the session
+ended) if an existing session's account becomes blocked.
 
 **Errors.** `400` with `{"detail": "..."}` for business-rule violations (for example,
 "Only DRAFT orders can be edited."), or `{"<field>": ["..."]}` for validation
-errors. `403` means not logged in or role not allowed. `429` means the request was
-rate-limited (login/signup: 10 per minute per IP by default).
+errors. `403` means not logged in, account not approved, or role not allowed. `429`
+means the request was rate-limited (login/signup: 10 per minute per IP; login also 30
+per hour per account, by default).
 
 **Lists** are paginated with `?limit=&offset=` and return
 `{"count", "next", "previous", "results"}`. Small lookup lists (roles,
@@ -41,10 +49,13 @@ countries, currencies, incoterms, invoices) are returned as plain arrays.
 |---|---|---|---|
 | Auth | `auth/csrf/` | GET | Sets CSRF cookie |
 | | `auth/login/`, `auth/logout/` | POST | |
-| | `auth/me/` | GET | Current user + `modules` |
+| | `auth/me/` | GET | Current user + `modules` + `capabilities` + `account_status` |
 | | `auth/signup/` → `auth/signup/verify/` | POST | Emails a 6-digit code; `resend/` for a new one |
-| Users | `users/` | GET | `?search=&role=&is_active=` (Admin/Owner) |
-| | `users/{id}/activate/`, `deactivate/`, `change-role/` | POST | Not on your own account |
+| Users | `users/` | GET | `?search=&role=&is_active=&account_status=` (Admin/Owner) |
+| | `users/{id}/approve/` | POST | `{"role"}` required; pending/rejected → approved |
+| | `users/{id}/reject/`, `suspend/` | POST | Optional `{"note"}` |
+| | `users/{id}/reinstate/` | POST | Suspended → approved |
+| | `users/{id}/activate/`, `deactivate/`, `change-role/` | POST | Not on your own account; Admin/Owner accounts and roles are Admin-only |
 | | `users/roles/` | GET | Role choices |
 | Products | `products/`, `categories/` | GET POST PUT PATCH | `products/{id}/stock/` |
 | Purchase | `vendors/`, `purchase-orders/` | GET POST PUT PATCH | `confirm/`, `receive/`, `cancel/` actions |
@@ -63,7 +74,8 @@ countries, currencies, incoterms, invoices) are returned as plain arrays.
 | Audit | `audit-logs/` | GET | Filterable audit trail |
 | Trade | `trade/exports/` | GET POST PUT PATCH | `confirm/ ship/ deliver/ cancel/`; `invoices/` (GET, POST); edits only while DRAFT |
 | | `trade/imports/` | GET POST PUT PATCH | `confirm/ transit/ customs/ receive/ cancel/` |
-| | `trade/documents/` | GET POST | POST is multipart upload (pdf/doc/docx/jpg/png/xls/xlsx, ≤10 MB); `{id}/verify/` |
+| | `trade/documents/` | GET POST | POST is multipart upload (pdf/doc/docx/jpg/png/xls/xlsx, ≤10 MB, content-checked); `{id}/verify/` |
+| | `trade/documents/{id}/download/?token=` | GET | The document's `file` field is this signed link (user-bound, expires in 5 min) |
 | | `trade/shipments/` | GET | |
 | | `trade/customers/`, `trade/suppliers/` | GET POST PUT PATCH | `?search=` |
 | | `trade/countries/`, `trade/currencies/`, `trade/incoterms/` | GET | Reference data |

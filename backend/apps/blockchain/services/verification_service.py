@@ -4,27 +4,49 @@ from django.db import transaction
 
 from apps.blockchain.models import BlockchainDocument, BlockchainAuditLog
 from apps.blockchain.services.hashing_service import generate_file_hash, generate_data_hash
-from apps.blockchain.services.web3_service import get_web3_service
+from apps.blockchain.services.web3_service import Web3ServiceError, get_web3_service
 from apps.foreign_trade.models import DocumentVerificationStatus
 
 logger = logging.getLogger(__name__)
+
+
+class VerificationOutcome:
+    """What a verification attempt concluded (``outcome`` in the result dict).
+
+    Unlike ``status`` (the document's stored state), UNAVAILABLE means "this check
+    couldn't run": the stored status is left untouched.
+    """
+    VERIFIED = "VERIFIED"        # file and on-chain hash match
+    TAMPERED = "TAMPERED"        # content differs from what was anchored
+    UNVERIFIED = "UNVERIFIED"    # no usable anchor (missing/failed/foreign tx, no record)
+    PENDING = "PENDING"          # registration task hasn't finished yet
+    UNAVAILABLE = "UNAVAILABLE"  # chain temporarily unreachable; try again later
 
 
 # ===========================================================================
 # Document Verification
 # ===========================================================================
 
-@transaction.atomic
 def register_document(trade_document):
     """
     Register a trade document on the blockchain.
     Steps:
       1. Generate SHA-256 hash of the file
-      2. Submit hash to blockchain
+      2. Submit hash to blockchain (skipped if this exact hash is already registered)
       3. Create BlockchainDocument record linking doc → txn
+
+    The chain call happens outside any DB transaction (a live submit can block for
+    minutes waiting for the receipt). Raises Web3ServiceError if the chain is
+    unavailable; nothing is written in that case.
     """
     # Step 1: Hash the file
     doc_hash = generate_file_hash(trade_document.file)
+
+    existing = BlockchainDocument.objects.filter(
+        document=trade_document, document_hash=doc_hash,
+    ).order_by("-created_at").first()
+    if existing:
+        return existing
 
     # Step 2: Submit to blockchain
     web3_svc = get_web3_service()
@@ -37,18 +59,19 @@ def register_document(trade_document):
     network_info = web3_svc.get_network_info()
 
     # Step 3: Create blockchain record
-    bc_doc = BlockchainDocument.objects.create(
-        document=trade_document,
-        document_hash=doc_hash,
-        blockchain_txn=txn_hash,
-        network=network_info.get("network_name", "unknown"),
-        block_number=block_number,
-        verified=True,
-    )
+    with transaction.atomic():
+        bc_doc = BlockchainDocument.objects.create(
+            document=trade_document,
+            document_hash=doc_hash,
+            blockchain_txn=txn_hash,
+            network=network_info.get("network_name", "unknown"),
+            block_number=block_number,
+            verified=True,
+        )
 
-    # Update document verification status
-    trade_document.verification_status = DocumentVerificationStatus.VERIFIED
-    trade_document.save(update_fields=["verification_status"])
+        # Update document verification status
+        trade_document.verification_status = DocumentVerificationStatus.VERIFIED
+        trade_document.save(update_fields=["verification_status"])
 
     logger.info(
         "Document %s registered on blockchain: hash=%s txn=%s",
@@ -76,40 +99,71 @@ def verify_document(trade_document):
     ).order_by("-created_at").first()
 
     if not bc_record:
-        trade_document.verification_status = DocumentVerificationStatus.UNVERIFIED
-        trade_document.save(update_fields=["verification_status"])
+        if trade_document.verification_status == DocumentVerificationStatus.PENDING:
+            # Registration runs in a background task and has not finished yet.
+            outcome = VerificationOutcome.PENDING
+            message = "Blockchain registration is still in progress. Try again in a few minutes."
+        else:
+            trade_document.verification_status = DocumentVerificationStatus.UNVERIFIED
+            trade_document.save(update_fields=["verification_status"])
+            outcome = VerificationOutcome.UNVERIFIED
+            message = "This document has no blockchain record, so it can't be verified."
         return {
             "verified": False,
-            "status": "UNVERIFIED",
-            "message": "No blockchain record found for this document.",
+            "outcome": outcome,
+            "status": trade_document.verification_status,
+            "message": message,
             "current_hash": current_hash,
             "stored_hash": None,
         }
 
-    # Step 3: Compare hashes
+    # Step 3: Compare hashes locally and on-chain
     hashes_match = current_hash == bc_record.document_hash
-
-    # Optionally verify on-chain as well
-    web3_svc = get_web3_service()
-    on_chain = web3_svc.verify_data_hash(bc_record.blockchain_txn, current_hash)
+    try:
+        web3_svc = get_web3_service()
+        on_chain = web3_svc.verify_data_hash(bc_record.blockchain_txn, current_hash)
+    except Web3ServiceError as e:
+        # Can't reach the chain: report it, but don't change any stored status.
+        logger.warning("Verification of document %s skipped: %s", trade_document.id, e)
+        return {
+            "verified": False,
+            "outcome": VerificationOutcome.UNAVAILABLE,
+            "status": trade_document.verification_status,
+            "message": "The blockchain network is temporarily unavailable. Try again later.",
+            "current_hash": current_hash,
+            "stored_hash": bc_record.document_hash,
+            "blockchain_txn": bc_record.blockchain_txn,
+            "network": bc_record.network,
+            "block_number": bc_record.block_number,
+        }
 
     is_verified = hashes_match and on_chain.get("verified", False)
+    content_mismatch = not hashes_match or on_chain.get("reason") == "Hash mismatch"
 
-    # Step 4: Update status
+    # Step 4: Update status. TAMPERED only when the content demonstrably differs;
+    # a missing/failed/foreign transaction means it can't be verified.
+    bc_record.verified = is_verified
     if is_verified:
         trade_document.verification_status = DocumentVerificationStatus.VERIFIED
-        bc_record.verified = True
-    else:
+        outcome = VerificationOutcome.VERIFIED
+        message = "The file matches the fingerprint recorded on the blockchain."
+    elif content_mismatch:
         trade_document.verification_status = DocumentVerificationStatus.TAMPERED
-        bc_record.verified = False
+        outcome = VerificationOutcome.TAMPERED
+        message = "The file does not match its blockchain fingerprint. It may have been altered."
+    else:
+        trade_document.verification_status = DocumentVerificationStatus.UNVERIFIED
+        outcome = VerificationOutcome.UNVERIFIED
+        message = f"The blockchain record could not be confirmed ({on_chain.get('reason', 'unknown error')})."
 
     trade_document.save(update_fields=["verification_status"])
     bc_record.save(update_fields=["verified"])
 
     result = {
         "verified": is_verified,
+        "outcome": outcome,
         "status": trade_document.verification_status,
-        "message": "Document verified ✓" if is_verified else "Document may have been tampered with ✗",
+        "message": message,
         "current_hash": current_hash,
         "stored_hash": bc_record.document_hash,
         "blockchain_txn": bc_record.blockchain_txn,
@@ -131,7 +185,6 @@ def verify_document(trade_document):
 # Audit Trail
 # ===========================================================================
 
-@transaction.atomic
 def log_audit_event(event_type, reference_id, reference_model="", user=None, metadata=None):
     """
     Log a critical business event to the blockchain audit trail.
@@ -139,6 +192,7 @@ def log_audit_event(event_type, reference_id, reference_model="", user=None, met
       1. Hash the event data
       2. Submit hash to blockchain
       3. Create BlockchainAuditLog record
+    Raises Web3ServiceError if the chain is unavailable.
     """
     event_data = {
         "event_type": event_type,

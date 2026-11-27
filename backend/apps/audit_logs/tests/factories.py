@@ -12,3 +12,5 @@ class UserFactory(factory.django.DjangoModelFactory):
     email = factory.Sequence(lambda n: f"user{n}@example.com")
     full_name = factory.Sequence(lambda n: f"User {n}")
     is_active = True
+    # Model default is PENDING (unapproved); factory users are ordinary working accounts.
+    account_status = "APPROVED"

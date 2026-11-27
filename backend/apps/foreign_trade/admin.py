@@ -91,3 +91,6 @@ class TradeDocumentAdmin(admin.ModelAdmin):
     list_display = ("title", "document_type", "version", "verification_status", "uploaded_by", "created_at")
     search_fields = ("title",)
     list_filter = ("document_type", "verification_status")
+    # The stored file is evidence (its hash may be anchored on-chain): it can't be
+    # replaced or re-pointed here. Upload a new version instead.
+    readonly_fields = ("file", "original_filename", "verification_status")

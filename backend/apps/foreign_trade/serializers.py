@@ -62,15 +62,29 @@ class TradeDocumentSerializer(serializers.ModelSerializer):
     uploaded_by_name = serializers.CharField(source="uploaded_by.full_name", read_only=True)
     order_type = serializers.SerializerMethodField()
     order_id = serializers.UUIDField(source="object_id", read_only=True)
+    # Same field name as before (a URL string), but now an authenticated, signed,
+    # short-lived download link bound to the requesting user, never a storage URL.
+    file = serializers.SerializerMethodField(help_text=(
+        "Signed download URL for the requesting user; expires after "
+        "DOCUMENT_DOWNLOAD_URL_TTL seconds (default 300)."
+    ))
 
     class Meta:
         model = TradeDocument
         fields = [
-            "id", "document_type", "title", "file", "version",
+            "id", "document_type", "title", "file", "original_filename", "version",
             "verification_status", "uploaded_by", "uploaded_by_name",
             "order_type", "order_id", "notes", "created_at"
         ]
-        read_only_fields = ["version", "verification_status", "uploaded_by"]
+        read_only_fields = ["version", "verification_status", "uploaded_by", "original_filename"]
+
+    def get_file(self, doc) -> str | None:
+        from .documents import download_url
+
+        request = self.context.get("request")
+        if not doc.file or request is None:
+            return None
+        return download_url(doc, request.user)
 
     def get_order_type(self, doc) -> str:
         return {"exportorder": "export", "importorder": "import"}.get(doc.content_type.model, doc.content_type.model)

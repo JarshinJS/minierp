@@ -4,9 +4,14 @@
 {% block title %}Users & roles{% endblock %}
 {% block page_title %}Users &amp; roles{% endblock %}
 {% block page_description %}Control who can sign in and which modules each person can access.{% endblock %}
-{% block page_actions %}<a href="{% url 'accounts:signup' %}" class="btn btn-primary">{% icon "plus" %} Register user</a>{% endblock %}
+{% block page_actions %}<a href="/signup/" class="btn btn-primary">{% icon "plus" %} Register user</a>{% endblock %}
 
 {% block content %}
+{% if pending_count %}
+<div class="alert alert-info mb-4" role="status">
+    {{ pending_count }} account request{{ pending_count|pluralize }} waiting for approval. Pending accounts can't use the ERP until you approve them and choose a role.
+</div>
+{% endif %}
 <div class="card overflow-hidden" x-data="{ q: '' }">
     <div class="filter-bar">
         <div class="search-field w-full sm:max-w-xs">

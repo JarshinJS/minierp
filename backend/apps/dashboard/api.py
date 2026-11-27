@@ -2,7 +2,7 @@
 from rest_framework.views import APIView
 from rest_framework.response import Response
 from rest_framework import serializers
-from rest_framework.permissions import IsAuthenticated
+from apps.accounts.permissions import IsApprovedUser, can_access_module
 from drf_spectacular.types import OpenApiTypes
 from drf_spectacular.utils import extend_schema, inline_serializer
 from apps.dashboard.services import analytics_service
@@ -11,22 +11,29 @@ class DashboardAnalyticsAPIView(APIView):
     """
     API endpoint that returns real-time business metrics and transaction trends
     for visualization using Chart.js on the dashboard.
+
+    Every key is always present; a series is empty unless the user's role may
+    access the module it comes from.
     """
-    permission_classes = [IsAuthenticated]
+    permission_classes = [IsApprovedUser]
+    SERIES = {
+        "sales_trend": ("sales", analytics_service.get_sales_trend),
+        "purchase_trend": ("purchase", analytics_service.get_purchase_trend),
+        "manufacturing_progress": ("manufacturing", analytics_service.get_manufacturing_progress),
+        "inventory_movement": ("inventory", analytics_service.get_inventory_movement),
+    }
 
     @extend_schema(responses=OpenApiTypes.OBJECT)
     def get(self, request, *args, **kwargs):
         return Response({
-            "sales_trend": analytics_service.get_sales_trend(),
-            "purchase_trend": analytics_service.get_purchase_trend(),
-            "manufacturing_progress": analytics_service.get_manufacturing_progress(),
-            "inventory_movement": analytics_service.get_inventory_movement(),
+            key: (fetch() if can_access_module(request.user, module) else [])
+            for key, (module, fetch) in self.SERIES.items()
         })
 
 
 class DashboardAlertsAPIView(APIView):
     """Operational alert counts for the header bell (same data as the HTML dropdown)."""
-    permission_classes = [IsAuthenticated]
+    permission_classes = [IsApprovedUser]
 
     @extend_schema(responses=inline_serializer("DashboardAlerts", {
         "total": serializers.IntegerField(),
@@ -83,7 +90,7 @@ class DashboardOverviewAPIView(APIView):
     Everything the dashboard page shows, filtered to the user's role: KPI widgets,
     insights, production progress, recent activity, low stock and pending deliveries.
     """
-    permission_classes = [IsAuthenticated]
+    permission_classes = [IsApprovedUser]
 
     @extend_schema(responses=DashboardOverviewSerializer)
     def get(self, request, *args, **kwargs):

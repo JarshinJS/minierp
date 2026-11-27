@@ -47,8 +47,9 @@ export interface paths {
         get?: never;
         put?: never;
         /**
-         * @description Unauthenticated auth endpoints. DRF skips CSRF for anonymous requests, so it
-         *     is enforced explicitly (prevents login-CSRF). Throttled per client IP.
+         * @description Sign in. Only approved, active accounts get a session. For a correct password
+         *     on a pending/rejected/suspended/disabled account, 403 with a ``code`` says
+         *     why (nothing is revealed without the right password).
          */
         post: operations["auth_login_create"];
         delete?: never;
@@ -335,6 +336,9 @@ export interface paths {
         /**
          * @description API endpoint that returns real-time business metrics and transaction trends
          *     for visualization using Chart.js on the dashboard.
+         *
+         *     Every key is always present; a series is empty unless the user's role may
+         *     access the module it comes from.
          */
         get: operations["dashboard_analytics_retrieve"];
         put?: never;
@@ -352,6 +356,7 @@ export interface paths {
             path?: never;
             cookie?: never;
         };
+        /** @description Company-wide aggregate of every module (CEO KPIs, full activity feed): owners only. */
         get: operations["dashboard_summary_retrieve"];
         put?: never;
         post?: never;
@@ -1031,6 +1036,28 @@ export interface paths {
         patch?: never;
         trace?: never;
     };
+    "/api/trade/documents/{id}/download/": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /**
+         * @description Stream the stored file. Needs a DOCUMENT_READ role *and* the short-lived
+         *     token issued to this user for this document (the `file` field of the
+         *     document). The token is checked before the document is looked up, so a
+         *     bad link reveals nothing about which documents exist.
+         */
+        get: operations["trade_documents_download_retrieve"];
+        put?: never;
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
     "/api/trade/documents/{id}/verify/": {
         parameters: {
             query?: never;
@@ -1442,6 +1469,23 @@ export interface paths {
         patch?: never;
         trace?: never;
     };
+    "/api/users/{id}/approve/": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        /** @description Approve a pending/rejected account and grant it a role. */
+        post: operations["users_approve_create"];
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
     "/api/users/{id}/change-role/": {
         parameters: {
             query?: never;
@@ -1470,6 +1514,57 @@ export interface paths {
         put?: never;
         /** @description User administration (Admin / Business Owner). */
         post: operations["users_deactivate_create"];
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/api/users/{id}/reinstate/": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        /** @description User administration (Admin / Business Owner). */
+        post: operations["users_reinstate_create"];
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/api/users/{id}/reject/": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        /** @description User administration (Admin / Business Owner). */
+        post: operations["users_reject_create"];
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/api/users/{id}/suspend/": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        /** @description User administration (Admin / Business Owner). */
+        post: operations["users_suspend_create"];
         delete?: never;
         options?: never;
         head?: never;
@@ -1665,6 +1760,18 @@ export interface paths {
 export type webhooks = Record<string, never>;
 export interface components {
     schemas: {
+        AccountBlocked: {
+            detail: string;
+            code: components["schemas"]["CodeEnum"];
+        };
+        /**
+         * @description * `PENDING` - Pending approval
+         *     * `APPROVED` - Approved
+         *     * `REJECTED` - Rejected
+         *     * `SUSPENDED` - Suspended
+         * @enum {string}
+         */
+        AccountStatusEnum: "PENDING" | "APPROVED" | "REJECTED" | "SUSPENDED";
         /**
          * @description * `created` - Created
          *     * `updated` - Updated
@@ -1682,6 +1789,10 @@ export interface components {
          * @enum {string}
          */
         AdjustmentTypeEnum: "RECEIPT" | "ISSUE";
+        /** @description The role must be chosen when approving: signup never grants one. */
+        ApproveUserRequest: {
+            role: components["schemas"]["RoleEnum"];
+        };
         AuditLog: {
             /** Format: uuid */
             readonly id: string;
@@ -1863,6 +1974,14 @@ export interface components {
         ChangeRoleRequest: {
             role: components["schemas"]["RoleEnum"];
         };
+        /**
+         * @description * `account_pending` - account_pending
+         *     * `account_rejected` - account_rejected
+         *     * `account_suspended` - account_suspended
+         *     * `account_disabled` - account_disabled
+         * @enum {string}
+         */
+        CodeEnum: "account_pending" | "account_rejected" | "account_suspended" | "account_disabled";
         Country: {
             /** Format: uuid */
             readonly id: string;
@@ -1910,6 +2029,12 @@ export interface components {
             readonly full_name: string;
             readonly role: components["schemas"]["RoleEnum"];
             readonly role_display: string;
+            readonly account_status: components["schemas"]["AccountStatusEnum"];
+            readonly account_status_display: string;
+            /** Format: date-time */
+            readonly status_changed_at: string | null;
+            /** @description Reason for rejection/suspension */
+            readonly status_note: string;
             readonly is_active: boolean;
             readonly is_staff: boolean;
             /** Format: date-time */
@@ -1917,6 +2042,11 @@ export interface components {
             /** Format: date-time */
             readonly created_at: string;
             readonly modules: string[];
+            /**
+             * @description Write actions the user may perform (e.g. "products.write"). UI hints only:
+             *     the API enforces the same rules.
+             */
+            readonly capabilities: string[];
         };
         /**
          * @description * `NOT_STARTED` - Not Started
@@ -2050,6 +2180,16 @@ export interface components {
         };
         DocumentVerification: {
             verified: boolean;
+            /**
+             * @description Result of this check. UNAVAILABLE = chain unreachable; stored status unchanged.
+             *
+             *     * `VERIFIED` - VERIFIED
+             *     * `TAMPERED` - TAMPERED
+             *     * `UNVERIFIED` - UNVERIFIED
+             *     * `PENDING` - PENDING
+             *     * `UNAVAILABLE` - UNAVAILABLE
+             */
+            outcome: components["schemas"]["OutcomeEnum"];
             status: string;
             message: string;
             stored_hash: string | null;
@@ -2483,6 +2623,15 @@ export interface components {
          * @enum {string}
          */
         OrderTypeEnum: "export" | "import";
+        /**
+         * @description * `VERIFIED` - VERIFIED
+         *     * `TAMPERED` - TAMPERED
+         *     * `UNVERIFIED` - UNVERIFIED
+         *     * `PENDING` - PENDING
+         *     * `UNAVAILABLE` - UNAVAILABLE
+         * @enum {string}
+         */
+        OutcomeEnum: "VERIFIED" | "TAMPERED" | "UNVERIFIED" | "PENDING" | "UNAVAILABLE";
         PaginatedAuditLogList: {
             /** @example 123 */
             count: number;
@@ -3307,6 +3456,10 @@ export interface components {
             email: string;
             expires_in: number;
         };
+        StatusNoteRequest: {
+            /** @default  */
+            note: string;
+        };
         /** @description Manual stock adjustment: RECEIPT adds stock, ISSUE removes it. */
         StockAdjustmentRequest: {
             /** Format: uuid */
@@ -3363,8 +3516,10 @@ export interface components {
             readonly id: string;
             document_type: components["schemas"]["TradeDocumentTypeEnum"];
             title: string;
-            /** Format: uri */
-            file: string;
+            /** @description Signed download URL for the requesting user; expires after DOCUMENT_DOWNLOAD_URL_TTL seconds (default 300). */
+            readonly file: string | null;
+            /** @description Uploader's filename, sanitised; display only */
+            readonly original_filename: string;
             readonly version: number;
             readonly verification_status: components["schemas"]["VerificationStatusEnum"];
             /** Format: uuid */
@@ -3444,6 +3599,12 @@ export interface components {
             readonly full_name: string;
             readonly role: components["schemas"]["RoleEnum"];
             readonly role_display: string;
+            readonly account_status: components["schemas"]["AccountStatusEnum"];
+            readonly account_status_display: string;
+            /** Format: date-time */
+            readonly status_changed_at: string | null;
+            /** @description Reason for rejection/suspension */
+            readonly status_note: string;
             readonly is_active: boolean;
             readonly is_staff: boolean;
             /** Format: date-time */
@@ -3643,6 +3804,14 @@ export interface operations {
                 };
                 content: {
                     "application/json": components["schemas"]["Detail"];
+                };
+            };
+            403: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["AccountBlocked"];
                 };
             };
         };
@@ -5699,6 +5868,34 @@ export interface operations {
             };
         };
     };
+    trade_documents_download_retrieve: {
+        parameters: {
+            query: {
+                document_type?: string;
+                order_id?: string;
+                order_type?: "export" | "import";
+                /** @description Signed token from the document's `file` URL */
+                token: string;
+            };
+            header?: never;
+            path: {
+                /** @description A UUID string identifying this trade document. */
+                id: string;
+            };
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/octet-stream": string;
+                };
+            };
+        };
+    };
     trade_documents_verify_create: {
         parameters: {
             query?: {
@@ -6547,6 +6744,7 @@ export interface operations {
     users_list: {
         parameters: {
             query?: {
+                account_status?: "APPROVED" | "PENDING" | "REJECTED" | "SUSPENDED";
                 is_active?: boolean;
                 /** @description Number of results to return per page. */
                 limit?: number;
@@ -6575,6 +6773,7 @@ export interface operations {
     users_retrieve: {
         parameters: {
             query?: {
+                account_status?: "APPROVED" | "PENDING" | "REJECTED" | "SUSPENDED";
                 is_active?: boolean;
                 role?: "ACCOUNTANT" | "ADMIN" | "AUDITOR" | "BUSINESS_OWNER" | "DOCUMENTATION_OFFICER" | "FINANCE_MANAGER" | "INVENTORY_MANAGER" | "MANUFACTURING_USER" | "PURCHASE_USER" | "SALES_USER" | "TRADE_MANAGER";
                 /** @description Matches email or full name */
@@ -6602,6 +6801,7 @@ export interface operations {
     users_activate_create: {
         parameters: {
             query?: {
+                account_status?: "APPROVED" | "PENDING" | "REJECTED" | "SUSPENDED";
                 is_active?: boolean;
                 role?: "ACCOUNTANT" | "ADMIN" | "AUDITOR" | "BUSINESS_OWNER" | "DOCUMENTATION_OFFICER" | "FINANCE_MANAGER" | "INVENTORY_MANAGER" | "MANUFACTURING_USER" | "PURCHASE_USER" | "SALES_USER" | "TRADE_MANAGER";
                 /** @description Matches email or full name */
@@ -6626,9 +6826,44 @@ export interface operations {
             };
         };
     };
+    users_approve_create: {
+        parameters: {
+            query?: {
+                account_status?: "APPROVED" | "PENDING" | "REJECTED" | "SUSPENDED";
+                is_active?: boolean;
+                role?: "ACCOUNTANT" | "ADMIN" | "AUDITOR" | "BUSINESS_OWNER" | "DOCUMENTATION_OFFICER" | "FINANCE_MANAGER" | "INVENTORY_MANAGER" | "MANUFACTURING_USER" | "PURCHASE_USER" | "SALES_USER" | "TRADE_MANAGER";
+                /** @description Matches email or full name */
+                search?: string;
+            };
+            header?: never;
+            path: {
+                /** @description A UUID string identifying this user. */
+                id: string;
+            };
+            cookie?: never;
+        };
+        requestBody: {
+            content: {
+                "application/json": components["schemas"]["ApproveUserRequest"];
+                "application/x-www-form-urlencoded": components["schemas"]["ApproveUserRequest"];
+                "multipart/form-data": components["schemas"]["ApproveUserRequest"];
+            };
+        };
+        responses: {
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["User"];
+                };
+            };
+        };
+    };
     users_change_role_create: {
         parameters: {
             query?: {
+                account_status?: "APPROVED" | "PENDING" | "REJECTED" | "SUSPENDED";
                 is_active?: boolean;
                 role?: "ACCOUNTANT" | "ADMIN" | "AUDITOR" | "BUSINESS_OWNER" | "DOCUMENTATION_OFFICER" | "FINANCE_MANAGER" | "INVENTORY_MANAGER" | "MANUFACTURING_USER" | "PURCHASE_USER" | "SALES_USER" | "TRADE_MANAGER";
                 /** @description Matches email or full name */
@@ -6662,6 +6897,7 @@ export interface operations {
     users_deactivate_create: {
         parameters: {
             query?: {
+                account_status?: "APPROVED" | "PENDING" | "REJECTED" | "SUSPENDED";
                 is_active?: boolean;
                 role?: "ACCOUNTANT" | "ADMIN" | "AUDITOR" | "BUSINESS_OWNER" | "DOCUMENTATION_OFFICER" | "FINANCE_MANAGER" | "INVENTORY_MANAGER" | "MANUFACTURING_USER" | "PURCHASE_USER" | "SALES_USER" | "TRADE_MANAGER";
                 /** @description Matches email or full name */
@@ -6686,9 +6922,106 @@ export interface operations {
             };
         };
     };
+    users_reinstate_create: {
+        parameters: {
+            query?: {
+                account_status?: "APPROVED" | "PENDING" | "REJECTED" | "SUSPENDED";
+                is_active?: boolean;
+                role?: "ACCOUNTANT" | "ADMIN" | "AUDITOR" | "BUSINESS_OWNER" | "DOCUMENTATION_OFFICER" | "FINANCE_MANAGER" | "INVENTORY_MANAGER" | "MANUFACTURING_USER" | "PURCHASE_USER" | "SALES_USER" | "TRADE_MANAGER";
+                /** @description Matches email or full name */
+                search?: string;
+            };
+            header?: never;
+            path: {
+                /** @description A UUID string identifying this user. */
+                id: string;
+            };
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["User"];
+                };
+            };
+        };
+    };
+    users_reject_create: {
+        parameters: {
+            query?: {
+                account_status?: "APPROVED" | "PENDING" | "REJECTED" | "SUSPENDED";
+                is_active?: boolean;
+                role?: "ACCOUNTANT" | "ADMIN" | "AUDITOR" | "BUSINESS_OWNER" | "DOCUMENTATION_OFFICER" | "FINANCE_MANAGER" | "INVENTORY_MANAGER" | "MANUFACTURING_USER" | "PURCHASE_USER" | "SALES_USER" | "TRADE_MANAGER";
+                /** @description Matches email or full name */
+                search?: string;
+            };
+            header?: never;
+            path: {
+                /** @description A UUID string identifying this user. */
+                id: string;
+            };
+            cookie?: never;
+        };
+        requestBody?: {
+            content: {
+                "application/json": components["schemas"]["StatusNoteRequest"];
+                "application/x-www-form-urlencoded": components["schemas"]["StatusNoteRequest"];
+                "multipart/form-data": components["schemas"]["StatusNoteRequest"];
+            };
+        };
+        responses: {
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["User"];
+                };
+            };
+        };
+    };
+    users_suspend_create: {
+        parameters: {
+            query?: {
+                account_status?: "APPROVED" | "PENDING" | "REJECTED" | "SUSPENDED";
+                is_active?: boolean;
+                role?: "ACCOUNTANT" | "ADMIN" | "AUDITOR" | "BUSINESS_OWNER" | "DOCUMENTATION_OFFICER" | "FINANCE_MANAGER" | "INVENTORY_MANAGER" | "MANUFACTURING_USER" | "PURCHASE_USER" | "SALES_USER" | "TRADE_MANAGER";
+                /** @description Matches email or full name */
+                search?: string;
+            };
+            header?: never;
+            path: {
+                /** @description A UUID string identifying this user. */
+                id: string;
+            };
+            cookie?: never;
+        };
+        requestBody?: {
+            content: {
+                "application/json": components["schemas"]["StatusNoteRequest"];
+                "application/x-www-form-urlencoded": components["schemas"]["StatusNoteRequest"];
+                "multipart/form-data": components["schemas"]["StatusNoteRequest"];
+            };
+        };
+        responses: {
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["User"];
+                };
+            };
+        };
+    };
     users_roles_list: {
         parameters: {
             query?: {
+                account_status?: "APPROVED" | "PENDING" | "REJECTED" | "SUSPENDED";
                 is_active?: boolean;
                 role?: "ACCOUNTANT" | "ADMIN" | "AUDITOR" | "BUSINESS_OWNER" | "DOCUMENTATION_OFFICER" | "FINANCE_MANAGER" | "INVENTORY_MANAGER" | "MANUFACTURING_USER" | "PURCHASE_USER" | "SALES_USER" | "TRADE_MANAGER";
                 /** @description Matches email or full name */

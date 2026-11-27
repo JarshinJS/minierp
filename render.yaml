@@ -1,5 +1,6 @@
 # Render Blueprint: https://render.com/docs/blueprint-spec
-# Django backend (backend/) + Celery worker + Postgres + Redis (Key Value).
+# Django backend (backend/) + Celery worker + Redis (Key Value).
+# Database: Supabase Postgres (external), via DATABASE_URL below.
 # The Next.js frontend (frontend/) deploys separately to Vercel.
 
 envVarGroups:
@@ -7,10 +8,45 @@ envVarGroups:
     envVars:
       - key: DJANGO_SETTINGS_MODULE
         value: config.settings.prod
+      # Supabase Postgres. Use the *Session pooler* string (Dashboard -> Connect ->
+      # Session pooler, port 5432): the direct db.<ref>.supabase.co host is
+      # IPv6-only and Render can't reach it; the transaction pooler (port 6543)
+      # breaks Django's prepared statements/server-side cursors. Percent-encode
+      # special characters in the password. Shared by minierp-api and minierp-worker.
+      - key: DATABASE_URL
+        sync: false
+      - key: DB_SSL_REQUIRE
+        value: "True"
+      # Private document storage: a PRIVATE Supabase Storage bucket via its S3 API
+      # (Storage -> Settings -> S3 connection / access keys). Shared by web + worker
+      # (the worker hashes uploaded files). Production refuses to start without it.
+      # See docs/deployment.md, "Document storage".
+      - key: STORAGE_BUCKET
+        sync: false
+      - key: STORAGE_ENDPOINT_URL      # https://<project-ref>.storage.supabase.co/storage/v1/s3
+        sync: false
+      - key: STORAGE_REGION            # the project's region, e.g. eu-central-1
+        sync: false
+      - key: STORAGE_ACCESS_KEY_ID
+        sync: false
+      - key: STORAGE_SECRET_ACCESS_KEY
+        sync: false
       - key: SECRET_KEY
         generateValue: true
+      # Blockchain anchoring (see docs/deployment.md#blockchain-anchoring).
+      # "True" = simulated ledger in the app database: NO tamper evidence.
+      # For real anchoring set "False" and fill in the variables below plus
+      # BLOCKCHAIN_WALLET_PRIVATE_KEY on minierp-worker. Testnet: Polygon Amoy.
       - key: BLOCKCHAIN_MOCK_MODE
         value: "True"
+      # JSON-RPC endpoint (often embeds an API key, so treat it as a secret).
+      - key: WEB3_PROVIDER_URL
+        sync: false
+      # Public address of the anchoring wallet (also used to check the tx sender).
+      - key: BLOCKCHAIN_WALLET_ADDRESS
+        sync: false
+      - key: BLOCKCHAIN_NETWORK_NAME
+        value: polygon-amoy
       # Email for signup OTPs; fill these in on the Render dashboard.
       - key: EMAIL_HOST
         sync: false
@@ -28,6 +64,10 @@ envVarGroups:
       # 1 = clients hit Render directly. Set 2 once traffic comes via Vercel rewrites.
       - key: NUM_PROXIES
         value: "1"
+      # Public URL of the Next.js frontend. Pages rebuilt in Next.js redirect there
+      # if someone opens them on the backend URL directly.
+      - key: FRONTEND_URL
+        sync: false
       # Optional: a reachable Ollama server for the voice assistant.
       - key: OLLAMA_URL
         sync: false
@@ -51,18 +91,16 @@ services:
       - fromGroup: minierp-backend
       - key: WEB_CONCURRENCY
         value: "3"
-      - key: DATABASE_URL
-        fromDatabase:
-          name: minierp-db
-          property: connectionString
       - key: CELERY_BROKER_URL
         fromService:
           type: keyvalue
           name: minierp-redis
           property: connectionString
 
-  # Runs procurement tasks queued with .delay(). To skip this paid service, delete
-  # it (and minierp-redis) and set CELERY_TASK_ALWAYS_EAGER=True on minierp-api.
+  # Runs tasks queued with .delay(): procurement documents and blockchain anchoring
+  # (document registration + audit events). To skip this paid service, delete it
+  # (and minierp-redis) and set CELERY_TASK_ALWAYS_EAGER=True on minierp-api; see
+  # docs/deployment.md for what that means for blockchain anchoring.
   - type: worker
     name: minierp-worker
     runtime: python
@@ -75,10 +113,11 @@ services:
     startCommand: celery -A config worker --loglevel=info --concurrency=2
     envVars:
       - fromGroup: minierp-backend
-      - key: DATABASE_URL
-        fromDatabase:
-          name: minierp-db
-          property: connectionString
+      # Signing key of the anchoring wallet. Only the worker signs transactions, so
+      # it is set here and NOT in the shared group (the web service never needs it).
+      # Use a dedicated wallet holding only gas money; never a personal wallet.
+      - key: BLOCKCHAIN_WALLET_PRIVATE_KEY
+        sync: false
       - key: CELERY_BROKER_URL
         fromService:
           type: keyvalue
@@ -91,8 +130,4 @@ services:
     maxmemoryPolicy: noeviction   # never drop queued tasks
     ipAllowList: []               # internal connections only
 
-databases:
-  - name: minierp-db
-    plan: basic-256mb
-    databaseName: minierp
-    user: minierp
+# No Render-managed database: Postgres lives in Supabase (DATABASE_URL above).

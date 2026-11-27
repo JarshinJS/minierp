@@ -7,37 +7,24 @@ User = get_user_model()
 
 @pytest.mark.django_db
 class TestDashboardViews:
-    def test_dashboard_home_loads_for_authenticated_user(self, client):
-        user = User.objects.create_user(
-            email="admin@example.com",
-            password="password",
-            full_name="Admin User",
-            role="ADMIN"
-        )
+    def test_dashboard_page_is_handed_to_frontend(self, client, settings):
+        """The page lives in Next.js; Django keeps the URL name and redirects there."""
+        User.objects.create_user(email="admin@example.com", password="password", full_name="Admin User", role="ADMIN")
         client.login(email="admin@example.com", password="password")
 
-        url = reverse("dashboard:home")
-        response = client.get(url)
+        settings.FRONTEND_URL = ""
+        assert client.get(reverse("dashboard:home")).status_code == 404
 
-        assert response.status_code == 200
-        assert b"Dashboard" in response.content
-        assert b"Loading dashboard" in response.content
+        settings.FRONTEND_URL = "https://app.example.com"
+        response = client.get(reverse("dashboard:home") + "?x=1")
+        assert response.status_code == 302
+        assert response.url == "https://app.example.com/dashboard/?x=1"
 
-    def test_dashboard_summary_partial_renders(self, client):
-        user = User.objects.create_user(
-            email="user@example.com",
-            password="password",
-            full_name="Normal User",
-            role="BUSINESS_OWNER"
-        )
+    def test_dashboard_overview_api(self, client):
+        User.objects.create_user(email="user@example.com", password="password", full_name="Normal User", role="BUSINESS_OWNER")
         client.login(email="user@example.com", password="password")
-
-        url = reverse("dashboard:summary_partial")
-        response = client.get(url)
-
-        assert response.status_code == 200
-        assert b"Sales Orders" in response.content
-        assert b"Low Stock Products" in response.content
+        data = client.get(reverse("api:dashboard-overview")).json()
+        assert data["widgets"] and "recent_activities" in data and "low_stock" in data
 
     def test_dashboard_summary_api_returns_json(self, client):
         user = User.objects.create_user(

@@ -112,9 +112,13 @@ SIGNUP_DATA = {
 
 @pytest.mark.django_db
 class TestSignupHardening:
+    """Exercised through the signup API used by the Next.js frontend."""
+
+    def _post(self, client, name, body=None):
+        return client.post(reverse(name), body or {}, content_type="application/json")
+
     def _signup(self, client):
-        response = client.post(reverse("accounts:signup"), SIGNUP_DATA)
-        assert response.status_code == 302
+        assert self._post(client, "api:auth-signup", SIGNUP_DATA).status_code == 202
         return client.session["signup_data"]
 
     def test_otp_is_emailed_and_password_not_stored_in_plaintext(self, client):
@@ -126,7 +130,7 @@ class TestSignupHardening:
 
     def test_signup_cannot_choose_admin_role(self, client):
         data = self._signup(client)
-        client.post(reverse("accounts:verify_otp"), {"otp": data["otp"]})
+        assert self._post(client, "api:auth-signup-verify", {"otp": data["otp"]}).status_code == 201
         user = User.objects.get(email=SIGNUP_DATA["email"])
         assert user.role == UserRole.SALES_USER
         assert not user.is_staff and not user.is_superuser
@@ -136,24 +140,21 @@ class TestSignupHardening:
         data = self._signup(client)
         wrong = "000000" if data["otp"] != "000000" else "111111"
         for _ in range(5):
-            assert client.post(reverse("accounts:verify_otp"), {"otp": wrong}).status_code == 200
-        response = client.post(reverse("accounts:verify_otp"), {"otp": data["otp"]})
-        assert response.status_code == 302
-        assert response.url == reverse("accounts:signup")
+            assert self._post(client, "api:auth-signup-verify", {"otp": wrong}).status_code == 400
+        response = self._post(client, "api:auth-signup-verify", {"otp": data["otp"]})
+        assert response.status_code == 400 and response.json()["restart"] is True
         assert not User.objects.filter(email=SIGNUP_DATA["email"]).exists()
 
     def test_resend_has_cooldown(self, client):
         data = self._signup(client)
-        client.post(reverse("accounts:resend_otp"))
+        assert self._post(client, "api:auth-signup-resend").status_code == 400
         assert client.session["signup_data"]["otp"] == data["otp"]
         assert len(mail.outbox) == 1
 
     def test_weak_password_rejected(self, client):
-        response = client.post(reverse("accounts:signup"), {
-            **SIGNUP_DATA, "password": "12345678", "confirm_password": "12345678",
-        })
-        assert response.status_code == 200
-        assert "password" in response.context["form"].errors
+        response = self._post(client, "api:auth-signup", {**SIGNUP_DATA, "password": "12345678", "confirm_password": "12345678"})
+        assert response.status_code == 400
+        assert "password" in response.json()
 
 
 # --- XSS --------------------------------------------------------------------

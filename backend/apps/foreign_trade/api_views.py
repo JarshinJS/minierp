@@ -2,8 +2,12 @@
 REST API for Foreign Trade. Workflow steps go through ``workflows`` so they
 record the same blockchain audit events as the HTML views.
 """
+import logging
+
 from django.contrib.contenttypes.models import ContentType
 from django.db.models import Q
+from django.http import FileResponse, Http404
+from drf_spectacular.types import OpenApiTypes
 from drf_spectacular.utils import OpenApiParameter, extend_schema, inline_serializer
 from rest_framework import mixins, serializers, status, viewsets
 from rest_framework.decorators import action
@@ -13,7 +17,7 @@ from rest_framework.response import Response
 
 from apps.accounts.permissions import DRFRolePermission
 from core.exceptions import DomainError
-from . import roles, workflows
+from . import documents, roles, workflows
 from .models import (
     Country, Currency, ExportOrder, ExportOrderStatus, ImportOrder, ImportOrderStatus,
     Incoterm, Shipment, TradeCustomer, TradeDocument, TradeSupplier,
@@ -25,9 +29,15 @@ from .serializers import (
     TradeDocumentUploadSerializer, TradeSupplierSerializer,
 )
 
+logger = logging.getLogger(__name__)
+
 NO_DELETE = ["get", "post", "put", "patch", "head", "options"]
 VerificationResultSerializer = inline_serializer("DocumentVerification", {
     "verified": serializers.BooleanField(),
+    "outcome": serializers.ChoiceField(
+        choices=["VERIFIED", "TAMPERED", "UNVERIFIED", "PENDING", "UNAVAILABLE"],
+        help_text="Result of this check. UNAVAILABLE = chain unreachable; stored status unchanged.",
+    ),
     "status": serializers.CharField(),
     "message": serializers.CharField(),
     "stored_hash": serializers.CharField(allow_null=True),
@@ -201,7 +211,7 @@ class TradeDocumentViewSet(_TradeAccess, mixins.CreateModelMixin, viewsets.ReadO
     serializer_class = TradeDocumentSerializer
     read_roles = roles.DOCUMENT_READ
     allowed_roles = roles.DOCUMENT_WRITE
-    action_roles = {"verify": roles.DOCUMENT_READ}
+    action_roles = {"verify": roles.DOCUMENT_READ, "download": roles.DOCUMENT_READ}
     parser_classes = [MultiPartParser, FormParser]
 
     def get_queryset(self):
@@ -227,6 +237,39 @@ class TradeDocumentViewSet(_TradeAccess, mixins.CreateModelMixin, viewsets.ReadO
             file=v["file"], document_type=v["document_type"], title=v["title"], notes=v["notes"],
         )
         return Response(self.get_serializer(doc).data, status=status.HTTP_201_CREATED)
+
+    @extend_schema(
+        parameters=[OpenApiParameter("token", str, required=True,
+                                     description="Signed token from the document's `file` URL")],
+        responses={(200, "application/octet-stream"): OpenApiTypes.BINARY},
+    )
+    @action(detail=True, methods=["get"])
+    def download(self, request, pk=None):
+        """
+        Stream the stored file. Needs a DOCUMENT_READ role *and* the short-lived
+        token issued to this user for this document (the `file` field of the
+        document). The token is checked before the document is looked up, so a
+        bad link reveals nothing about which documents exist.
+        """
+        try:
+            documents.check_download_token(request.query_params.get("token"), pk, request.user)
+        except documents.DownloadTokenError as e:
+            return Response({"detail": e.message, "code": e.code}, status=status.HTTP_403_FORBIDDEN)
+
+        doc = self.get_object()
+        if not doc.file or not doc.file.storage.exists(doc.file.name):
+            logger.error("Trade document %s: stored file is missing", doc.pk)
+            raise Http404("File not found.")
+
+        response = FileResponse(
+            doc.file.open("rb"), as_attachment=True,
+            filename=documents.download_filename(doc), content_type=documents.content_type_for(doc),
+        )
+        response["Cache-Control"] = "private, no-store"
+        response["X-Content-Type-Options"] = "nosniff"
+        response["Content-Security-Policy"] = "default-src 'none'; sandbox"
+        response["Referrer-Policy"] = "no-referrer"
+        return response
 
     @extend_schema(request=None, responses=VerificationResultSerializer)
     @action(detail=True, methods=["post"])

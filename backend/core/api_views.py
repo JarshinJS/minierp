@@ -13,13 +13,12 @@ from drf_spectacular.types import OpenApiTypes
 from drf_spectacular.utils import extend_schema, inline_serializer
 from rest_framework.response import Response
 from rest_framework import status
-from rest_framework.permissions import IsAuthenticated
 
 from apps.products.models import Product, Category
 from apps.sales.models import SalesOrder, SalesOrderLine, SalesOrderStatus
 from apps.purchase.models import PurchaseOrder, PurchaseOrderLine, PurchaseOrderStatus, Vendor
 from apps.inventory.services import receive_stock, issue_stock
-from apps.accounts.permissions import can_access_module
+from apps.accounts.permissions import IsApprovedUser, can_access_module, has_capability
 
 logger = logging.getLogger(__name__)
 
@@ -489,6 +488,20 @@ ACTION_MODULES = {
     "update_stock": "inventory",
 }
 
+# Write actions additionally need the same capability as the equivalent API endpoint
+# (e.g. a Sales user may look products up but not create them).
+ACTION_CAPABILITIES = {
+    "create_product": "products.write",
+    "update_stock": "inventory.adjust",
+}
+
+
+def can_run_action(user, action):
+    if not can_access_module(user, ACTION_MODULES[action]):
+        return False
+    capability = ACTION_CAPABILITIES.get(action)
+    return capability is None or has_capability(user, capability)
+
 
 # ──────────────────────────────────────────────
 #  DRF Views
@@ -502,7 +515,7 @@ class VoiceAssistantAPIView(APIView):
     3. Executes the action (creates DB records, runs lookups)
     4. Returns a human-friendly response
     """
-    permission_classes = [IsAuthenticated]
+    permission_classes = [IsApprovedUser]
 
     @extend_schema(
         request=inline_serializer("VoiceAssistantRequest", {"transcript": serializers.CharField()}),
@@ -555,7 +568,7 @@ class VoiceAssistantAPIView(APIView):
 
         # 3. Execute action
         handler = ACTION_HANDLERS.get(action)
-        if handler and not can_access_module(request.user, ACTION_MODULES[action]):
+        if handler and not can_run_action(request.user, action):
             return Response({
                 "action": action,
                 "reply": "You don't have permission to perform this action.",
@@ -572,13 +585,14 @@ class VoiceAssistantAPIView(APIView):
                     "reply": result.get("message", ai_reply),
                     "record_id": result.get("record_id"),
                 })
-            except Exception as e:
-                logger.exception(f"Action handler error for '{action}': {e}")
+            except Exception:
+                # Details go to the server log only; never echo internals to the client.
+                logger.exception("Voice action handler failed: %s", action)
                 return Response({
                     "action": action,
-                    "reply": f"❌ Error executing '{action}': {str(e)}",
+                    "reply": "❌ Sorry, that action failed. Please try again or use the regular form.",
                     "success": False,
-                })
+                }, status=status.HTTP_500_INTERNAL_SERVER_ERROR)
         else:
             # general_query — just return what the AI said
             return Response({
@@ -591,7 +605,7 @@ class VoiceAssistantAPIView(APIView):
 # Keep legacy endpoint for backward compat
 class VoiceExtractAPIView(APIView):
     """Legacy schema-based extraction endpoint."""
-    permission_classes = [IsAuthenticated]
+    permission_classes = [IsApprovedUser]
 
     @extend_schema(
         request=inline_serializer("VoiceExtractRequest", {

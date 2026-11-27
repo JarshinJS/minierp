@@ -6,7 +6,7 @@ import { usePathname, useRouter } from "next/navigation";
 import { useEffect, useRef, useState, type ReactNode } from "react";
 import { useQuery } from "@tanstack/react-query";
 import { api, unwrap } from "@/lib/api/client";
-import { useLogout, useMe, type CurrentUser } from "@/lib/auth";
+import { lastAccountBlockCode, useLogout, useMe, type CurrentUser } from "@/lib/auth";
 import { Bell, ChevronDown, Layers, LogOut, Menu, X } from "@/lib/icons";
 import { itemPrefix, visibleNav, type NavLink } from "@/lib/nav";
 import { Spinner } from "./ui";
@@ -109,11 +109,12 @@ function AlertsMenu() {
   const total = data?.total ?? 0;
   return (
     <div className="relative" ref={ref}>
-      <button className="btn btn-ghost btn-icon relative" onClick={() => setOpen((o) => !o)}
-        aria-label={`Alerts${total ? ` (${total})` : ""}`} aria-expanded={open}>
-        <Bell />
+      {/* Name comes from content ("Alerts 4"), so it always includes the visible count. */}
+      <button className="btn btn-ghost btn-icon relative" onClick={() => setOpen((o) => !o)} aria-expanded={open}>
+        <Bell aria-hidden="true" />
+        <span className="sr-only">Alerts</span>
         {total > 0 && (
-          <span className="absolute top-1 right-1 flex h-4 min-w-4 items-center justify-center rounded-full bg-red-500 px-1 text-[10px] font-semibold text-white">
+          <span className="absolute top-1 right-1 flex h-4 min-w-4 items-center justify-center rounded-full bg-red-600 px-1 text-[10px] font-semibold text-white">
             {total > 99 ? "99+" : total}
           </span>
         )}
@@ -181,7 +182,11 @@ export function AppShell({ children }: { children: ReactNode }) {
 
   useEffect(() => {
     if (!isPending && user === null) {
-      router.replace(`/login/?next=${encodeURIComponent(pathname)}`);
+      // A session ended because the account is pending/suspended/... → say why.
+      const status = lastAccountBlockCode();
+      // Keep the query string too, so filtered deep links (e.g. ?tab=ledger) survive login.
+      const here = `${pathname}${window.location.search}`;
+      router.replace(`/login/?next=${encodeURIComponent(here)}${status ? `&status=${status}` : ""}`);
     }
   }, [isPending, user, router, pathname]);
 

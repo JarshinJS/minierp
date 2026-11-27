@@ -1,20 +1,13 @@
-# Mini ERP System - Documentation
+# MiniERP documentation
 
-Welcome to the documentation for the **Shiv Furniture Works ERP** system. This documentation provides a high-level overview of the architecture, modules, setup instructions, and APIs used in the project.
+Start with the [project README](../README.md) for an overview, screenshots and quick start.
 
-## Table of Contents
-
-1. [Architecture Overview](architecture.md)
-   - Tech Stack
-   - System Components
-   - Directory Structure
-2. [Setup & Installation Guide](setup_guide.md)
-   - Prerequisites
-   - Local Setup
-   - Running the Application
-   - Background Tasks & Celery
-3. [Modules Overview](modules.md)
-   - Detailed breakdown of all 14 Django applications.
-4. [API Reference](api.md)
-   - Voice Assistant API
-   - Internal Endpoints
+| Document | What's in it |
+|---|---|
+| [Architecture](architecture.md) | System context, request routing during the Next.js migration, backend layering, frontend structure, auth/CSRF flow, domain model, business workflows, tamper-evident documents, and the security model with the full role × permission matrix |
+| [Architecture Decision Records](adr/) | The reasoning behind the big choices, and what each one costs |
+| [Testing](testing.md) | Test layers, how the Playwright suite is isolated, what each spec covers, bugs it found |
+| [API reference](api.md) | Auth and CSRF conventions, errors, pagination, and every endpoint under `/api/` |
+| [Setup guide](setup_guide.md) | Local development: backend, frontend, demo data, background jobs |
+| [Modules](modules.md) | Responsibilities of each of the 14 Django apps |
+| [Deployment](deployment.md) | Reference configuration for Render (API) and Vercel (frontend); not required to run the project |

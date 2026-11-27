@@ -37,7 +37,7 @@ export function BarChart({ labels, data, format = (v) => v.toLocaleString("en-IN
       ) : (
         <div className="flex gap-3" role="img" aria-label={labels.map((l, i) => `${l}: ${format(data[i] ?? 0)}`).join(", ")}>
           {/* y-axis labels */}
-          <div className="flex h-48 flex-col justify-between py-0 text-right text-2xs text-slate-400 tabular-nums">
+          <div className="flex h-48 flex-col justify-between py-0 text-right text-2xs text-slate-500 tabular-nums">
             {ticks.map((t) => <span key={t} className="-translate-y-1/2 first:translate-y-0 last:translate-y-0">{format(t)}</span>)}
           </div>
           <div className="min-w-0 flex-1">

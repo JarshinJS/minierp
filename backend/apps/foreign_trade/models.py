@@ -3,6 +3,8 @@ models.py for the Foreign_trade app.
 
 This module contains the models logic for the Foreign_trade functionality.
 """
+import os
+import re
 import uuid
 
 from django.conf import settings
@@ -328,7 +330,17 @@ class Shipment(AuditableMixin, UUIDBaseModel, TimeStampedModel):
 # ---------------------------------------------------------------------------
 
 def trade_document_upload_path(instance, filename):
-    return f"trade_documents/{instance.document_type}/{filename}"
+    """
+    Storage key for a new upload: a random name, never the client's filename, so
+    keys can't be guessed or enumerated, can't traverse paths, and two uploads can
+    never collide or overwrite each other. The original name is kept in
+    ``original_filename`` for display/download only. Existing records keep their
+    old keys (nothing is renamed), so stored paths and blockchain hashes stay valid.
+    """
+    ext = os.path.splitext(str(filename))[1].lower()
+    if not re.fullmatch(r"\.[a-z0-9]{1,8}", ext):
+        ext = ""
+    return f"trade_documents/{instance.document_type}/{uuid.uuid4().hex}{ext}"
 
 
 class TradeDocument(AuditableMixin, UUIDBaseModel, TimeStampedModel):
@@ -337,7 +349,9 @@ class TradeDocument(AuditableMixin, UUIDBaseModel, TimeStampedModel):
 
     document_type = models.CharField(max_length=30, choices=DocumentType.choices, db_index=True)
     title = models.CharField(max_length=255)
-    file = models.FileField(upload_to=trade_document_upload_path)
+    file = models.FileField(upload_to=trade_document_upload_path, max_length=255)
+    original_filename = models.CharField(max_length=255, blank=True, default="",
+                                         help_text="Uploader's filename, sanitised; display only")
     version = models.PositiveIntegerField(default=1)
 
     # Generic relation to either ExportOrder or ImportOrder

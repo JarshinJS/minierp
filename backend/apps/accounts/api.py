@@ -6,6 +6,7 @@ Auth uses Django sessions + CSRF, so the frontend must:
   2. send it back in the ``X-CSRFToken`` header on every unsafe request.
 """
 from django.contrib.auth import authenticate, get_user_model
+from django.contrib.auth.backends import AllowAllUsersModelBackend
 from django.contrib.auth import login as auth_login, logout as auth_logout
 from django.db.models import Q
 from django.middleware.csrf import get_token
@@ -16,22 +17,28 @@ from rest_framework import serializers, status, viewsets
 from rest_framework.decorators import action
 from rest_framework.permissions import AllowAny, IsAuthenticated
 from rest_framework.response import Response
-from rest_framework.throttling import ScopedRateThrottle
+import hashlib
+
+from rest_framework.throttling import ScopedRateThrottle, SimpleRateThrottle
 from rest_framework.views import APIView
 
 from core.exceptions import DomainError
 from . import services, signup
 from .forms import SignupForm
-from .models import UserRole
-from .permissions import DRFRolePermission, roles_for_module
+from .models import AccountStatus, UserRole
+from .permissions import ACCOUNT_STATUS_MESSAGES, DRFRolePermission, account_block_code, roles_for_module
 from .serializers import (
-    ChangeRoleSerializer, CurrentUserSerializer, LoginSerializer, RoleChoiceSerializer,
-    SignupSerializer, UserSerializer, VerifyOTPSerializer,
+    ApproveUserSerializer, ChangeRoleSerializer, CurrentUserSerializer, LoginSerializer,
+    RoleChoiceSerializer, SignupSerializer, StatusNoteSerializer, UserSerializer, VerifyOTPSerializer,
 )
 
 User = get_user_model()
 
 DetailSerializer = inline_serializer("Detail", {"detail": serializers.CharField()})
+AccountBlockedSerializer = inline_serializer("AccountBlocked", {
+    "detail": serializers.CharField(),
+    "code": serializers.ChoiceField(choices=list(ACCOUNT_STATUS_MESSAGES)),
+})
 SignupErrorSerializer = inline_serializer(
     "SignupError", {"detail": serializers.CharField(), "restart": serializers.BooleanField()}
 )
@@ -68,21 +75,55 @@ class CSRFTokenAPIView(APIView):
         return Response({"csrfToken": get_token(request)})
 
 
+class LoginAccountRateThrottle(SimpleRateThrottle):
+    """
+    Per-account login limit (on top of the per-IP "auth" limit), so a distributed
+    attack on one account is slowed down too. Keyed by a hash of the e-mail: the
+    address itself is never stored in the cache.
+    """
+    scope = "auth_account"
+
+    def get_cache_key(self, request, view):
+        email = str(request.data.get("email", "") if hasattr(request, "data") else "").strip().lower()
+        if not email:
+            return None
+        return self.cache_format % {"scope": self.scope, "ident": hashlib.sha256(email.encode()).hexdigest()}
+
+
 class LoginAPIView(_PublicAuthView):
-    @extend_schema(request=LoginSerializer, responses={200: CurrentUserSerializer, 400: DetailSerializer})
+    throttle_classes = [ScopedRateThrottle, LoginAccountRateThrottle]
+
+    @extend_schema(
+        request=LoginSerializer,
+        responses={200: CurrentUserSerializer, 400: DetailSerializer, 403: AccountBlockedSerializer},
+    )
     def post(self, request):
+        """
+        Sign in. Only approved, active accounts get a session. For a correct password
+        on a pending/rejected/suspended/disabled account, 403 with a ``code`` says
+        why (nothing is revealed without the right password).
+        """
         serializer = LoginSerializer(data=request.data)
         serializer.is_valid(raise_exception=True)
-        user = authenticate(
-            request,
-            email=serializer.validated_data["email"],
-            password=serializer.validated_data["password"],
-        )
-        # authenticate() returns None for inactive users too; don't reveal which.
+        email = serializer.validated_data["email"]
+        password = serializer.validated_data["password"]
+        user = authenticate(request, email=email, password=password)
         if user is None:
+            # Inactive accounts fail authenticate(); re-check the password without
+            # the is_active filter only to tell a disabled user why. Both backends
+            # hash once even for unknown emails, so timing doesn't reveal accounts.
+            inactive = AllowAllUsersModelBackend().authenticate(request, email=email, password=password)
+            if inactive is not None and not inactive.is_active:
+                return self._blocked("account_disabled")
             return Response({"detail": "Invalid email or password."}, status=status.HTTP_400_BAD_REQUEST)
+        if (code := account_block_code(user)) is not None:
+            return self._blocked(code)
         auth_login(request, user)
         return Response(CurrentUserSerializer(user).data)
+
+    @staticmethod
+    def _blocked(code):
+        return Response({"detail": ACCOUNT_STATUS_MESSAGES[code], "code": code}, status=status.HTTP_403_FORBIDDEN)
 
 
 class LogoutAPIView(APIView):
@@ -162,6 +203,7 @@ class SignupResendAPIView(_PublicAuthView):
     OpenApiParameter("search", str, description="Matches email or full name"),
     OpenApiParameter("role", str, enum=UserRole.values),
     OpenApiParameter("is_active", bool),
+    OpenApiParameter("account_status", str, enum=AccountStatus.values),
 ])
 class UserViewSet(viewsets.ReadOnlyModelViewSet):
     """User administration (Admin / Business Owner)."""
@@ -178,6 +220,8 @@ class UserViewSet(viewsets.ReadOnlyModelViewSet):
             qs = qs.filter(role=role)
         if (active := params.get("is_active")) in ("true", "false"):
             qs = qs.filter(is_active=active == "true")
+        if (account_status := params.get("account_status")) in AccountStatus.values:
+            qs = qs.filter(account_status=account_status)
         return qs
 
     def _get_other_user(self, request):
@@ -189,13 +233,13 @@ class UserViewSet(viewsets.ReadOnlyModelViewSet):
     @extend_schema(request=None, responses=UserSerializer)
     @action(detail=True, methods=["post"])
     def activate(self, request, pk=None):
-        user = services.activate_user(self._get_other_user(request))
+        user = services.activate_user(self._get_other_user(request), actor=request.user)
         return Response(UserSerializer(user).data)
 
     @extend_schema(request=None, responses=UserSerializer)
     @action(detail=True, methods=["post"])
     def deactivate(self, request, pk=None):
-        user = services.deactivate_user(self._get_other_user(request))
+        user = services.deactivate_user(self._get_other_user(request), actor=request.user)
         return Response(UserSerializer(user).data)
 
     @extend_schema(request=ChangeRoleSerializer, responses=UserSerializer)
@@ -204,7 +248,40 @@ class UserViewSet(viewsets.ReadOnlyModelViewSet):
         user = self._get_other_user(request)
         serializer = ChangeRoleSerializer(data=request.data)
         serializer.is_valid(raise_exception=True)
-        user = services.change_role(user, serializer.validated_data["role"])
+        user = services.change_role(user, serializer.validated_data["role"], actor=request.user)
+        return Response(UserSerializer(user).data)
+
+    # --- approval workflow (rules enforced in services.check_can_manage) -------------
+
+    @extend_schema(request=ApproveUserSerializer, responses=UserSerializer)
+    @action(detail=True, methods=["post"])
+    def approve(self, request, pk=None):
+        """Approve a pending/rejected account and grant it a role."""
+        serializer = ApproveUserSerializer(data=request.data)
+        serializer.is_valid(raise_exception=True)
+        user = services.approve_user(self._get_other_user(request), serializer.validated_data["role"], actor=request.user)
+        return Response(UserSerializer(user).data)
+
+    @extend_schema(request=StatusNoteSerializer, responses=UserSerializer)
+    @action(detail=True, methods=["post"])
+    def reject(self, request, pk=None):
+        serializer = StatusNoteSerializer(data=request.data)
+        serializer.is_valid(raise_exception=True)
+        user = services.reject_user(self._get_other_user(request), actor=request.user, note=serializer.validated_data["note"])
+        return Response(UserSerializer(user).data)
+
+    @extend_schema(request=StatusNoteSerializer, responses=UserSerializer)
+    @action(detail=True, methods=["post"])
+    def suspend(self, request, pk=None):
+        serializer = StatusNoteSerializer(data=request.data)
+        serializer.is_valid(raise_exception=True)
+        user = services.suspend_user(self._get_other_user(request), actor=request.user, note=serializer.validated_data["note"])
+        return Response(UserSerializer(user).data)
+
+    @extend_schema(request=None, responses=UserSerializer)
+    @action(detail=True, methods=["post"])
+    def reinstate(self, request, pk=None):
+        user = services.reinstate_user(self._get_other_user(request), actor=request.user)
         return Response(UserSerializer(user).data)
 
     @extend_schema(responses=RoleChoiceSerializer(many=True))

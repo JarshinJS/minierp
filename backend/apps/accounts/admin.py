@@ -9,13 +9,15 @@ from .models import User
 
 class UserAdmin(BaseUserAdmin):
     ordering = ("email",)
-    list_display = ("email", "full_name", "role", "is_active", "is_staff")
+    list_display = ("email", "full_name", "role", "account_status", "is_active", "is_staff")
     search_fields = ("email", "full_name")
-    list_filter = ("role", "is_active", "is_staff")
+    list_filter = ("account_status", "role", "is_active", "is_staff")
+    readonly_fields = ("status_changed_at", "status_changed_by", "last_login")
     
     fieldsets = (
         (None, {"fields": ("email", "password")}),
         ("Personal Info", {"fields": ("full_name", "role")}),
+        ("Approval", {"fields": ("account_status", "status_note", "status_changed_at", "status_changed_by")}),
         ("Permissions", {"fields": ("is_active", "is_staff", "is_superuser", "groups", "user_permissions")}),
         ("Important Dates", {"fields": ("last_login",)}),
     )

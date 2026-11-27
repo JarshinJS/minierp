@@ -3,12 +3,13 @@ views.py for the Blockchain app.
 
 This module contains the views logic for the Blockchain functionality.
 """
+from django.conf import settings
 from django.contrib.auth.mixins import LoginRequiredMixin
 from django.views.generic import ListView, TemplateView
 
 from apps.accounts.permissions import RoleRequiredMixin
 from .models import BlockchainDocument, BlockchainAuditLog
-from .services.web3_service import get_web3_service
+from .services.web3_service import Web3ServiceError, get_web3_service
 
 
 class BlockchainDashboardView(LoginRequiredMixin, RoleRequiredMixin, TemplateView):
@@ -17,9 +18,18 @@ class BlockchainDashboardView(LoginRequiredMixin, RoleRequiredMixin, TemplateVie
 
     def get_context_data(self, **kwargs):
         ctx = super().get_context_data(**kwargs)
-        web3_svc = get_web3_service()
-        ctx["network_info"] = web3_svc.get_network_info()
-        ctx["is_connected"] = web3_svc.is_connected()
+        try:
+            web3_svc = get_web3_service()
+            ctx["network_info"] = web3_svc.get_network_info()
+            ctx["is_connected"] = web3_svc.is_connected()
+        except Web3ServiceError:
+            # Live mode with the chain unreachable: show it as disconnected, not a 500.
+            ctx["network_info"] = {
+                "chain_id": None,
+                "network_name": getattr(settings, "BLOCKCHAIN_NETWORK_NAME", "unknown"),
+                "is_mock": False,
+            }
+            ctx["is_connected"] = False
         ctx["total_documents"] = BlockchainDocument.objects.count()
         ctx["verified_documents"] = BlockchainDocument.objects.filter(verified=True).count()
         ctx["total_audit_logs"] = BlockchainAuditLog.objects.count()

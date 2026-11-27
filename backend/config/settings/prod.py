@@ -4,7 +4,7 @@ import dj_database_url
 from django.core.exceptions import ImproperlyConfigured
 
 from .base import *  # noqa: F401,F403
-from .base import MIDDLEWARE, REST_FRAMEWORK, _csv
+from .base import MIDDLEWARE, REST_FRAMEWORK, STORAGE_BUCKET, STORAGES, _csv
 
 DEBUG = False
 
@@ -44,7 +44,11 @@ DATABASES = {
         DATABASE_URL,
         conn_max_age=int(os.getenv("DB_CONN_MAX_AGE", "60")),
         conn_health_checks=True,
-        ssl_require=os.getenv("DB_SSL_REQUIRE", "False").lower() == "true",
+        # Always TLS for Supabase, whatever DB_SSL_REQUIRE says.
+        ssl_require=(
+            os.getenv("DB_SSL_REQUIRE", "False").lower() == "true"
+            or ".supabase." in DATABASE_URL
+        ),
     )
 }
 
@@ -57,9 +61,19 @@ MIDDLEWARE = [
     *MIDDLEWARE[_security + 1 :],
 ]
 STORAGES = {
-    "default": {"BACKEND": "django.core.files.storage.FileSystemStorage"},
+    **STORAGES,
     "staticfiles": {"BACKEND": "whitenoise.storage.CompressedManifestStaticFilesStorage"},
 }
+# Production must use private object storage: Render's disk is wiped on deploy and
+# the Celery worker (a separate machine) can't read the web service's disk.
+if not STORAGE_BUCKET:
+    raise ImproperlyConfigured(
+        "STORAGE_BUCKET (private Supabase Storage / S3 bucket) must be set in production. "
+        "See docs/deployment.md, 'Document storage'."
+    )
+for _var in ("STORAGE_ACCESS_KEY_ID", "STORAGE_SECRET_ACCESS_KEY"):
+    if not os.getenv(_var):
+        raise ImproperlyConfigured(f"{_var} must be set when STORAGE_BUCKET is used.")
 
 # --- REST Framework --------------------------------------------------------------
 # No BasicAuthentication in production, to avoid sending credentials on every request.

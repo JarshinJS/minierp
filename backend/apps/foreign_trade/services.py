@@ -366,10 +366,13 @@ def upload_document(file, document_type, related_order, uploaded_by, **kwargs):
 
     title = kwargs.get("title", f"{document_type} v{next_version}")
 
+    from .validators import safe_display_name
+
     doc = TradeDocument.objects.create(
         document_type=document_type,
         title=title,
         file=file,
+        original_filename=safe_display_name(getattr(file, "name", "")),
         version=next_version,
         content_type=ct,
         object_id=related_order.id,

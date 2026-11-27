@@ -271,20 +271,20 @@ def get_intelligence_alerts():
     active_products = Product.objects.filter(is_active=True)
     low_stock = [p for p in active_products if p.available_qty <= 5]
     for p in low_stock[:2]:
-        alerts.append({"type": "warning", "text": f"Low stock: {p.name} ({p.available_qty} available)"})
+        alerts.append({"type": "warning", "text": f"Low stock: {p.name} ({p.available_qty} available)", "module": "inventory"})
     if len(low_stock) > 2:
-        alerts.append({"type": "warning", "text": f"{len(low_stock) - 2} more products are at or below the reorder level"})
+        alerts.append({"type": "warning", "text": f"{len(low_stock) - 2} more products are at or below the reorder level", "module": "inventory"})
 
     draft_pos = PurchaseOrder.objects.filter(status=PurchaseOrderStatus.DRAFT).count()
     if draft_pos:
-        alerts.append({"type": "info", "text": f"{draft_pos} draft purchase order{'s' if draft_pos != 1 else ''} awaiting confirmation"})
+        alerts.append({"type": "info", "text": f"{draft_pos} draft purchase order{'s' if draft_pos != 1 else ''} awaiting confirmation", "module": "purchase"})
 
     pending_dn = DeliveryNote.objects.filter(status=DeliveryNoteStatus.PENDING).count()
     if pending_dn:
-        alerts.append({"type": "info", "text": f"{pending_dn} delivery note{'s' if pending_dn != 1 else ''} pending dispatch"})
+        alerts.append({"type": "info", "text": f"{pending_dn} delivery note{'s' if pending_dn != 1 else ''} pending dispatch", "module": "delivery"})
 
     if not low_stock:
-        alerts.append({"type": "success", "text": "All active products are above the reorder level"})
+        alerts.append({"type": "success", "text": "All active products are above the reorder level", "module": "inventory"})
 
     return alerts[:5]
 

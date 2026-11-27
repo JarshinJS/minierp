@@ -4,7 +4,7 @@ import Link from "next/link";
 import { useParams } from "next/navigation";
 import clsx from "clsx";
 import { Badge, ErrorAlert, PageHeader, Spinner } from "@/components/ui";
-import { canAccess, useMe } from "@/lib/auth";
+import { can, canAccess, useMe } from "@/lib/auth";
 import { money, qty } from "@/lib/format";
 import { History, Pencil } from "@/lib/icons";
 import { useProduct } from "./use-product";
@@ -25,7 +25,7 @@ export default function ProductDetailPage() {
         description={<span className="inline-flex items-center gap-2">{p.category_name} · {p.unit_of_measure_display} · {p.is_active ? <Badge tone="green">Active</Badge> : <Badge>Inactive</Badge>}</span>}
         actions={<>
           {canAccess(me, "audit_logs") && <a href={`/audit/?record_type=Product&record_id=${p.id}`} className="btn btn-secondary"><History /> History</a>}
-          <Link href={`/products/${p.id}/edit/`} className="btn btn-primary"><Pencil /> Edit</Link>
+          {can(me, "products.write") && <Link href={`/products/${p.id}/edit/`} className="btn btn-primary"><Pencil /> Edit</Link>}
         </>}
       />
       <div className="grid grid-cols-1 gap-4 lg:grid-cols-3">

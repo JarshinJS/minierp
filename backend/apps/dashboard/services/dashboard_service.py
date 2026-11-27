@@ -10,12 +10,16 @@ def get_dashboard_data_for_user(user):
     Orchestrates retrieving all widgets, alerts, and recent activities
     tailored to the user's role and authorization.
     """
+    from apps.accounts.permissions import can_access_module
+
     widgets = get_allowed_widgets_for_user(user)
     alerts = get_all_alerts()
+    # Recent activity is audit-trail data: only entries from modules the user may open.
     activities = [
         serialize_recent_activity(activity)
-        for activity in get_recent_activity_queryset(limit=10)
-    ]
+        for activity in get_recent_activity_queryset(limit=50)
+        if can_access_module(user, activity.module)
+    ][:10]
     from apps.accounts.templatetags.navigation import ROLE_PERMISSIONS, NAV_ITEMS
     allowed_modules = [
         key for key in ROLE_PERMISSIONS.get(user.role, ["dashboard"])
@@ -28,6 +32,9 @@ def get_dashboard_data_for_user(user):
         "recent_activities": activities,
         "ceo_kpis": get_ceo_kpis(),
         "erp_workflow": get_erp_workflow_status(),
-        "intelligence_alerts": get_intelligence_alerts(),
+        "intelligence_alerts": [
+            alert for alert in get_intelligence_alerts()
+            if can_access_module(user, alert.get("module", "dashboard"))
+        ],
         "manufacturing_progress": get_manufacturing_progress(),
     }

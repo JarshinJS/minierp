@@ -8,6 +8,7 @@ import {
   Badge, EmptyState, ErrorAlert, Modal, PAGE_SIZE, PageHeader, Pagination, SearchInput, Spinner, TableSkeleton,
 } from "@/components/ui";
 import { api, unwrap } from "@/lib/api/client";
+import { can, useMe } from "@/lib/auth";
 import type { Schema } from "@/lib/api/types";
 import { money, qty } from "@/lib/format";
 import { Package, Pencil, Plus, Search, X, XCircle } from "@/lib/icons";
@@ -19,10 +20,10 @@ export function StockCell({ product }: { product: Product }) {
   const available = Number(product.available_qty);
   return (
     <>
-      <span className={clsx("font-semibold", available <= 0 ? "text-red-600" : available <= 5 ? "text-amber-600" : "text-slate-900")}>
+      <span className={clsx("font-semibold", available <= 0 ? "text-red-700" : available <= 5 ? "text-amber-700" : "text-slate-900")}>
         {qty(product.available_qty)}
       </span>
-      {available <= 5 && <p className={clsx("cell-sub", available <= 0 ? "text-red-500" : "text-amber-600")}>{available <= 0 ? "Out of stock" : "Low stock"}</p>}
+      {available <= 5 && <p className={clsx("cell-sub", available <= 0 ? "text-red-700" : "text-amber-700")}>{available <= 0 ? "Out of stock" : "Low stock"}</p>}
     </>
   );
 }
@@ -32,6 +33,9 @@ export function ProductList() {
   const offset = Number(filters.offset) || 0;
   const qc = useQueryClient();
   const [confirm, setConfirm] = useState<Product | null>(null);
+  // UI hint only: the API refuses catalogue changes without products.write.
+  const { data: me } = useMe();
+  const canWrite = can(me, "products.write");
 
   const categories = useQuery({
     queryKey: ["options", "categories"],
@@ -68,7 +72,7 @@ export function ProductList() {
       <PageHeader
         title="Products"
         description="Raw materials, sub-assemblies and finished furniture in your catalog."
-        actions={<Link href="/products/create/" className="btn btn-primary"><Plus /> New product</Link>}
+        actions={canWrite && <Link href="/products/create/" className="btn btn-primary"><Plus /> New product</Link>}
       />
       <div className="card">
         <div className="filter-bar" role="search">
@@ -91,7 +95,7 @@ export function ProductList() {
           filtered
             ? <EmptyState icon={Search} title="No matching products" text="Try a different search term or clear the filters." />
             : <EmptyState icon={Package} title="No products yet" text="Add your first product to start tracking stock, sales and purchases."
-                action={<Link href="/products/create/" className="btn btn-primary"><Plus /> New product</Link>} />
+                action={canWrite && <Link href="/products/create/" className="btn btn-primary"><Plus /> New product</Link>} />
         ) : (
           <div className={clsx("table-wrap transition-opacity", products.isPlaceholderData && "opacity-60")}>
             <table className="table">
@@ -123,7 +127,7 @@ export function ProductList() {
                       <td className="num hidden text-slate-500 lg:table-cell">{qty(p.on_hand_qty)}</td>
                       <td>{p.is_active ? <Badge tone="green">Active</Badge> : <Badge>Inactive</Badge>}</td>
                       <td>
-                        <div className="flex items-center justify-end gap-1">
+                        {canWrite && <div className="flex items-center justify-end gap-1">
                           <Link href={`/products/${p.id}/edit/`} className="btn btn-ghost btn-icon btn-sm" title={`Edit ${p.name}`}>
                             <span className="sr-only">Edit {p.name}</span><Pencil />
                           </Link>
@@ -133,7 +137,7 @@ export function ProductList() {
                               <span className="sr-only">Deactivate {p.name}</span><XCircle />
                             </button>
                           )}
-                        </div>
+                        </div>}
                       </td>
                     </tr>
                   ))}

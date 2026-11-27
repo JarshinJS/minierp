@@ -26,7 +26,7 @@ export default function AuthLayout({ children }: { children: React.ReactNode }) 
             ))}
           </ul>
         </div>
-        <p className="text-xs text-slate-500">MiniERP · Inventory &amp; enterprise resource planning</p>
+        <p className="text-xs text-slate-400">MiniERP · Inventory &amp; enterprise resource planning</p>
         <div className="pointer-events-none absolute -top-24 -right-24 h-72 w-72 rounded-full bg-brand-600/10 blur-3xl" aria-hidden="true" />
       </aside>
       <div className="flex items-center justify-center px-4 py-10 sm:px-8">

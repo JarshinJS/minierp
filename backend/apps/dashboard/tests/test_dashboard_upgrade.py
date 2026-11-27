@@ -73,19 +73,6 @@ class TestDashboardUpgrade:
         assert "recent_activities" in data
         assert len(data["widgets"]) == len(WIDGETS)
 
-    def test_dashboard_refresh_view(self, client):
-        user = User.objects.create_user(
-            email="refresh@example.com",
-            password="password",
-            full_name="Refresh User",
-            role=UserRole.BUSINESS_OWNER
-        )
-        client.login(email="refresh@example.com", password="password")
-        url = reverse("dashboard:refresh")
-        response = client.get(url)
-        assert response.status_code == 200
-        assert b"dashboard-live-container" in response.content
-
     def test_dashboard_analytics_api(self, client):
         user = User.objects.create_user(
             email="analytics@example.com",
@@ -94,7 +81,7 @@ class TestDashboardUpgrade:
             role=UserRole.BUSINESS_OWNER
         )
         client.login(email="analytics@example.com", password="password")
-        url = reverse("dashboard:analytics")
+        url = reverse("api:dashboard-analytics")
         response = client.get(url)
         assert response.status_code == 200
         json_data = response.json()

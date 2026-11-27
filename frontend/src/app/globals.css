@@ -201,7 +201,7 @@
   .nav-item-active::before { content: ""; @apply absolute top-1.5 bottom-1.5 -left-3 w-0.75 rounded-r bg-brand-400; }
   .nav-sub { @apply flex h-8 items-center rounded-md pr-2 pl-9 text-[13px] text-slate-400 hover:bg-white/5 hover:text-white; }
   .nav-sub-active { @apply font-medium text-white; }
-  .nav-section { @apply px-2.5 pt-4 pb-1.5 text-2xs font-semibold tracking-wider text-slate-500 uppercase; }
+  .nav-section { @apply px-2.5 pt-4 pb-1.5 text-2xs font-semibold tracking-wider text-slate-400 uppercase; }
 }
 
 @utility scrollbar-thin {

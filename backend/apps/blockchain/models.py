@@ -75,3 +75,97 @@ class BlockchainAuditLog(UUIDBaseModel, TimeStampedModel):
 
     def __str__(self):
         return f"[{self.get_event_type_display()}] {self.reference_id} @ {self.created_at:%Y-%m-%d %H:%M}"
+
+
+class MockBlockchainTransaction(models.Model):
+    """
+    Simulated on-chain transaction used when BLOCKCHAIN_MOCK_MODE is on.
+
+    Stored in the database (not process memory) so every web worker, Celery worker
+    and restart sees the same simulated ledger. Offers no tamper resistance: it is
+    for development and demos only.
+    """
+    txn_hash = models.CharField(max_length=66, unique=True)
+    input_data = models.CharField(max_length=255, help_text="Data hash submitted in the transaction")
+    status = models.PositiveSmallIntegerField(default=1)
+    created_at = models.DateTimeField(auto_now_add=True)
+
+    BLOCK_OFFSET = 1000
+
+    class Meta:
+        ordering = ["id"]
+
+    @property
+    def block_number(self):
+        return self.BLOCK_OFFSET + self.pk
+
+    def __str__(self):
+        return f"mock-tx {self.txn_hash[:12]}… (block {self.block_number})"
+
+
+class BlockchainWallet(models.Model):
+    """
+    Per-wallet nonce bookkeeping for live submissions.
+
+    Every Celery worker allocates nonces through this row (locked for the duration
+    of allocation + signing), so concurrent workers never sign two transactions
+    with the same nonce, even when the RPC node's pending count lags.
+    """
+    address = models.CharField(max_length=42, help_text="Lower-case 0x address")
+    chain_id = models.PositiveBigIntegerField()
+    next_nonce = models.PositiveBigIntegerField(default=0)
+    updated_at = models.DateTimeField(auto_now=True)
+
+    class Meta:
+        constraints = [
+            models.UniqueConstraint(fields=["address", "chain_id"], name="bc_wallet_address_chain_uniq"),
+        ]
+
+    def __str__(self):
+        return f"{self.address} (chain {self.chain_id}, next nonce {self.next_nonce})"
+
+
+class BlockchainSubmission(models.Model):
+    """
+    Idempotency record for one on-chain submission of a data hash.
+
+    The signed transaction is stored *before* it is broadcast, so a retry after a
+    crash, RPC error or receipt timeout re-sends the identical bytes (same nonce,
+    same tx hash) instead of creating a second transaction. The raw transaction
+    holds a signature, never the private key, and becomes public once broadcast.
+    """
+
+    class Status(models.TextChoices):
+        SIGNED = "SIGNED", "Signed, not yet broadcast"
+        BROADCAST = "BROADCAST", "Broadcast, awaiting receipt"
+        CONFIRMED = "CONFIRMED", "Mined successfully"
+        FAILED = "FAILED", "Reverted on-chain"
+        REPLACED = "REPLACED", "Nonce consumed by another transaction"
+
+    ACTIVE = (Status.SIGNED, Status.BROADCAST, Status.CONFIRMED)
+
+    wallet = models.ForeignKey(BlockchainWallet, on_delete=models.PROTECT, related_name="submissions")
+    data_hash = models.CharField(max_length=255, db_index=True)
+    nonce = models.PositiveBigIntegerField()
+    txn_hash = models.CharField(max_length=66, unique=True)
+    raw_transaction = models.TextField(help_text="Signed transaction, 0x hex")
+    status = models.CharField(max_length=20, choices=Status.choices, default=Status.SIGNED, db_index=True)
+    block_number = models.PositiveBigIntegerField(null=True, blank=True)
+    broadcast_attempts = models.PositiveIntegerField(default=0)
+    last_error = models.CharField(max_length=255, blank=True)
+    created_at = models.DateTimeField(auto_now_add=True)
+    updated_at = models.DateTimeField(auto_now=True)
+
+    class Meta:
+        ordering = ["wallet", "nonce"]
+        constraints = [
+            models.UniqueConstraint(fields=["wallet", "nonce"], name="bc_submission_wallet_nonce_uniq"),
+            models.UniqueConstraint(
+                fields=["wallet", "data_hash"],
+                condition=models.Q(status__in=["SIGNED", "BROADCAST", "CONFIRMED"]),
+                name="bc_submission_one_active_per_hash",
+            ),
+        ]
+
+    def __str__(self):
+        return f"{self.txn_hash[:12]}… nonce {self.nonce} [{self.status}]"

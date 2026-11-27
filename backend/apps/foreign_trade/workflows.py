@@ -1,11 +1,15 @@
 """
 Foreign-trade workflow steps: the domain service call plus its blockchain audit
 event, in one place so the HTML views and the REST API behave identically.
+
+Blockchain anchoring runs in Celery tasks after the transaction commits, never
+inside the request (a live submit waits for the transaction to be mined).
 """
 import logging
 
 from apps.blockchain.models import BlockchainAuditLog
-from apps.blockchain.services.verification_service import log_audit_event, register_document, verify_document
+from apps.blockchain.services.verification_service import verify_document
+from apps.blockchain.tasks import enqueue_audit_event, enqueue_document_registration
 from . import services
 
 logger = logging.getLogger(__name__)
@@ -13,7 +17,7 @@ Event = BlockchainAuditLog.EventType
 
 
 def _log(event_type, record, model_name, user, **metadata):
-    log_audit_event(
+    enqueue_audit_event(
         event_type=event_type, reference_id=str(record.id), reference_model=model_name,
         user=user, metadata=metadata,
     )
@@ -106,17 +110,15 @@ def cancel_import(order, user):
 # --- Documents ----------------------------------------------------------------
 
 def upload_document(order, user, file, document_type, title, notes=""):
-    """Save a new document version, then anchor it on the blockchain (best effort)."""
+    """Save a new document version, then anchor it on the blockchain in the background.
+
+    The document stays PENDING until the task registers it (and logs DOCUMENT_UPLOADED).
+    """
     doc = services.upload_document(
         file=file, document_type=document_type, related_order=order,
         uploaded_by=user, title=title, notes=notes,
     )
-    try:
-        register_document(doc)
-        _log(Event.DOCUMENT_UPLOADED, doc, "TradeDocument", user, title=doc.title, type=doc.document_type)
-    except Exception:
-        # The document is saved even if anchoring fails; it can be re-verified later.
-        logger.exception("Blockchain registration failed for document %s", doc.pk)
+    enqueue_document_registration(doc, user)
     return doc
 
 

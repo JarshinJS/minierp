@@ -68,9 +68,9 @@ def handle_shortage(product, quantity_needed, reference="", created_by=None):
 @transaction.atomic
 def create_procurement_document(trigger):
     if isinstance(trigger, (str,)):
-        trigger = ProcurementTrigger.objects.select_for_update().select_related("product", "created_by").get(pk=trigger)
+        trigger = ProcurementTrigger.objects.select_for_update(of=("self",)).select_related("product", "created_by").get(pk=trigger)
     else:
-        trigger = ProcurementTrigger.objects.select_for_update().select_related("product", "created_by").get(pk=trigger.pk)
+        trigger = ProcurementTrigger.objects.select_for_update(of=("self",)).select_related("product", "created_by").get(pk=trigger.pk)
 
     if trigger.status == ProcurementTriggerStatus.COMPLETED and trigger.document_id:
         return trigger

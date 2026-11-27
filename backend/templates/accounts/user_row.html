@@ -10,9 +10,7 @@
         </div>
     </td>
     <td>
-        {% if member == request.user %}
-        <span class="text-sm text-slate-700">{{ member.get_role_display }}</span>
-        {% else %}
+        {% if member.can_manage and member.account_status == "APPROVED" %}
         <form hx-post="{% url 'accounts:change_role' member.pk %}" hx-target="closest tr" hx-swap="outerHTML" hx-trigger="change"
               hx-confirm="Change the role of {{ member.full_name }}? Their access to modules will change immediately." data-confirm-title="Change role" data-confirm-action="Change role">
             {% csrf_token %}
@@ -21,21 +19,65 @@
                 {% for val, label in roles %}<option value="{{ val }}" {% if member.role == val %}selected{% endif %}>{{ label }}</option>{% endfor %}
             </select>
         </form>
+        {% elif member.can_manage and member.account_status == "PENDING" or member.can_manage and member.account_status == "REJECTED" %}
+        {# Role to grant on approval: chosen explicitly, never taken from the signup. #}
+        <label class="sr-only" for="grant-role-{{ member.pk }}">Role to grant {{ member.full_name }}</label>
+        <select id="grant-role-{{ member.pk }}" name="role" form="approve-{{ member.pk }}" required class="!h-8 w-full min-w-[11rem] text-xs">
+            <option value="" selected disabled>Choose a role…</option>
+            {% for val, label in roles %}<option value="{{ val }}">{{ label }}</option>{% endfor %}
+        </select>
+        {% else %}
+        <span class="text-sm text-slate-700">{% if member.account_status == "APPROVED" %}{{ member.get_role_display }}{% else %}—{% endif %}</span>
         {% endif %}
     </td>
-    <td class="hidden sm:table-cell">{% if member.is_active %}<span class="badge badge-green">Active</span>{% else %}<span class="badge badge-gray">Inactive</span>{% endif %}</td>
+    <td class="hidden sm:table-cell">
+        {% if not member.is_active %}<span class="badge badge-gray">Disabled</span>
+        {% elif member.account_status == "APPROVED" %}<span class="badge badge-green">Active</span>
+        {% elif member.account_status == "PENDING" %}<span class="badge badge-amber">Pending approval</span>
+        {% elif member.account_status == "REJECTED" %}<span class="badge badge-red">Rejected</span>
+        {% elif member.account_status == "SUSPENDED" %}<span class="badge badge-red">Suspended</span>{% endif %}
+        {% if member.status_note %}<p class="cell-sub mt-1 max-w-[14rem] truncate" title="{{ member.status_note }}">{{ member.status_note }}</p>{% endif %}
+    </td>
     <td class="hidden whitespace-nowrap text-slate-500 md:table-cell">{{ member.last_login|date:"d M Y, H:i"|default:"Never" }}</td>
     <td class="text-right">
-        {% if member != request.user %}
-        <form hx-post="{% url 'accounts:toggle_active' member.pk %}" hx-target="closest tr" hx-swap="outerHTML"
-              {% if member.is_active %}hx-confirm="Deactivate {{ member.full_name }}? They will no longer be able to sign in." data-confirm-title="Deactivate user" data-confirm-action="Deactivate"{% endif %}>
-            {% csrf_token %}
-            {% if member.is_active %}
-            <button type="submit" class="btn btn-danger-outline btn-xs">{% icon "ban" %} Deactivate</button>
-            {% else %}
-            <button type="submit" class="btn btn-secondary btn-xs">{% icon "check" %} Activate</button>
+        {% if member.can_manage %}
+        <div class="flex justify-end gap-2">
+            {% if member.account_status == "PENDING" or member.account_status == "REJECTED" %}
+            <form id="approve-{{ member.pk }}" hx-post="{% url 'accounts:user_status_action' member.pk 'approve' %}" hx-target="closest tr" hx-swap="outerHTML" hx-include="#grant-role-{{ member.pk }}">
+                {% csrf_token %}
+                <button type="submit" class="btn btn-primary btn-xs">{% icon "check" %} Approve</button>
+            </form>
             {% endif %}
-        </form>
+            {% if member.account_status == "PENDING" %}
+            <form hx-post="{% url 'accounts:user_status_action' member.pk 'reject' %}" hx-target="closest tr" hx-swap="outerHTML"
+                  hx-confirm="Reject the account request from {{ member.full_name }}?" data-confirm-title="Reject request" data-confirm-action="Reject">
+                {% csrf_token %}
+                <button type="submit" class="btn btn-danger-outline btn-xs">{% icon "x" %} Reject</button>
+            </form>
+            {% elif member.account_status == "APPROVED" %}
+            <form hx-post="{% url 'accounts:user_status_action' member.pk 'suspend' %}" hx-target="closest tr" hx-swap="outerHTML"
+                  hx-confirm="Suspend {{ member.full_name }}? They are signed out immediately." data-confirm-title="Suspend user" data-confirm-action="Suspend">
+                {% csrf_token %}
+                <button type="submit" class="btn btn-secondary btn-xs">{% icon "lock" %} Suspend</button>
+            </form>
+            {% elif member.account_status == "SUSPENDED" %}
+            <form hx-post="{% url 'accounts:user_status_action' member.pk 'reinstate' %}" hx-target="closest tr" hx-swap="outerHTML">
+                {% csrf_token %}
+                <button type="submit" class="btn btn-secondary btn-xs">{% icon "check" %} Reinstate</button>
+            </form>
+            {% endif %}
+            {% if member.account_status == "APPROVED" or member.account_status == "SUSPENDED" %}
+            <form hx-post="{% url 'accounts:toggle_active' member.pk %}" hx-target="closest tr" hx-swap="outerHTML"
+                  {% if member.is_active %}hx-confirm="Deactivate {{ member.full_name }}? They will no longer be able to sign in." data-confirm-title="Deactivate user" data-confirm-action="Deactivate"{% endif %}>
+                {% csrf_token %}
+                {% if member.is_active %}
+                <button type="submit" class="btn btn-danger-outline btn-xs">{% icon "ban" %} Deactivate</button>
+                {% else %}
+                <button type="submit" class="btn btn-secondary btn-xs">{% icon "check" %} Activate</button>
+                {% endif %}
+            </form>
+            {% endif %}
+        </div>
         {% endif %}
     </td>
 </tr>

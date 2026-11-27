@@ -1,6 +1,6 @@
 # Runtime dependencies (installed on Render). Dev/test tools: requirements-dev.txt
 Django>=5.2,<5.3
-djangorestframework>=3.15.0,<3.16.0
+djangorestframework>=3.18.2,<3.19  # >=3.18.2: fixes unauthenticated DoS CVEs (see docs/deployment.md)
 django-filter>=24.0,<25.0
 django-htmx>=1.17.0
 drf-spectacular>=0.28,<0.31
@@ -10,6 +10,8 @@ python-dotenv>=1.0.1
 requests>=2.31.0
 ollama>=0.4.0
 web3>=7.0.0
+# Private document storage (Supabase Storage via its S3-compatible API)
+django-storages[s3]>=1.14,<2
 
 # Production serving
 gunicorn>=23.0.0

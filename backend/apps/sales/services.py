@@ -64,7 +64,12 @@ def create_order(customer_name, created_by, lines_data, notes=""):
 @transaction.atomic
 def confirm_order(order):
     """
-    Confirms the order. Reserves stock. Triggers procurement if there is a shortage.
+    Confirms the order and reserves stock for every line.
+
+    Reservations may exceed on-hand stock (available goes negative); the order is
+    still confirmed and the shortage shows up in the low-stock alerts. A
+    procurement request is raised automatically only for products with
+    ``procure_on_demand`` enabled ("Procure on demand" on the product form).
     """
     if order.status != SalesOrderStatus.DRAFT:
         raise WorkflowError("Only DRAFT sales orders can be confirmed.")
@@ -72,20 +77,26 @@ def confirm_order(order):
     for line in order.lines.all():
         # 1. Reserve stock
         inventory_services.reserve_stock(line.product, line.quantity)
-        
-        # Refresh product to get the updated reserved_qty
+
+        # Refresh product to get the updated reserved_qty (and the current flag)
         product = line.product
         product.refresh_from_db()
-        
+
         # 2. Check shortage: available quantity (available_qty)
         if product.available_qty < 0:
             shortage_qty = -product.available_qty
-            procurement_services.handle_shortage(
-                product=product,
-                quantity_needed=shortage_qty,
-                reference=order.order_number,
-                created_by=order.created_by,
-            )
+            if product.procure_on_demand:
+                procurement_services.handle_shortage(
+                    product=product,
+                    quantity_needed=shortage_qty,
+                    reference=order.order_number,
+                    created_by=order.created_by,
+                )
+            else:
+                logger.info(
+                    "Shortage of %s for product %s on %s; procure on demand is off, so no "
+                    "procurement request was created.", shortage_qty, product.id, order.order_number,
+                )
             logger.info(f"Low stock alert would have been sent for product {product.id}")
 
     order.status = SalesOrderStatus.CONFIRMED

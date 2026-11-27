@@ -115,6 +115,9 @@ class TestSalesWorkflow:
     def test_sales_workflow_with_shortage(self, sales_setup):
         product = sales_setup["product"]
         user = sales_setup["user"]
+        # Automatic procurement only applies to products that opt in.
+        product.procure_on_demand = True
+        product.save(update_fields=["procure_on_demand"])
 
         # Product starts with 0.00 stock. Order 5 units -> Shortage of 5.00 units
         lines_data = [

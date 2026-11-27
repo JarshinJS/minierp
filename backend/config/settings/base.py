@@ -65,6 +65,7 @@ MIDDLEWARE = [
     "django.middleware.common.CommonMiddleware",
     "django.middleware.csrf.CsrfViewMiddleware",
     "django.contrib.auth.middleware.AuthenticationMiddleware",
+    "core.middleware.AccountStatusMiddleware",  # blocks unapproved/suspended accounts
     "django.contrib.messages.middleware.MessageMiddleware",
     "django.middleware.clickjacking.XFrameOptionsMiddleware",
     "django_htmx.middleware.HtmxMiddleware",
@@ -135,7 +136,47 @@ STATIC_ROOT = BASE_DIR / "staticfiles"
 
 # Media files
 MEDIA_URL = "media/"
-MEDIA_ROOT = BASE_DIR / "media"
+MEDIA_ROOT = BASE_DIR / "media"  # local-disk fallback; never served over HTTP
+
+# --- Document storage ------------------------------------------------------------
+# Trade documents go to PRIVATE object storage when STORAGE_BUCKET is set: Supabase
+# Storage through its S3-compatible API (or any S3-compatible store). Without it,
+# files are kept on local disk (development only). Either way there is no public
+# URL: downloads go through the authenticated, signed
+# /api/trade/documents/<id>/download/ endpoint, and the storage keys/credentials
+# never reach the browser. The web service and the Celery worker must use the same
+# bucket (the worker hashes files for blockchain anchoring).
+STORAGE_BUCKET = os.getenv("STORAGE_BUCKET", "")
+if STORAGE_BUCKET:
+    _DEFAULT_STORAGE = {
+        "BACKEND": "storages.backends.s3.S3Storage",
+        "OPTIONS": {
+            "bucket_name": STORAGE_BUCKET,
+            # Supabase: https://<project-ref>.storage.supabase.co/storage/v1/s3
+            "endpoint_url": os.getenv("STORAGE_ENDPOINT_URL") or None,
+            "region_name": os.getenv("STORAGE_REGION") or None,
+            "access_key": os.getenv("STORAGE_ACCESS_KEY_ID", ""),
+            "secret_key": os.getenv("STORAGE_SECRET_ACCESS_KEY", ""),
+            "location": os.getenv("STORAGE_PREFIX", ""),
+            "default_acl": None,        # no public-read ACLs: the bucket stays private
+            "querystring_auth": True,   # any storage URL ever generated is signed...
+            "querystring_expire": 60,   # ...and short-lived (the app doesn't hand them out)
+            "file_overwrite": False,    # never replace an existing object
+            "addressing_style": "path",
+            "signature_version": "s3v4",
+        },
+    }
+else:
+    _DEFAULT_STORAGE = {"BACKEND": "django.core.files.storage.FileSystemStorage"}
+STORAGES = {
+    "default": _DEFAULT_STORAGE,
+    "staticfiles": {"BACKEND": "django.contrib.staticfiles.storage.StaticFilesStorage"},
+}
+# Lifetime (seconds) of the signed download links in API responses.
+DOCUMENT_DOWNLOAD_URL_TTL = int(os.getenv("DOCUMENT_DOWNLOAD_URL_TTL", "300"))
+# Reject oversized request bodies early (uploads are capped at 10 MB by the validator).
+DATA_UPLOAD_MAX_MEMORY_SIZE = 2_621_440
+FILE_UPLOAD_MAX_MEMORY_SIZE = 2_621_440
 
 # Default primary key field type
 DEFAULT_AUTO_FIELD = "django.db.models.BigAutoField"
@@ -157,7 +198,10 @@ REST_FRAMEWORK = {
     "DEFAULT_SCHEMA_CLASS": "drf_spectacular.openapi.AutoSchema",
     "EXCEPTION_HANDLER": "core.api.exception_handler",
     # Only views that opt in (auth endpoints) are throttled.
-    "DEFAULT_THROTTLE_RATES": {"auth": os.getenv("AUTH_THROTTLE_RATE", "10/min")},
+    "DEFAULT_THROTTLE_RATES": {
+        "auth": os.getenv("AUTH_THROTTLE_RATE", "10/min"),                    # per client IP
+        "auth_account": os.getenv("AUTH_ACCOUNT_THROTTLE_RATE", "30/hour"),  # per login e-mail
+    },
     # Reverse proxies in front of Django, used to find the client IP for throttling.
     # Render = 1; Vercel rewrite -> Render = 2.
     "NUM_PROXIES": int(os.getenv("NUM_PROXIES", "0")) or None,
@@ -209,12 +253,28 @@ DEFAULT_FROM_EMAIL = os.getenv("DEFAULT_FROM_EMAIL", "no-reply@localhost")
 
 # Authentication Customizations
 AUTH_USER_MODEL = "accounts.User"
-LOGIN_URL = "accounts:login"
-LOGIN_REDIRECT_URL = "dashboard:home"
-LOGOUT_REDIRECT_URL = "accounts:login"
+# Login/signup pages live in the Next.js frontend, on the same domain.
+LOGIN_URL = "/login/"
+LOGIN_REDIRECT_URL = "/dashboard/"
+LOGOUT_REDIRECT_URL = "/login/"
+
+# Public URL of the Next.js frontend (no trailing slash). Used to send people who
+# hit the backend directly to pages that now live in the frontend. Optional.
+FRONTEND_URL = os.getenv("FRONTEND_URL", "").rstrip("/")
 
 # Blockchain / Web3 Configuration
 WEB3_PROVIDER_URL = os.getenv("WEB3_PROVIDER_URL", "")
 BLOCKCHAIN_WALLET_ADDRESS = os.getenv("BLOCKCHAIN_WALLET_ADDRESS", "")
 BLOCKCHAIN_NETWORK_NAME = os.getenv("BLOCKCHAIN_NETWORK_NAME", "polygon-amoy")
 BLOCKCHAIN_MOCK_MODE = os.getenv("BLOCKCHAIN_MOCK_MODE", "True").lower() == "true"
+# The wallet private key is read only from the BLOCKCHAIN_WALLET_PRIVATE_KEY env var
+# at signing time; it is deliberately not a Django setting.
+# Gas: estimate_gas() x multiplier, refused above BLOCKCHAIN_MAX_GAS.
+BLOCKCHAIN_GAS_LIMIT_MULTIPLIER = float(os.getenv("BLOCKCHAIN_GAS_LIMIT_MULTIPLIER", "1.2"))
+BLOCKCHAIN_MAX_GAS = int(os.getenv("BLOCKCHAIN_MAX_GAS", "100000"))
+# Fees (EIP-1559, in gwei). Polygon rejects priority fees below ~25 gwei. A submission
+# whose max fee would exceed the cap is refused (and retried later), not overpaid.
+BLOCKCHAIN_MIN_PRIORITY_FEE_GWEI = float(os.getenv("BLOCKCHAIN_MIN_PRIORITY_FEE_GWEI", "30"))
+BLOCKCHAIN_MAX_FEE_PER_GAS_GWEI = float(os.getenv("BLOCKCHAIN_MAX_FEE_PER_GAS_GWEI", "500"))
+# Seconds a worker waits for a receipt before giving up and retrying later.
+BLOCKCHAIN_RECEIPT_TIMEOUT = int(os.getenv("BLOCKCHAIN_RECEIPT_TIMEOUT", "120"))

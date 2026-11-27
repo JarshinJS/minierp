@@ -86,8 +86,9 @@ paths:
     post:
       operationId: auth_login_create
       description: |-
-        Unauthenticated auth endpoints. DRF skips CSRF for anonymous requests, so it
-        is enforced explicitly (prevents login-CSRF). Throttled per client IP.
+        Sign in. Only approved, active accounts get a session. For a correct password
+        on a pending/rejected/suspended/disabled account, 403 with a ``code`` says
+        why (nothing is revealed without the right password).
       tags:
       - auth
       requestBody:
@@ -118,6 +119,12 @@ paths:
             application/json:
               schema:
                 $ref: '#/components/schemas/Detail'
+          description: ''
+        '403':
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/AccountBlocked'
           description: ''
   /api/auth/logout/:
     post:
@@ -696,6 +703,9 @@ paths:
       description: |-
         API endpoint that returns real-time business metrics and transaction trends
         for visualization using Chart.js on the dashboard.
+
+        Every key is always present; a series is empty unless the user's role may
+        access the module it comes from.
       tags:
       - dashboard
       security:
@@ -712,6 +722,8 @@ paths:
   /api/dashboard/summary/:
     get:
       operationId: dashboard_summary_retrieve
+      description: 'Company-wide aggregate of every module (CEO KPIs, full activity
+        feed): owners only.'
       tags:
       - dashboard
       security:
@@ -2552,6 +2564,56 @@ paths:
               schema:
                 $ref: '#/components/schemas/TradeDocument'
           description: ''
+  /api/trade/documents/{id}/download/:
+    get:
+      operationId: trade_documents_download_retrieve
+      description: |-
+        Stream the stored file. Needs a DOCUMENT_READ role *and* the short-lived
+        token issued to this user for this document (the `file` field of the
+        document). The token is checked before the document is looked up, so a
+        bad link reveals nothing about which documents exist.
+      parameters:
+      - in: query
+        name: document_type
+        schema:
+          type: string
+      - in: path
+        name: id
+        schema:
+          type: string
+          format: uuid
+        description: A UUID string identifying this trade document.
+        required: true
+      - in: query
+        name: order_id
+        schema:
+          type: string
+      - in: query
+        name: order_type
+        schema:
+          type: string
+          enum:
+          - export
+          - import
+      - in: query
+        name: token
+        schema:
+          type: string
+        description: Signed token from the document's `file` URL
+        required: true
+      tags:
+      - trade
+      security:
+      - cookieAuth: []
+      - basicAuth: []
+      responses:
+        '200':
+          content:
+            application/octet-stream:
+              schema:
+                type: string
+                format: binary
+          description: ''
   /api/trade/documents/{id}/verify/:
     post:
       operationId: trade_documents_verify_create
@@ -3789,6 +3851,15 @@ paths:
       description: User administration (Admin / Business Owner).
       parameters:
       - in: query
+        name: account_status
+        schema:
+          type: string
+          enum:
+          - APPROVED
+          - PENDING
+          - REJECTED
+          - SUSPENDED
+      - in: query
         name: is_active
         schema:
           type: boolean
@@ -3842,6 +3913,15 @@ paths:
       operationId: users_retrieve
       description: User administration (Admin / Business Owner).
       parameters:
+      - in: query
+        name: account_status
+        schema:
+          type: string
+          enum:
+          - APPROVED
+          - PENDING
+          - REJECTED
+          - SUSPENDED
       - in: path
         name: id
         schema:
@@ -3891,6 +3971,15 @@ paths:
       operationId: users_activate_create
       description: User administration (Admin / Business Owner).
       parameters:
+      - in: query
+        name: account_status
+        schema:
+          type: string
+          enum:
+          - APPROVED
+          - PENDING
+          - REJECTED
+          - SUSPENDED
       - in: path
         name: id
         schema:
@@ -3935,11 +4024,90 @@ paths:
               schema:
                 $ref: '#/components/schemas/User'
           description: ''
+  /api/users/{id}/approve/:
+    post:
+      operationId: users_approve_create
+      description: Approve a pending/rejected account and grant it a role.
+      parameters:
+      - in: query
+        name: account_status
+        schema:
+          type: string
+          enum:
+          - APPROVED
+          - PENDING
+          - REJECTED
+          - SUSPENDED
+      - in: path
+        name: id
+        schema:
+          type: string
+          format: uuid
+        description: A UUID string identifying this user.
+        required: true
+      - in: query
+        name: is_active
+        schema:
+          type: boolean
+      - in: query
+        name: role
+        schema:
+          type: string
+          enum:
+          - ACCOUNTANT
+          - ADMIN
+          - AUDITOR
+          - BUSINESS_OWNER
+          - DOCUMENTATION_OFFICER
+          - FINANCE_MANAGER
+          - INVENTORY_MANAGER
+          - MANUFACTURING_USER
+          - PURCHASE_USER
+          - SALES_USER
+          - TRADE_MANAGER
+      - in: query
+        name: search
+        schema:
+          type: string
+        description: Matches email or full name
+      tags:
+      - users
+      requestBody:
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/ApproveUserRequest'
+          application/x-www-form-urlencoded:
+            schema:
+              $ref: '#/components/schemas/ApproveUserRequest'
+          multipart/form-data:
+            schema:
+              $ref: '#/components/schemas/ApproveUserRequest'
+        required: true
+      security:
+      - cookieAuth: []
+      - basicAuth: []
+      responses:
+        '200':
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/User'
+          description: ''
   /api/users/{id}/change-role/:
     post:
       operationId: users_change_role_create
       description: User administration (Admin / Business Owner).
       parameters:
+      - in: query
+        name: account_status
+        schema:
+          type: string
+          enum:
+          - APPROVED
+          - PENDING
+          - REJECTED
+          - SUSPENDED
       - in: path
         name: id
         schema:
@@ -4001,6 +4169,15 @@ paths:
       operationId: users_deactivate_create
       description: User administration (Admin / Business Owner).
       parameters:
+      - in: query
+        name: account_status
+        schema:
+          type: string
+          enum:
+          - APPROVED
+          - PENDING
+          - REJECTED
+          - SUSPENDED
       - in: path
         name: id
         schema:
@@ -4045,11 +4222,216 @@ paths:
               schema:
                 $ref: '#/components/schemas/User'
           description: ''
+  /api/users/{id}/reinstate/:
+    post:
+      operationId: users_reinstate_create
+      description: User administration (Admin / Business Owner).
+      parameters:
+      - in: query
+        name: account_status
+        schema:
+          type: string
+          enum:
+          - APPROVED
+          - PENDING
+          - REJECTED
+          - SUSPENDED
+      - in: path
+        name: id
+        schema:
+          type: string
+          format: uuid
+        description: A UUID string identifying this user.
+        required: true
+      - in: query
+        name: is_active
+        schema:
+          type: boolean
+      - in: query
+        name: role
+        schema:
+          type: string
+          enum:
+          - ACCOUNTANT
+          - ADMIN
+          - AUDITOR
+          - BUSINESS_OWNER
+          - DOCUMENTATION_OFFICER
+          - FINANCE_MANAGER
+          - INVENTORY_MANAGER
+          - MANUFACTURING_USER
+          - PURCHASE_USER
+          - SALES_USER
+          - TRADE_MANAGER
+      - in: query
+        name: search
+        schema:
+          type: string
+        description: Matches email or full name
+      tags:
+      - users
+      security:
+      - cookieAuth: []
+      - basicAuth: []
+      responses:
+        '200':
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/User'
+          description: ''
+  /api/users/{id}/reject/:
+    post:
+      operationId: users_reject_create
+      description: User administration (Admin / Business Owner).
+      parameters:
+      - in: query
+        name: account_status
+        schema:
+          type: string
+          enum:
+          - APPROVED
+          - PENDING
+          - REJECTED
+          - SUSPENDED
+      - in: path
+        name: id
+        schema:
+          type: string
+          format: uuid
+        description: A UUID string identifying this user.
+        required: true
+      - in: query
+        name: is_active
+        schema:
+          type: boolean
+      - in: query
+        name: role
+        schema:
+          type: string
+          enum:
+          - ACCOUNTANT
+          - ADMIN
+          - AUDITOR
+          - BUSINESS_OWNER
+          - DOCUMENTATION_OFFICER
+          - FINANCE_MANAGER
+          - INVENTORY_MANAGER
+          - MANUFACTURING_USER
+          - PURCHASE_USER
+          - SALES_USER
+          - TRADE_MANAGER
+      - in: query
+        name: search
+        schema:
+          type: string
+        description: Matches email or full name
+      tags:
+      - users
+      requestBody:
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/StatusNoteRequest'
+          application/x-www-form-urlencoded:
+            schema:
+              $ref: '#/components/schemas/StatusNoteRequest'
+          multipart/form-data:
+            schema:
+              $ref: '#/components/schemas/StatusNoteRequest'
+      security:
+      - cookieAuth: []
+      - basicAuth: []
+      responses:
+        '200':
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/User'
+          description: ''
+  /api/users/{id}/suspend/:
+    post:
+      operationId: users_suspend_create
+      description: User administration (Admin / Business Owner).
+      parameters:
+      - in: query
+        name: account_status
+        schema:
+          type: string
+          enum:
+          - APPROVED
+          - PENDING
+          - REJECTED
+          - SUSPENDED
+      - in: path
+        name: id
+        schema:
+          type: string
+          format: uuid
+        description: A UUID string identifying this user.
+        required: true
+      - in: query
+        name: is_active
+        schema:
+          type: boolean
+      - in: query
+        name: role
+        schema:
+          type: string
+          enum:
+          - ACCOUNTANT
+          - ADMIN
+          - AUDITOR
+          - BUSINESS_OWNER
+          - DOCUMENTATION_OFFICER
+          - FINANCE_MANAGER
+          - INVENTORY_MANAGER
+          - MANUFACTURING_USER
+          - PURCHASE_USER
+          - SALES_USER
+          - TRADE_MANAGER
+      - in: query
+        name: search
+        schema:
+          type: string
+        description: Matches email or full name
+      tags:
+      - users
+      requestBody:
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/StatusNoteRequest'
+          application/x-www-form-urlencoded:
+            schema:
+              $ref: '#/components/schemas/StatusNoteRequest'
+          multipart/form-data:
+            schema:
+              $ref: '#/components/schemas/StatusNoteRequest'
+      security:
+      - cookieAuth: []
+      - basicAuth: []
+      responses:
+        '200':
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/User'
+          description: ''
   /api/users/roles/:
     get:
       operationId: users_roles_list
       description: User administration (Admin / Business Owner).
       parameters:
+      - in: query
+        name: account_status
+        schema:
+          type: string
+          enum:
+          - APPROVED
+          - PENDING
+          - REJECTED
+          - SUSPENDED
       - in: query
         name: is_active
         schema:
@@ -4656,6 +5038,28 @@ paths:
           description: ''
 components:
   schemas:
+    AccountBlocked:
+      type: object
+      properties:
+        detail:
+          type: string
+        code:
+          $ref: '#/components/schemas/CodeEnum'
+      required:
+      - code
+      - detail
+    AccountStatusEnum:
+      enum:
+      - PENDING
+      - APPROVED
+      - REJECTED
+      - SUSPENDED
+      type: string
+      description: |-
+        * `PENDING` - Pending approval
+        * `APPROVED` - Approved
+        * `REJECTED` - Rejected
+        * `SUSPENDED` - Suspended
     ActionEnum:
       enum:
       - created
@@ -4682,6 +5086,14 @@ components:
       description: |-
         * `RECEIPT` - Receipt
         * `ISSUE` - Issue
+    ApproveUserRequest:
+      type: object
+      description: 'The role must be chosen when approving: signup never grants one.'
+      properties:
+        role:
+          $ref: '#/components/schemas/RoleEnum'
+      required:
+      - role
     AuditLog:
       type: object
       properties:
@@ -5089,6 +5501,18 @@ components:
           $ref: '#/components/schemas/RoleEnum'
       required:
       - role
+    CodeEnum:
+      enum:
+      - account_pending
+      - account_rejected
+      - account_suspended
+      - account_disabled
+      type: string
+      description: |-
+        * `account_pending` - account_pending
+        * `account_rejected` - account_rejected
+        * `account_suspended` - account_suspended
+        * `account_disabled` - account_disabled
     Country:
       type: object
       properties:
@@ -5200,6 +5624,22 @@ components:
         role_display:
           type: string
           readOnly: true
+        account_status:
+          allOf:
+          - $ref: '#/components/schemas/AccountStatusEnum'
+          readOnly: true
+        account_status_display:
+          type: string
+          readOnly: true
+        status_changed_at:
+          type: string
+          format: date-time
+          readOnly: true
+          nullable: true
+        status_note:
+          type: string
+          readOnly: true
+          description: Reason for rejection/suspension
         is_active:
           type: boolean
           readOnly: true
@@ -5220,7 +5660,18 @@ components:
           items:
             type: string
           readOnly: true
+        capabilities:
+          type: array
+          items:
+            type: string
+          description: |-
+            Write actions the user may perform (e.g. "products.write"). UI hints only:
+            the API enforces the same rules.
+          readOnly: true
       required:
+      - account_status
+      - account_status_display
+      - capabilities
       - created_at
       - email
       - full_name
@@ -5231,6 +5682,8 @@ components:
       - modules
       - role
       - role_display
+      - status_changed_at
+      - status_note
     CustomsStatusEnum:
       enum:
       - NOT_STARTED
@@ -5576,6 +6029,17 @@ components:
       properties:
         verified:
           type: boolean
+        outcome:
+          allOf:
+          - $ref: '#/components/schemas/OutcomeEnum'
+          description: |-
+            Result of this check. UNAVAILABLE = chain unreachable; stored status unchanged.
+
+            * `VERIFIED` - VERIFIED
+            * `TAMPERED` - TAMPERED
+            * `UNVERIFIED` - UNVERIFIED
+            * `PENDING` - PENDING
+            * `UNAVAILABLE` - UNAVAILABLE
         status:
           type: string
         message:
@@ -5595,6 +6059,7 @@ components:
           type: string
       required:
       - message
+      - outcome
       - status
       - stored_hash
       - verified
@@ -6512,6 +6977,20 @@ components:
       description: |-
         * `export` - export
         * `import` - import
+    OutcomeEnum:
+      enum:
+      - VERIFIED
+      - TAMPERED
+      - UNVERIFIED
+      - PENDING
+      - UNAVAILABLE
+      type: string
+      description: |-
+        * `VERIFIED` - VERIFIED
+        * `TAMPERED` - TAMPERED
+        * `UNVERIFIED` - UNVERIFIED
+        * `PENDING` - PENDING
+        * `UNAVAILABLE` - UNAVAILABLE
     PaginatedAuditLogList:
       type: object
       required:
@@ -8143,6 +8622,13 @@ components:
       - detail
       - email
       - expires_in
+    StatusNoteRequest:
+      type: object
+      properties:
+        note:
+          type: string
+          default: ''
+          maxLength: 500
     StockAdjustmentRequest:
       type: object
       description: 'Manual stock adjustment: RECEIPT adds stock, ISSUE removes it.'
@@ -8305,7 +8791,14 @@ components:
           maxLength: 255
         file:
           type: string
-          format: uri
+          nullable: true
+          readOnly: true
+          description: Signed download URL for the requesting user; expires after
+            DOCUMENT_DOWNLOAD_URL_TTL seconds (default 300).
+        original_filename:
+          type: string
+          readOnly: true
+          description: Uploader's filename, sanitised; display only
         version:
           type: integer
           readOnly: true
@@ -8340,6 +8833,7 @@ components:
       - id
       - order_id
       - order_type
+      - original_filename
       - title
       - uploaded_by
       - uploaded_by_name
@@ -8499,6 +8993,22 @@ components:
         role_display:
           type: string
           readOnly: true
+        account_status:
+          allOf:
+          - $ref: '#/components/schemas/AccountStatusEnum'
+          readOnly: true
+        account_status_display:
+          type: string
+          readOnly: true
+        status_changed_at:
+          type: string
+          format: date-time
+          readOnly: true
+          nullable: true
+        status_note:
+          type: string
+          readOnly: true
+          description: Reason for rejection/suspension
         is_active:
           type: boolean
           readOnly: true
@@ -8515,6 +9025,8 @@ components:
           format: date-time
           readOnly: true
       required:
+      - account_status
+      - account_status_display
       - created_at
       - email
       - full_name
@@ -8524,6 +9036,8 @@ components:
       - last_login
       - role
       - role_display
+      - status_changed_at
+      - status_note
     Vendor:
       type: object
       properties:

@@ -250,7 +250,7 @@ export default function DashboardPage() {
                           <tr key={p.sku}>
                             <td className="cell-primary">{p.name}</td>
                             <td className="cell-mono">{p.sku}</td>
-                            <td className={clsx("num font-semibold", p.available_qty <= 0 ? "text-red-600" : "text-amber-600")}>{qty(p.available_qty)}</td>
+                            <td className={clsx("num font-semibold", p.available_qty <= 0 ? "text-red-700" : "text-amber-700")}>{qty(p.available_qty)}</td>
                           </tr>
                         ))}
                       </tbody>

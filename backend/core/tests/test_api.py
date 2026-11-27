@@ -436,11 +436,15 @@ class TestProductsAPIForFrontend:
         assert row["unit_of_measure_display"] == "Pieces" and row["category_name"] == "Furniture"
         assert client.get(reverse("api:product-list"), {"status": "inactive"}).json()["count"] == 0
 
-        deactivated = client.post(reverse("api:product-deactivate", args=[product.pk])).json()
+        # Sales users read the catalogue but may not change it (products.write).
+        assert client.post(reverse("api:product-deactivate", args=[product.pk])).status_code == 403
+
+        manager = client_for(make_user(UserRole.INVENTORY_MANAGER))
+        deactivated = manager.post(reverse("api:product-deactivate", args=[product.pk])).json()
         assert deactivated["is_active"] is False
         assert client.get(reverse("api:product-list"), {"status": "inactive"}).json()["count"] == 1
         # Deactivating twice is a business-rule error, not a crash.
-        assert client.post(reverse("api:product-deactivate", args=[product.pk])).status_code == 400
+        assert manager.post(reverse("api:product-deactivate", args=[product.pk])).status_code == 400
 
 
 @pytest.mark.django_db

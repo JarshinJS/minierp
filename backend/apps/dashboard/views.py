@@ -1,57 +1,29 @@
 """
 views.py for the Dashboard app.
 
-This module contains the views logic for the Dashboard functionality.
+The dashboard page itself is served by the Next.js frontend (data from
+dashboard.api). What remains here are the JSON summary endpoint and the two
+header widgets (alerts menu, system status) used by the remaining Django pages.
 """
 from django.contrib.auth.mixins import LoginRequiredMixin
 from django.shortcuts import render
 from django.urls import reverse
 from django.views import View
-from django.views.generic import TemplateView
-from rest_framework.permissions import IsAuthenticated
+from apps.accounts.models import UserRole
+from apps.accounts.permissions import DRFRolePermission
 from rest_framework.response import Response
 from rest_framework.views import APIView
 from drf_spectacular.types import OpenApiTypes
 from drf_spectacular.utils import extend_schema
 from django.db import connection
-from django.http import HttpResponse
 
 from .selectors import get_dashboard_summary
-from apps.dashboard.services.dashboard_service import get_dashboard_data_for_user
-
-
-class DashboardHomeView(LoginRequiredMixin, TemplateView):
-    template_name = "dashboard/dashboard.html"
-
-    def get_context_data(self, **kwargs):
-        context = super().get_context_data(**kwargs)
-        data = get_dashboard_data_for_user(self.request.user)
-        context.update(data)
-        context["summary_partial_url"] = reverse("dashboard:summary_partial")
-        return context
-
-
-class DashboardRefreshView(LoginRequiredMixin, TemplateView):
-    template_name = "dashboard/partials/dashboard_live.html"
-
-    def get_context_data(self, **kwargs):
-        context = super().get_context_data(**kwargs)
-        data = get_dashboard_data_for_user(self.request.user)
-        context.update(data)
-        return context
-
-
-class DashboardSummaryPartialView(LoginRequiredMixin, TemplateView):
-    template_name = "dashboard/partials/dashboard_summary.html"
-
-    def get_context_data(self, **kwargs):
-        context = super().get_context_data(**kwargs)
-        context["summary"] = get_dashboard_summary()
-        return context
 
 
 class DashboardSummaryAPIView(APIView):
-    permission_classes = [IsAuthenticated]
+    """Company-wide aggregate of every module (CEO KPIs, full activity feed): owners only."""
+    permission_classes = [DRFRolePermission]
+    allowed_roles = [UserRole.ADMIN, UserRole.BUSINESS_OWNER]
 
     @extend_schema(responses=OpenApiTypes.OBJECT)
     def get(self, request, *args, **kwargs):

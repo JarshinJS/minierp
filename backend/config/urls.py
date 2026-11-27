@@ -1,3 +1,4 @@
+from django.conf import settings
 from django.contrib import admin
 from django.shortcuts import redirect
 from django.urls import path, include
@@ -10,7 +11,7 @@ class RootRedirectView(View):
     def get(self, request, *args, **kwargs):
         if request.user.is_authenticated:
             return redirect("dashboard:home")
-        return redirect("accounts:login")
+        return redirect(settings.LOGIN_URL)
 
 
 urlpatterns = [
@@ -33,7 +34,4 @@ urlpatterns = [
     path("blockchain/", include("apps.blockchain.urls")),
     path("users/", RedirectView.as_view(pattern_name="accounts:user_list", permanent=False)),
     path("bom/", RedirectView.as_view(pattern_name="manufacturing:bom_list", permanent=False)),
-    path("login/", RedirectView.as_view(pattern_name="accounts:login", permanent=False)),
-    path("signup/", RedirectView.as_view(pattern_name="accounts:signup", permanent=False)),
-    path("logout/", RedirectView.as_view(pattern_name="accounts:logout", permanent=False)),
 ]

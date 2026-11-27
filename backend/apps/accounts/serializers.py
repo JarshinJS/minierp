@@ -2,18 +2,20 @@ from django.contrib.auth import get_user_model
 from rest_framework import serializers
 
 from .models import UserRole
-from .permissions import MODULE_ACCESS
+from .permissions import MODULE_ACCESS, capabilities_for
 
 User = get_user_model()
 
 
 class UserSerializer(serializers.ModelSerializer):
     role_display = serializers.CharField(source="get_role_display", read_only=True)
+    account_status_display = serializers.CharField(source="get_account_status_display", read_only=True)
 
     class Meta:
         model = User
         fields = [
             "id", "email", "full_name", "role", "role_display",
+            "account_status", "account_status_display", "status_changed_at", "status_note",
             "is_active", "is_staff", "last_login", "created_at",
         ]
         read_only_fields = fields
@@ -22,10 +24,16 @@ class UserSerializer(serializers.ModelSerializer):
 class CurrentUserSerializer(UserSerializer):
     """The logged-in user plus the modules their role can access (drives the frontend menu)."""
     modules = serializers.SerializerMethodField()
+    capabilities = serializers.SerializerMethodField()
 
     class Meta(UserSerializer.Meta):
-        fields = UserSerializer.Meta.fields + ["modules"]
+        fields = UserSerializer.Meta.fields + ["modules", "capabilities"]
         read_only_fields = fields
+
+    def get_capabilities(self, user) -> list[str]:
+        """Write actions the user may perform (e.g. "products.write"). UI hints only:
+        the API enforces the same rules."""
+        return capabilities_for(user)
 
     def get_modules(self, user) -> list[str]:
         # Same rule as the sidebar: module access, narrowed by any per-item role list.
@@ -54,6 +62,15 @@ class VerifyOTPSerializer(serializers.Serializer):
 
 class ChangeRoleSerializer(serializers.Serializer):
     role = serializers.ChoiceField(choices=UserRole.choices)
+
+
+class ApproveUserSerializer(serializers.Serializer):
+    """The role must be chosen when approving: signup never grants one."""
+    role = serializers.ChoiceField(choices=UserRole.choices)
+
+
+class StatusNoteSerializer(serializers.Serializer):
+    note = serializers.CharField(max_length=500, required=False, allow_blank=True, default="")
 
 
 class RoleChoiceSerializer(serializers.Serializer):

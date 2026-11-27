@@ -81,3 +81,10 @@ serviceAccountKey.json
 client_secret*.json
 *.pem
 *.key
+
+# --- End-to-end tests (Playwright) ---
+backend/.e2e/
+frontend/test-results/
+frontend/playwright-report/
+frontend/blob-report/
+frontend/e2e/.auth/

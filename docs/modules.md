@@ -3,13 +3,13 @@
 The Mini ERP System is highly modular, split into 14 core Django applications residing in the `apps/` directory. This document outlines the purpose of each app.
 
 ## 1. Accounts (`apps/accounts`)
-Handles user authentication, authorization, and role management. Provides the custom User model and views for login/logout/signup and user listings.
+Users, roles and the account approval workflow (pending → approved/rejected/suspended). Owns the single permission map (`permissions.py`: module access and write capabilities) used by the sidebar, the Django pages and every API endpoint, and the session-based auth API (login, logout, signup with e-mailed code).
 
 ## 2. Audit Logs (`apps/audit_logs`)
 Maintains a system-wide trail of activities to ensure accountability. It tracks actions performed by users across various modules.
 
 ## 3. Blockchain (`apps/blockchain`)
-Integrates rudimentary or conceptual blockchain tracking mechanisms for logistics and supply chain transparency.
+Makes trade documents tamper-evident: SHA-256 hashes of each document version are anchored in a blockchain transaction (Polygon Amoy, or a persistent database-backed mock) by a Celery task, and verification re-hashes the stored file and compares. Also keeps a blockchain-backed audit log of key trade events. See [ADR 0004](adr/0004-blockchain-anchoring.md).
 
 ## 4. Dashboard (`apps/dashboard`)
 Serves as the Control Center of the ERP. Provides real-time overview metrics, KPI charts, and status alerts aggregating data from other modules.

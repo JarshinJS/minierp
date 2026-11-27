@@ -36,7 +36,10 @@ for CSRF.
 | Command | What it does |
 |---|---|
 | `npm run dev` / `build` / `start` | Next.js |
-| `npm run lint`, `npm run typecheck` | ESLint, TypeScript |
+| `npm run lint`, `npm run typecheck`, `npm test` | ESLint, TypeScript, unit tests |
+| `npm run e2e` | Playwright end-to-end suite; starts Django + Next.js itself on a throwaway seeded database ([docs/testing.md](../docs/testing.md)) |
+| `npm run e2e:ui`, `npm run e2e:report` | Interactive Playwright mode; open the last HTML report |
+| `npm run e2e:screenshots` | Regenerate the README screenshots in `docs/images/` |
 | `npm run api` | Regenerate `openapi.yaml` from Django and the TS types in `src/lib/api/schema.d.ts` (needs the backend virtualenv active). Run after any API change. |
 
 ## Code map
@@ -55,10 +58,10 @@ for CSRF.
 
 | Module | Status |
 |---|---|
-| Login, signup + email verification | ✅ Next.js |
-| Dashboard | ✅ Next.js |
-| Products (list, detail, create, edit, deactivate) | ✅ Next.js |
-| Inventory (stock, ledger, adjustments) | ✅ Next.js |
+| Login, signup + email verification | ✅ Next.js (Django templates removed) |
+| Dashboard | ✅ Next.js (Django templates removed) |
+| Products (list, detail, create, edit, deactivate) | ✅ Next.js (Django templates removed) |
+| Inventory (stock, ledger, adjustments) | ✅ Next.js (Django templates removed) |
 | Sales, Purchase, Procurement, Manufacturing, Delivery | ⏳ Django (proxied) |
 | Foreign Trade, Blockchain, Reports, Audit Logs, Users & Roles | ⏳ Django (proxied) |
 | Voice assistant | ⏳ Django pages only |
@@ -73,6 +76,9 @@ for CSRF.
 5. Verify against the running backend: list, filters, create/edit (including
    server validation errors), each workflow action, and a role that must be denied.
 6. `npm run lint && npm run typecheck && npm run build`.
+7. Delete the module's Django templates and HTML views. Keep its URL names, pointed
+   at `core.views.FrontendPageView`, so the remaining Django pages can still
+   `{% url %}` them. See `backend/apps/products/urls.py` for an example.
 
-Once every module is migrated, remove the `fallback` rewrites and the Django
-templates.
+Once every module is migrated, remove the `fallback` rewrites, `base.html` and
+`components/`.

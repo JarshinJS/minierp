@@ -1,1 +1,5 @@
-{% load ui %}{% if result.verified %}<span class="badge badge-green badge-plain">{% icon "check-circle" "h-3 w-3" %} Hash verified</span>{% else %}<span class="badge badge-red badge-plain">{% icon "alert" "h-3 w-3" %} Tampered</span>{% endif %}
+{% load ui %}{% comment %}
+Result of POST /trade/documents/<pk>/verify/ (swapped into the document row).
+result.outcome: VERIFIED | TAMPERED | UNVERIFIED | PENDING | UNAVAILABLE
+The full explanation is in the tooltip / screen-reader text; the badge stays compact.
+{% endcomment %}{% with o=result.outcome %}<span role="status" title="{{ result.message }}">{% if o == "VERIFIED" %}<span class="badge badge-green badge-plain">{% icon "file-check" "h-3 w-3" %} Verified</span>{% elif o == "TAMPERED" %}<span class="badge badge-red badge-plain">{% icon "x" "h-3 w-3" %} Tampered</span>{% elif o == "PENDING" %}<span class="badge badge-blue badge-plain">{% icon "clock" "h-3 w-3" %} Registration pending</span>{% elif o == "UNAVAILABLE" %}<span class="badge badge-amber badge-plain">{% icon "refresh" "h-3 w-3" %} Network unavailable, try again</span>{% else %}<span class="badge badge-gray badge-plain">{% icon "ban" "h-3 w-3" %} Unverified</span>{% endif %}<span class="sr-only"> {{ result.message }}</span></span>{% endwith %}

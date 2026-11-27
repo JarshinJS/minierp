@@ -27,6 +27,19 @@ class UserRole(models.TextChoices):
 
 
 
+class AccountStatus(models.TextChoices):
+    """
+    Approval state of an account, independent of the role.
+
+    Only APPROVED (and is_active) accounts may use the ERP. Self-registered
+    accounts start PENDING until an administrator approves or rejects them.
+    """
+    PENDING = "PENDING", "Pending approval"
+    APPROVED = "APPROVED", "Approved"
+    REJECTED = "REJECTED", "Rejected"
+    SUSPENDED = "SUSPENDED", "Suspended"
+
+
 class UserManager(BaseUserManager):
     """
     Custom user manager that uses email as the unique identifier
@@ -38,6 +51,11 @@ class UserManager(BaseUserManager):
         email = self.normalize_email(email)
         extra_fields.setdefault("is_active", True)
         extra_fields.setdefault("role", UserRole.SALES_USER)
+        # Trusted, programmatic creation (createsuperuser, management commands,
+        # admin tooling, tests) is approved. Self-service signup passes
+        # account_status=PENDING explicitly; the model default is PENDING too, so
+        # any other path (e.g. a ModelForm) starts unapproved.
+        extra_fields.setdefault("account_status", AccountStatus.APPROVED)
         user = self.model(email=email, **extra_fields)
         user.set_password(password)
         user.save(using=self._db)
@@ -70,6 +88,14 @@ class User(AbstractBaseUser, PermissionsMixin, UUIDBaseModel, TimeStampedModel):
     )
     is_staff = models.BooleanField(default=False)
     is_active = models.BooleanField(default=True)
+    account_status = models.CharField(
+        max_length=20, choices=AccountStatus.choices, default=AccountStatus.PENDING, db_index=True,
+    )
+    status_changed_at = models.DateTimeField(null=True, blank=True)
+    status_changed_by = models.ForeignKey(
+        "self", null=True, blank=True, on_delete=models.SET_NULL, related_name="+",
+    )
+    status_note = models.CharField(max_length=500, blank=True, help_text="Reason for rejection/suspension")
 
     objects = UserManager()
 
@@ -78,3 +104,8 @@ class User(AbstractBaseUser, PermissionsMixin, UUIDBaseModel, TimeStampedModel):
 
     def __str__(self):
         return f"{self.full_name} ({self.email})"
+
+    @property
+    def is_approved(self):
+        """True only for active, approved accounts: the gate for every ERP feature."""
+        return self.is_active and self.account_status == AccountStatus.APPROVED

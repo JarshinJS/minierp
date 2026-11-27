@@ -2,7 +2,33 @@ from django.contrib.auth.mixins import AccessMixin
 from django.core.exceptions import PermissionDenied
 from rest_framework import permissions
 
-from .models import UserRole
+from .models import AccountStatus, UserRole
+
+# Machine-readable reasons an authenticated account may not use the ERP. Shared by
+# the login API, the account-status middleware and the frontend.
+ACCOUNT_STATUS_MESSAGES = {
+    "account_pending": "Your account is waiting for an administrator's approval.",
+    "account_rejected": "Your account request was not approved. Contact an administrator.",
+    "account_suspended": "Your account is suspended. Contact an administrator.",
+    "account_disabled": "Your account is disabled. Contact an administrator.",
+}
+
+
+def account_block_code(user):
+    """None if ``user`` may use the ERP, otherwise one of ACCOUNT_STATUS_MESSAGES' keys."""
+    if not user.is_active:
+        return "account_disabled"
+    return {
+        AccountStatus.APPROVED: None,
+        AccountStatus.PENDING: "account_pending",
+        AccountStatus.REJECTED: "account_rejected",
+        AccountStatus.SUSPENDED: "account_suspended",
+    }.get(user.account_status, "account_pending")
+
+
+def is_approved_user(user):
+    """Authenticated, active and approved. Required for every ERP feature."""
+    return bool(user and user.is_authenticated and getattr(user, "is_approved", False))
 
 # Single source of truth for which roles may use which module. The sidebar,
 # the HTML views (via RoleRequiredMixin) and the DRF APIs (via
@@ -22,14 +48,39 @@ MODULE_ACCESS = {
 }
 
 
+# Write/privileged actions that are narrower than module (read) access. Module
+# access lets a role *see* a module; these say who may change things in it.
+CAPABILITY_ROLES = {
+    # Catalogue master data (names, SKUs, prices, categories).
+    "products.write": [UserRole.ADMIN, UserRole.BUSINESS_OWNER, UserRole.INVENTORY_MANAGER, UserRole.PURCHASE_USER],
+    # Manual stock receipts/issues outside an order.
+    "inventory.adjust": [UserRole.ADMIN, UserRole.BUSINESS_OWNER, UserRole.INVENTORY_MANAGER],
+    # Approve, reject, suspend, activate users and change roles (privileged
+    # targets/roles further restricted to Admin in accounts.services).
+    "accounts.manage": [UserRole.ADMIN, UserRole.BUSINESS_OWNER],
+}
+
+
+def roles_for_capability(capability):
+    return list(CAPABILITY_ROLES[capability])
+
+
+def has_capability(user, capability):
+    return is_approved_user(user) and user.role in CAPABILITY_ROLES[capability]
+
+
+def capabilities_for(user):
+    return [c for c in CAPABILITY_ROLES if has_capability(user, c)]
+
+
 def roles_for_module(module):
     """Return the list of roles allowed to access ``module``."""
     return [role for role, modules in MODULE_ACCESS.items() if module in modules]
 
 
 def can_access_module(user, module):
-    """True if ``user`` is authenticated and their role grants ``module``."""
-    if not user or not user.is_authenticated:
+    """True if ``user`` is an approved account and their role grants ``module``."""
+    if not is_approved_user(user):
         return False
     if user.role == UserRole.ADMIN:
         return True
@@ -45,7 +96,9 @@ class RoleRequiredMixin(AccessMixin):
     def dispatch(self, request, *args, **kwargs):
         if not request.user.is_authenticated:
             return self.handle_no_permission()
-            
+        if not is_approved_user(request.user):
+            raise PermissionDenied(ACCOUNT_STATUS_MESSAGES[account_block_code(request.user)])
+
         # If allowed_roles is not configured, deny by default to be secure
         if not self.allowed_roles:
             raise PermissionDenied("View permission configuration missing.")
@@ -69,7 +122,7 @@ class DRFRolePermission(permissions.BasePermission):
     If none is configured, access is denied.
     """
     def has_permission(self, request, view):
-        if not request.user or not request.user.is_authenticated:
+        if not is_approved_user(request.user):
             return False
 
         # ADMIN bypasses all role constraints
@@ -92,3 +145,11 @@ class DRFRolePermission(permissions.BasePermission):
         if read_roles is not None and request.method in permissions.SAFE_METHODS:
             return read_roles
         return getattr(view, "allowed_roles", None)
+
+
+class IsApprovedUser(permissions.BasePermission):
+    """Authenticated + active + APPROVED. Use instead of IsAuthenticated for ERP data."""
+    message = "Your account is not approved to use the ERP."
+
+    def has_permission(self, request, view):
+        return is_approved_user(request.user)
